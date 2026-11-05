@@ -7,35 +7,102 @@ description: Create, inspect, and export parametric CAD models (BRep and CSG) wi
 
 This skill explains how to use the **vcad** MCP server (`@vcad/mcp`). The server runs a BRep kernel in Rust and WASM. It builds exact models and exports them to `.glb` (for Blender and Three.js) or `.stl`.
 
+## Where the API reference lives
+
+There is **no published documentation for the running build**. Read this before you trust a URL.
+
+| Source | Version | Use |
+| :--- | :--- | :--- |
+| `reference/server-instructions-*.md` in this skill | the installed build | **authoritative**: type catalog, materials, transform semantics |
+| `reference/tools-*.md` in this skill | the installed build | **authoritative**: 186 tool names, required arguments |
+| The server at runtime | the installed build | ask `initialize` for `instructions`, `tools/list` for schemas |
+| https://docs.vcad.io/reference/mcp | **v0.8.0** | stale by three minor versions. Use for concepts only |
+| https://github.com/muni-works/vcad/blob/main/packages/mcp/README.md | `main` | closest public prose, still ahead of the site |
+
+The repository has no tag above `v0.9.4`, no release above `v0.9.4`, and the changelog tool reports
+"Current version: 0.10.0" while the server reports `0.11.0-main.<n>`. The build is a development
+snapshot of `main`, so the site lags it and contradicts it.
+
+Two contradictions to know about, both verified on the installed build:
+
+- `create_cad_document` is **absent**. The v0.8.0 site calls it the primary tool. The tools index
+  in this skill has no such entry.
+- `create_cad_loon` **exists but cannot evaluate** here: it answers
+  `Loon evaluation not supported by this engine build`. Author with `open_document` then `create`
+  instead.
+
+To refresh the reference after a server upgrade, capture it from the server itself: send
+`initialize` and `tools/list` over stdio, and copy `result.instructions` and
+`result.tools[].inputSchema`. Write the new `server-instructions-<version>.md` and
+`tools-<version>.md`, and delete the old pair so only one version stays in the skill.
+
+Two cautions that cost time if you skip them:
+
+- **Loon is not VCode.** Loon is the S-expression source (`[cube 50 30 5]`). VCode is the
+  line-based IR serialization (`C 50 30 5`). If you see single-letter opcodes, you read VCode.
+- **`loonlang.com` is a different language.** It documents an unrelated functional language, not
+  the vcad CAD vocabulary. The vcad vocabulary is the type catalog in the server instructions.
+
+## Tool argument contract
+
+These are the exact JSON arguments on the installed build. A different field name is rejected, and
+vcad then lists `accepted_arguments`, so read that list rather than retrying with a guess.
+
+| Tool | Arguments |
+| :--- | :--- |
+| `open_document` | none required. Returns `document_id` |
+| `create` | `document_id`, `type`, `params`, `name` (recommended), `parent_part_id` |
+| `create_cad_loon` | `source`, `document_id`, `use_loons`, `loons`, `base_dir`, `modules`, `format`. **Cannot evaluate on this build.** |
+| `inspect_cad` | `document_id` |
+| `export_cad` | `document_id` or `ir`, plus `filename` ending `.stl` or `.glb` |
+| `render_view` | `document_id` |
+
+`create` is the workhorse here: one call per feature node. `params` follows the Type Catalog in the
+server instructions, for example `cube: {size:{x,y,z}}`, `cylinder: {radius,height}`,
+`translate: {child, offset}`. Read that catalog before you invent a parameter.
+
+`translate`, `rotate`, `scale` and `mirror` **wrap an existing part**: the returned `part_id` is the
+same id you passed in `params.child`. Rotations act around the world origin, not the part center, so
+create the geometry at the origin, rotate it, then translate it.
+
 ## Core workflow
 
-1. **Open a document.** Call `open_document`, or let the first authoring call create one.
-2. **Author the part.** Call `create_cad_loon` with the full model, or call `create` / `update` / `delete` for one node at a time.
-3. **Look at the result.** Call `render_view` for an isometric PNG.
-4. **Measure the result.** Call `inspect_cad` for the document, or `inspect_part` / `describe_scene` for each part.
-5. **Ship the result.** Call `export_cad` for STL, GLB, or STEP, or call `open_in_browser` for a vcad.io link.
+1. **Open a session.** `open_document` returns a `document_id`. Every later call takes it.
+2. **Author one node at a time.** `create` with `type` and `params`. Name each feature.
+3. **Look at the result.** `render_view` for an isometric PNG.
+4. **Measure.** `inspect_cad` for volume and bbox, or read the `integrity` block that every
+   `create` call already returns: `bounding_box`, `volume_mm3`, `watertight`, `open_edges`.
+5. **Ship.** `export_cad` with an absolute `filename`.
+
+The `integrity` block makes the L0 and L1 gates cheap: a wrong transform shows up in `bounding_box`
+on the same call that created the part, before any render.
 
 ## Main tools
 
 | Tool | Purpose |
 | :--- | :--- |
-| `create_cad_loon` | Build geometry with the compact **Loon** language. Use this for models with several booleans, fillets, or patterns. |
-| `create_cad_document` | Build geometry from a JSON document. Use this for simple parts and assemblies. |
-| `create` / `update` / `delete` | Change one node and keep the rest of the document. |
+| `open_document` | Open a session. Returns the `document_id` every other call needs. |
+| `create` | **The authoring tool on this build.** Add one feature node: primitive, boolean, transform, sketch, extrude, pattern, fillet. |
+| `update` / `delete` | Patch one node's parameters, or remove a part. |
+| `create_cad_loon` | Loon authoring. Present but **non-functional on this build**. |
 | `render_view` | Render an isometric PNG of the current model. |
 | `inspect_cad` | Return the volume, the area, the bounding box, and the center of mass of the document. |
 | `inspect_part` / `describe_scene` | Return the bounding box, size, center, and material of one part, or of all parts. |
 | `measure` | Return the distance or the overlap between two parts. |
 | `set_material` | Apply a material preset to a part. |
-| `export_cad` | Export to `.stl`, `.glb`, or `.step`. |
+| `export_cad` | Export to `.stl` or `.glb`. STEP goes through `export_step`, which this build does not carry. |
 | `open_in_browser` | Return a vcad.io deep link for the document. |
 
 ## Coordinate system and primitive origins
 
-All dimensions are in the **design unit**. The default is millimeters. Use meters for
-human-scale assets such as characters, vehicles, and levels. Read section 3.5 of
+The kernel and the exporters work in **millimeters**. `inspect_cad` reports `volume_mm3`, and STL
+and GLB carry no unit field, so a file exported from vcad is in mm by convention. Author
+human-scale assets in mm too (`3520` for a 3.52 m car body), and scale once at the Blender or
+Three.js step. Do not author in meters and hope the exporter guesses.
+
+The axes are **+X right, +Y forward, +Z up**. Read section 3.5 of
 [`research/progressive-volume-modeling.md`](../../../research/progressive-volume-modeling.md) before the
-first primitive. The axes are **+X right, +Y forward, +Z up**.
+first primitive.
 
 | Primitive | Origin `(0, 0, 0)` | Extent | Loon syntax |
 | :--- | :--- | :--- | :--- |
@@ -50,6 +117,10 @@ first primitive. The axes are **+X right, +Y forward, +Z up**.
 The cube origin is a corner. To center a cube on the X and Y axes, translate it by `(-sx/2, -sy/2, 0)`.
 
 ## Loon in short
+
+**Status on this build: reference only.** `create_cad_loon` answers
+`Loon evaluation not supported by this engine build`. Read this section to understand the shapes
+and the vocabulary, and author with `create` instead.
 
 Loon uses square brackets: `[operator arg1 arg2 ...]`.
 
@@ -116,9 +187,17 @@ Materials: `aluminum`, `steel`, `brass`, `copper`, `chrome`, `abs-white`, `abs-b
 [root robot "steel"]
 ```
 
-## JSON documents
+## Feature nodes with `create`
 
-Use `create_cad_document` for parts with positioned holes, extruded sketches, or assemblies.
+`create` is the authoring entry point on this build. One call adds one node:
+
+```json
+{ "document_id": "doc_...", "type": "cube",
+  "params": { "size": { "x": 1530, "y": 3520, "z": 1410 } }, "name": "Envelope" }
+```
+
+The node types and their `params` are the Type Catalog in this skill's
+`reference/server-instructions-*.md`. Position formats for the operations that accept an `at`:
 
 Position formats for `at`:
 1. **Absolute (mm):** `{"x": 25, "y": 15, "z": 0}`

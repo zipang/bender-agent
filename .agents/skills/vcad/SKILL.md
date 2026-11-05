@@ -5,237 +5,276 @@ description: Create, inspect, and export parametric CAD models (BRep and CSG) wi
 
 # vcad — Parametric CAD for AI Agents
 
-This skill explains how to use the **vcad** MCP server (`@vcad/mcp`). The server runs a BRep kernel in Rust and WASM. It builds exact models and exports them to `.glb` (for Blender and Three.js) or `.stl`.
+This skill explains how to use the **vcad** MCP server (`@vcad/mcp`). The server runs a BRep kernel
+in Rust and WASM. It builds exact models and exports them to `.glb` (for Blender and Three.js) or
+`.stl`.
 
-## Where the API reference lives
+**Read this skill as a contract, not as a wish.** It records what the installed server actually
+does, verified by calling it. The published documentation is not a usable source: whatever a page
+says, the behaviour below is what happens.
 
-There is **no published documentation for the running build**. Read this before you trust a URL.
+## The only two references
 
-| Source | Version | Use |
-| :--- | :--- | :--- |
-| `reference/server-instructions-*.md` in this skill | the installed build | **authoritative**: type catalog, materials, transform semantics |
-| `reference/tools-*.md` in this skill | the installed build | **authoritative**: 186 tool names, required arguments |
-| The server at runtime | the installed build | ask `initialize` for `instructions`, `tools/list` for schemas |
-| https://docs.vcad.io/reference/mcp | **v0.8.0** | stale by three minor versions. Use for concepts only |
-| https://github.com/muni-works/vcad/blob/main/packages/mcp/README.md | `main` | closest public prose, still ahead of the site |
-
-The repository has no tag above `v0.9.4`, no release above `v0.9.4`, and the changelog tool reports
-"Current version: 0.10.0" while the server reports `0.11.0-main.<n>`. The build is a development
-snapshot of `main`, so the site lags it and contradicts it.
-
-Two contradictions to know about, both verified on the installed build:
-
-- `create_cad_document` is **absent**. The v0.8.0 site calls it the primary tool. The tools index
-  in this skill has no such entry.
-- `create_cad_loon` **exists but cannot evaluate** here: it answers
-  `Loon evaluation not supported by this engine build`. Author with `open_document` then `create`
-  instead.
-
-To refresh the reference after a server upgrade, capture it from the server itself: send
-`initialize` and `tools/list` over stdio, and copy `result.instructions` and
-`result.tools[].inputSchema`. Write the new `server-instructions-<version>.md` and
-`tools-<version>.md`, and delete the old pair so only one version stays in the skill.
-
-Two cautions that cost time if you skip them:
-
-- **Loon is not VCode.** Loon is the S-expression source (`[cube 50 30 5]`). VCode is the
-  line-based IR serialization (`C 50 30 5`). If you see single-letter opcodes, you read VCode.
-- **`loonlang.com` is a different language.** It documents an unrelated functional language, not
-  the vcad CAD vocabulary. The vcad vocabulary is the type catalog in the server instructions.
-
-## Tool argument contract
-
-These are the exact JSON arguments on the installed build. A different field name is rejected, and
-vcad then lists `accepted_arguments`, so read that list rather than retrying with a guess.
-
-| Tool | Arguments |
+| Source | What it gives |
 | :--- | :--- |
-| `open_document` | none required. Returns `document_id` |
-| `create` | `document_id`, `type`, `params`, `name` (recommended), `parent_part_id` |
-| `create_cad_loon` | `source`, `document_id`, `use_loons`, `loons`, `base_dir`, `modules`, `format`. **Cannot evaluate on this build.** |
-| `inspect_cad` | `document_id` |
-| `export_cad` | `document_id` or `ir`, plus `filename` ending `.stl` or `.glb` |
-| `render_view` | `document_id` |
+| `reference/server-instructions-<version>.md` | The type catalog, the material keys, and the transform semantics, as emitted by the kernel registry at boot |
+| `reference/tools-<version>.md` | The 186 tool names with their required arguments |
 
-`create` is the workhorse here: one call per feature node. `params` follows the Type Catalog in the
-server instructions, for example `cube: {size:{x,y,z}}`, `cylinder: {radius,height}`,
-`translate: {child, offset}`. Read that catalog before you invent a parameter.
+Both are captured from the running server, and both carry the server version in their file name.
+They are the API. Nothing else is.
 
-`translate`, `rotate`, `scale` and `mirror` **wrap an existing part**: the returned `part_id` is the
-same id you passed in `params.child`. Rotations act around the world origin, not the part center, so
-create the geometry at the origin, rotate it, then translate it.
+To refresh them after a server upgrade, send `initialize` and `tools/list` over stdio and copy
+`result.instructions` and `result.tools[].inputSchema`. Write the new `<version>` pair and delete
+the old one, so exactly one version stays in the skill.
+
+Do not consult the project documentation site: it serves a build several minor versions behind,
+and three of its statements are false on the installed server (see the divergences below).
+Do not consult `loonlang.com`: it documents an unrelated functional language, not this vocabulary.
+
+## Status of this build
+
+| Fact | Value |
+| :--- | :--- |
+| Server version | `0.11.0-main.138+2df8f6d` |
+| Tools exposed | 186 |
+| Authoring tool that works | `create` |
+| `create_cad_document` | **absent from the server** |
+| `create_cad_loon` | present, but answers `Loon evaluation not supported by this engine build` |
+| `export_step` | absent; `export_cad` writes `.stl` and `.glb` only |
+
+The build is a development snapshot. Treat it as an evaluation target: capable, but uneven.
 
 ## Core workflow
 
 1. **Open a session.** `open_document` returns a `document_id`. Every later call takes it.
-2. **Author one node at a time.** `create` with `type` and `params`. Name each feature.
-3. **Look at the result.** `render_view` for an isometric PNG.
-4. **Measure.** `inspect_cad` for volume and bbox, or read the `integrity` block that every
-   `create` call already returns: `bounding_box`, `volume_mm3`, `watertight`, `open_edges`.
-5. **Ship.** `export_cad` with an absolute `filename`.
+2. **Author one node at a time.** `create` with `type` and `params`. Always pass `name`.
+3. **Measure per part.** `describe_scene` returns the bbox of every part in one call.
+4. **Look.** `render_view` returns an isometric PNG.
+5. **Ship.** `export_cad` with a **relative** filename.
+6. **Verify.** `bunx @gltf-transform/cli inspect <file>.glb`, then check the triangle count.
 
-The `integrity` block makes the L0 and L1 gates cheap: a wrong transform shows up in `bounding_box`
-on the same call that created the part, before any render.
+## Tool argument contract
 
-## Main tools
+A wrong field name is rejected, and the error carries `accepted_arguments`. Read that list; do not
+retry with another guess.
 
-| Tool | Purpose |
+| Tool | Arguments |
 | :--- | :--- |
-| `open_document` | Open a session. Returns the `document_id` every other call needs. |
-| `create` | **The authoring tool on this build.** Add one feature node: primitive, boolean, transform, sketch, extrude, pattern, fillet. |
-| `update` / `delete` | Patch one node's parameters, or remove a part. |
-| `create_cad_loon` | Loon authoring. Present but **non-functional on this build**. |
-| `render_view` | Render an isometric PNG of the current model. |
-| `inspect_cad` | Return the volume, the area, the bounding box, and the center of mass of the document. |
-| `inspect_part` / `describe_scene` | Return the bounding box, size, center, and material of one part, or of all parts. |
-| `measure` | Return the distance or the overlap between two parts. |
-| `set_material` | Apply a material preset to a part. |
-| `export_cad` | Export to `.stl` or `.glb`. STEP goes through `export_step`, which this build does not carry. |
-| `open_in_browser` | Return a vcad.io deep link for the document. |
+| `open_document` | none required. Returns `document_id` |
+| `create` | `document_id`, `type`, `params`, `name`, `parent_part_id` |
+| `update` | `document_id`, `node_id`, `params` |
+| `delete` | `document_id`, `part_id` |
+| `set_material` | `document_id`, `part_id`, `material` |
+| `read` | `document_id`, `part_id` (optional). Lists parts, or dumps one feature tree |
+| `describe_scene` | `document_id`, `part_ids`, `limit` |
+| `inspect_part` | `document_id`, `part_id` |
+| `inspect_cad` | `document_id` |
+| `render_view` | `document_id`, `azimuth`, `elevation`, `view`, `width_px`, `style` |
+| `export_cad` | `document_id` or `ir`, plus `filename` |
+| `export_step` | **does not exist on this build** |
+| `create_cad_loon` | `source`, `document_id`, `use_loons`, `loons`, `base_dir`, `modules`, `format` |
+
+`create` is the workhorse. `params` follows the type catalog in
+`reference/server-instructions-*.md`, for example `cube: {size:{x,y,z}}`,
+`cylinder: {radius,height}`, `translate: {child, offset}`, `rotate: {child, angles}`.
+
+## Field-tested behaviour — read before you trust the instructions
+
+These eight points were measured on the installed build. Several contradict the server's own
+`instructions` text. When they disagree, the behaviour wins.
+
+### 1. A transform REPLACES the previous one, it does not wrap it
+
+The server instructions say `translate` / `rotate` / `scale` "WRAPS the existing part in place".
+They do not stack. Measured on a single cube:
+
+| Call | Result |
+| :--- | :--- |
+| `translate(cube, +500 X)` | centre `x = 550` ✓ |
+| then `translate(same part, +300 Y)` | centre `x = 50, y = 350` ✗ |
+
+The first offset is gone. The feature tree holds one `Translate` node, which is rewritten.
+
+**Consequence:** one part carries **one** offset. To move a part twice, compute the final offset
+and send it once, or use `update` on the existing node. If you chain two `translate` calls, the
+second silently teleports the part to its local origin plus the new offset.
+
+### 2. Every primitive is auto-wrapped in Scale, Rotate, Translate
+
+`read` on a fresh part shows four nodes: the primitive, then `Scale` (factor 1,1,1), then `Rotate`
+(angles 0,0,0), then `Translate` (offset 0,0,0). That wrapper is what the transforms rewrite.
+
+`update` takes the **`node_id`** of the wrapper (for example `"8"`), not the `part_id` (`"0:1"`).
+And `params` accepts only the fields of that node's own operation: passing `child` is rejected with
+`` `child` is not a parameter of this part ``.
+
+### 3. `integrity` describes the whole document, not the new part
+
+Every `create` returns an `integrity` block with `bounding_box`, `volume_mm3`, `watertight`,
+`open_edges`. That bbox is the **document** envelope. Reading it as the new part's bbox hides
+placement bugs. Use `describe_scene` for a per-part bbox.
+
+### 4. `part_id` is `"<root>:<index>"`, and it is not predictable
+
+The id is `0:0`, `0:1`, `0:2` … in creation order. It is **not** the node id, and it is not derived
+from the name. Never write a literal `"1:0"` for the second part: read `create`'s `part_id` from its
+return value, or call `read` to list the parts.
+
+### 5. `export_cad` accepts only a relative filename
+
+The server refuses an absolute path:
+
+```
+Invalid filename: absolute paths are not allowed — pass a filename relative to the server
+working directory (set VCAD_MCP_EXPORT_DIR to choose the directory).
+```
+
+The file lands in the directory the MCP server was launched from, which is the repository root. Move
+it into the model directory afterwards, and compare `bytes` with the written file to confirm.
+
+### 6. `render_view` returns assets, not a path
+
+The reply is `{assets, suggestedFinalMarkdown}`, not a filename. It renders one isometric picture;
+use `azimuth` and `elevation` to pick the angle.
+
+### 7. A boolean consumes its operands, and a modifier births a new part
+
+`union`, `difference` and `intersection` do not amend a part: they **consume** both operands and
+return a new part. After the call, the operand ids are gone from `read`. A modifier such as
+`fillet`, `chamfer` or `shell` likewise returns a **new** part that contains the source tree plus
+the modifier node, and the source id disappears.
+
+Measured on two 10 mm cubes:
+
+| Step | Parts after the call |
+| :--- | :--- |
+| create `A`, create `B` | `0:0`, `0:1` |
+| `union(left: 0:0, right: 0:1)` | `0:2` only |
+
+So an operation chain is a chain of fresh ids: build, name, read the new `part_id`, and use **that**
+for the next step. Never reuse the id you passed in.
+
+### 8. A stale `part_id` is not rejected — it silently rebuilds the geometry
+
+Pass a consumed id to a modifier and vcad does not error. It resurrects the underlying node as a
+**new part beside the current one**, so the scene ends up with a duplicate the model should not
+have.
+
+Measured: after the union above, `fillet(child: "0:0", radius: 1)` returned a fresh part `0:3` with
+no warning, and the scene then held both `0:2` and `0:3`.
+
+This is the most dangerous behaviour of this build: a wrong id costs no error, only a silently wrong
+scene. Guard against it by reading the part list after every boolean or modifier, and by checking
+`describe_scene` for a part count you did not expect.
 
 ## Coordinate system and primitive origins
 
 The kernel and the exporters work in **millimeters**. `inspect_cad` reports `volume_mm3`, and STL
 and GLB carry no unit field, so a file exported from vcad is in mm by convention. Author
-human-scale assets in mm too (`3520` for a 3.52 m car body), and scale once at the Blender or
+human-scale assets in mm as well (`3520` for a 3.52 m car body), and scale once at the Blender or
 Three.js step. Do not author in meters and hope the exporter guesses.
 
-The axes are **+X right, +Y forward, +Z up**. Read section 3.5 of
-[`research/progressive-volume-modeling.md`](../../../research/progressive-volume-modeling.md) before the
-first primitive.
+The axes are **+X right, +Y forward, +Z up**.
 
-| Primitive | Origin `(0, 0, 0)` | Extent | Loon syntax |
-| :--- | :--- | :--- | :--- |
-| **Cube** | Lower corner | Extends to `(sx, sy, sz)` | `[cube sx sy sz]` |
-| **Cylinder** | Base center | Height along `+Z` | `[cylinder radius height]` |
-| **Sphere** | Center | Radius in all directions | `[sphere radius]` |
-| **Cone** | Base center | Height along `+Z` | `[cone r_bottom r_top height]` |
-| **Torus** | Center | Axis along `+Z` | `[torus major_radius minor_radius]` |
+| Primitive | Origin `(0, 0, 0)` | Extent |
+| :--- | :--- | :--- |
+| **Cube** | Lower corner | Extends to `(sx, sy, sz)` |
+| **Cylinder** | Base centre | Height along `+Z` |
+| **Sphere** | Centre | Radius in all directions |
+| **Cone** | Base centre | Height along `+Z` |
+| **Torus** | Centre | Axis along `+Z` |
+| **Wedge** | Corner | Legs along `+X` and `+Z`, extruded along `+Y` |
+| **Prism** | Centre on Z | Regular n-gon, height along `+Z` |
 
-`size.x` is the width, `size.y` is the depth, and `size.z` is the height.
+A cube's origin is a corner. To centre it on X and Y, offset by `(-sx/2, -sy/2, 0)` in the same
+`translate` call, because a second one would replace it.
 
-The cube origin is a corner. To center a cube on the X and Y axes, translate it by `(-sx/2, -sy/2, 0)`.
-
-## Loon in short
-
-**Status on this build: reference only.** `create_cad_loon` answers
-`Loon evaluation not supported by this engine build`. Read this section to understand the shapes
-and the vocabulary, and author with `create` instead.
-
-Loon uses square brackets: `[operator arg1 arg2 ...]`.
-
-A transform or a modifier takes its **child as the last argument**. This order makes `pipe` possible.
-
-```lisp
-; Variables and root
-[let name expression]
-[root name "steel"]
-
-; Sequential steps. Each step receives the previous result as the last argument.
-[pipe
-  [cube 50 50 30]
-  [fillet 3]
-  [shell 2]
-  [translate -25 -25 0]]
-[root _ "aluminum"]
-
-; Booleans
-[union a b]
-[difference base tool]
-[intersection a b]
-
-; Transforms
-[translate dx dy dz child]
-[rotate rx ry rz child]      ; Euler angles in degrees
-[scale sx sy sz child]
-[mirror-x child]             ; Also mirror-y and mirror-z
-[mirror-pattern-x child]     ; The child plus its X mirror
-[quad-pattern child]         ; Mirror in X and Y
-
-; Repetition and finishing
-[circular-pattern ox oy oz dx dy dz count angle_deg child]
-[linear-pattern dx dy dz count spacing child]
-[fillet radius child]
-[chamfer distance child]
-[shell thickness child]
-```
-
-Materials: `aluminum`, `steel`, `brass`, `copper`, `chrome`, `abs-white`, `abs-black`, `rubber`, `glass`, `carbon-fiber`.
-
-### Example: robot torso, head, and antenna
-
-```lisp
-; Tapered torso with a hollow body and a door cut
-[let body [cone 40.0 48.0 110.0]]
-[let hollowed [shell 4.0 body]]
-[let door-cut [translate -25 -50 15 [cube 50 20 80]]]
-[let torso [difference hollowed door-cut]]
-
-; Neck ring, cylindrical head, and dome
-[let neck [translate 0 0 110 [cylinder 28.0 6.0]]]
-[let head-cyl [translate 0 0 116 [cylinder 25.0 45.0]]]
-[let dome [translate 0 0 161 [sphere 25.0]]]
-[let head [union [union neck head-cyl] dome]]
-
-; Antenna
-[let antenna-base [translate 0 0 185 [cone 6.0 2.0 5.0]]]
-[let antenna-rod [translate 0 0 190 [cylinder 1.5 30.0]]]
-[let antenna-tip [translate 0 0 220 [sphere 4.0]]]
-[let antenna [union [union antenna-base antenna-rod] antenna-tip]]
-
-[let robot [union [union torso head] antenna]]
-[root robot "steel"]
-```
+A cylinder's origin is its base centre. To lay it on the X axis as a wheel, rotate it `y: 90`, which
+sweeps the centre from `(0,0,h/2)` to `(h/2,0,0)`. Account for that `h/2` shift in the single offset
+you pass: it is the classic off-by-87.5-mm error.
 
 ## Feature nodes with `create`
 
-`create` is the authoring entry point on this build. One call adds one node:
-
 ```json
-{ "document_id": "doc_...", "type": "cube",
-  "params": { "size": { "x": 1530, "y": 3520, "z": 1410 } }, "name": "Envelope" }
+{ "document_id": "doc_...", "type": "cube", "name": "Body",
+  "params": { "size": { "x": 1530, "y": 3520, "z": 1410 } } }
 ```
 
-The node types and their `params` are the Type Catalog in this skill's
-`reference/server-instructions-*.md`. Position formats for the operations that accept an `at`:
+Node types come from the type catalog: `cube`, `cylinder`, `sphere`, `cone`, `torus`, `wedge`,
+`prism`, `union`, `difference`, `intersection`, `translate`, `rotate`, `scale`, `mirror`,
+`sketch_2_d`, `extrude`, `revolve`, `sweep`, `loft`, `linear_pattern`, `circular_pattern`,
+`sweep_rotate`, `shell`, `fillet`, `chamfer`, `edge_blend`, `text_2_d`.
 
-Position formats for `at`:
-1. **Absolute (mm):** `{"x": 25, "y": 15, "z": 0}`
-2. **Named:** `"center"`, `"top-center"`, `"bottom-center"`
-3. **Percentage:** `{"x": "50%", "y": "25%"}`
+Booleans take `left` and `right` as child **part ids**, and they consume them. `fillet`, `chamfer`
+and `shell` take a `child` and a size, and they return a new part. A modifier applies to a whole
+part, not to a selection of edges; use `edge_blend` when the selection matters.
 
-```json
-{
-  "parts": [
-    {
-      "name": "Base",
-      "primitive": { "type": "cylinder", "radius": 30, "height": 10 },
-      "operations": [{ "type": "hole", "diameter": 8, "at": "center" }],
-      "material": "aluminum"
-    }
-  ]
-}
+The rule that keeps this manageable:
+
 ```
+create primitive  →  read part_id  →  create boolean/modifier  →  read NEW part_id  →  repeat
+```
+
+Name every node. The feature tree is the only record of the model, and a named tree is the only one
+you can debug.
 
 ## Rules that prevent broken geometry
 
-- **Rotation uses the world origin, not the part center.** Create the part at the origin, rotate it, then translate it. If you translate first and rotate later, the part swings around the origin.
-- **Sketch profiles must close.** Each segment must start where the previous segment ends. The last segment must end at the start of the first segment.
-- **Use two half-arcs for a full circle.** An arc needs `start`, `end`, `center`, and `ccw`. Both radii must be equal.
-- **Do not make a wheel by rotating a cylinder.** Extrude a circular sketch in the XZ plane and extrude along Y. This method is stable.
-- **Cut with a tool that is longer than the part.** Extend the cutting cylinder by 1 mm or 2 mm on each side. Coplanar faces cause unreliable booleans.
-- **Check after each change.** Call `inspect_cad`. Confirm a positive volume, the expected bounding box, and a plausible triangle count.
+- **One offset per part.** A second `translate` replaces the first. Compute it once.
+- **Re-read `part_id` after every boolean or modifier.** Operand ids die on use, and a stale id
+  silently duplicates geometry instead of failing.
+- **Rotate before you place.** A rotation sweeps the part around the world origin, so a part that is
+  already far away will swing. Build at the origin, rotate, then translate in the same call chain.
+- **Boolean tools must overlap and overshoot.** A cutting solid exactly coplanar with a face gives
+  an unreliable boolean; extend it by 1 or 2 mm on each side.
+- **Check the per-part bbox.** `describe_scene` after every stage. A symmetric assembly must be
+  symmetric on the bbox centres; an odd value is a placement bug, not a rendering quirk.
+- **Watch the volume.** A boolean that removes nothing returns the original volume unchanged. A
+  boolean that removes everything returns 0.
 
 ## Sessions
 
 A `document_id` is a handle to server-side state, not storage.
 
-- Call `server_info` when a call fails with an unknown `document_id`. A high `instance_id` change or a low `uptime_s` means the server restarted.
-- On restart, every open document is lost. Keep the Loon source of the model so that you can rebuild it.
+- Call `server_info` when a call fails with an unknown `document_id`. A changed `instance_id` or a
+  low `uptime_s` means the server restarted.
+- On restart, every open document is lost. Keep the Loon source or a rebuild script next to the
+  export.
 - Call `checkpoint_document` or `save_document` for long sessions.
+
+## Known limitations
+
+- **`create_cad_loon` cannot evaluate on this build.** Author with `create`.
+- **No `export_step`.** Only `.stl` and `.glb`.
+- **No edge selection on `fillet`.** It applies to the whole part; `edge_blend` takes a query.
+- **`create_cad_document` is absent**, so the JSON part document format has no entry point. Build
+  with `create` instead.
+- **No error on a stale id**, only a duplicated part. See divergence 8.
+- **`add`-style transforms do not compose.** Every placement is an absolute offset from the part's
+  own origin, never a delta on the previous one.
+
+## Evaluation notes
+
+Field data from the Renault 5 TL L1 pass (`blueprints/vehicules/r5-tl-1972/model/`):
+
+| Observation | Value |
+| :--- | :--- |
+| Six named parts, one box, one greenhouse, four wheels | 536 triangles, `watertight: true` |
+| File size | 48 KB GLB, six meshes, glTF 2.0, no extensions |
+| Bounding box | exactly the real car, `−765..765 × −1760..1760 × 0..1410` mm |
+| Cost of one full rebuild | about fifteen `create` calls, a few seconds |
+
+What it is good at: constant-size primitives, exact absolute dimensions, cylindrical parts, a
+scene split into named parts, and a small triangle budget that suits a game asset.
+
+Where it costs time: every placement is a manual offset with no constraint and no assembly joint
+in the simple path, and the two silent failures (transform replacement, stale id) turn a mistake
+into a wrong model rather than an error. Budget for a measurement after every second call.
 
 ## Export for the web
 
-1. Export with `export_cad` to a `.glb` file in the model directory.
-2. Import the file in Blender for materials and rigging, or load it directly in Three.js.
-3. Load the `threejs-web` skill before you ship the asset.
+1. `export_cad` with a relative `filename` such as `r5-L1.glb`.
+2. Move the file into the model directory next to the reference images.
+3. Verify with `bunx @gltf-transform/cli inspect <file>.glb`: glTF 2.0, `generator: vcad`, no
+   extensions, one mesh per part, and a triangle count that matches `inspect_cad`.
+4. Load the `threejs-web` skill before you ship the asset to a browser.

@@ -1,0 +1,39 @@
+# Generated blueprint candidates, at the subject root and inside each view folder.
+# The art director reviews them and keeps only the chosen image as reference.<ext>.
+blueprints/*/*/*.png
+blueprints/*/*/*.webp
+blueprints/*/*/*.jpg
+blueprints/*/*/*.jpeg
+blueprints/*/*/*/*
+
+# The chosen identity image, the raw source, and the subject log are committed.
+!blueprints/*/*/reference.png
+!blueprints/*/*/reference.webp
+!blueprints/*/*/reference.jpg
+!blueprints/*/*/reference.jpeg
+!blueprints/*/*/source.png
+!blueprints/*/*/source.webp
+!blueprints/*/*/source.jpg
+!blueprints/*/*/source.jpeg
+!blueprints/*/*/notes.md
+!blueprints/*/*/manifest.json
+
+# Selected views are also committed.
+!blueprints/*/*/*/reference.png
+!blueprints/*/*/*/reference.webp
+!blueprints/*/*/*/reference.jpg
+!blueprints/*/*/*/reference.jpeg
+
+# Secrets and dependencies
+*.env.local
+node_modules/
+
+# Drafts are local research; only promoted subjects are committed.
+blueprints/drafts/
+
+# Editor and OS junk.
+.DS_Store
+Thumbs.db
+
+# Blender backup files.
+*.blend1

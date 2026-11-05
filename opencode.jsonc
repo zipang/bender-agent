@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // OpenCode project configuration for 3D-models (V2).
+  // The "bender" agent is the default agent for this project.
+  "default_agent": "bender",
+  "mcp": {
+    "servers": {
+      // vcad MCP server: local parametric BRep/CSG CAD with a WASM kernel.
+      // npx is not installed on this machine, so we use bunx (Bun).
+      "vcad": {
+        "type": "local",
+        "command": ["{env:HOME}/.bun/bin/bunx", "@vcad/mcp"]
+      },
+      // Blender MCP server: needs Blender with the MCP for Blender add-on running.
+      // Absolute path: the OpenCode service does not always inherit the shell PATH.
+      "blender": {
+        "type": "local",
+        "command": ["{env:HOME}/.local/bin/uvx", "mcp-for-blender"],
+        "environment": {
+          "BLENDER_HOST": "localhost",
+          "BLENDER_PORT": "9876",
+          "DISABLE_TELEMETRY": "true"
+        }
+      }
+    }
+  }
+}

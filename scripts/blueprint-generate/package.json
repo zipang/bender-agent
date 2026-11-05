@@ -1,0 +1,16 @@
+{
+  "name": "blueprint-generation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "bun run blueprint-generate.ts"
+  },
+  "dependencies": {
+    "ai": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^26.6.6"
+  }
+}

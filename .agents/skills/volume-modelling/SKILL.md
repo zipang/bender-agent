@@ -342,6 +342,38 @@ and `ctl.ts camera` for the angle the argument is actually about.
 A flat view is **always** orthographic. A perspective camera against an orthographic reference turns
 a correct roof into a wrong one, and sends you fixing the model instead of the camera.
 
+### 2.5 Trace on a calque, the way a Blender user does
+
+The reference views are in the scene as planes: `scene.json` names the subject, and the calque loads
+`cropped/<view>.png` with its two scales from `dimensions.json`.
+
+```bash
+bun run scripts/scene/serve.ts --scene scenes/<subject> &
+bun run scripts/scene/ctl.ts open --shot
+bun run scripts/scene/ctl.ts view left
+bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.55
+bun run scripts/scene/ctl.ts calque --off
+```
+
+The plane is sized in **metres**: `kx` on one axis and `ky` on the other, because the generated view
+is stretched. It is placed on the subject's box, not on the image centre. A single scale, or an
+anchor on the image centre, puts every traced point off by a known but unmeasured amount, and the
+error then looks like a modelling error.
+
+Two depth modes, and they answer different questions:
+
+| `--depth` | What you see | Use it to |
+| :--- | :--- | :--- |
+| `behind` | the model occludes the reference | find where the silhouette leaves the reference |
+| `front` | the reference line lies over the model | catch a stray vertex before the silhouette hides it |
+
+The plate is **masked to its own view**: it is an elevation, so from any other angle it is a picture
+of a car that is not there. A perspective view gets nothing.
+
+`ctl.ts shot` hides the calque unless you pass `--plate`. This is not a convenience. The plate *is*
+the reference, so a silhouette comparison that included it would compare the reference to itself and
+report a perfect score for any model, including an empty scene.
+
 ### 2.6 Compare silhouettes, not shading
 
 A shaded render hides an error that a silhouette cannot, so G2 is judged on a binary mask.
@@ -529,6 +561,10 @@ director judges.
 | A capture shows an angle nobody asked for | the page was live, and a hand had orbited it | `shot --view <name>` re-applies the view and verifies it |
 | A stage-2 body looks 265 mm too short everywhere | the comparison anchored its sill on the reference's tyre contact | lift the model by the sill, and exclude the wheel band |
 | The model appears smeared across the whole canvas | out-of-range samples clamped to the border instead of left empty | resample to empty, never to the edge |
+| The calque loads and draws nothing | `real.height` is `{ value, source }`, and reading it as a number gives NaN | read `.value`, and check the plane's world box |
+| The calque sits off by a few hundred pixels | the subject box is in the source image but the plane is built on the crop | use `offset`, which is the box inside the cropped file |
+| The calque is missing after a restart of the dev server | the running server predates the `/repo/` route | restart it; a 404 on `/repo/` is the tell |
+| A silhouette comparison scores a perfect match | the calque was in the capture | `shot` hides it; only `--plate` shows it |
 | A distance is off by a few percent on a stretched view | the diagonal was scaled by one factor | convert per axis: `dx` with `kx`, `dy` with `ky` |
 | A stretched view reports a small drift | the span was smoothed, and the smoothing ate the roof or the nose | read the span from the cropped box, not from a profile |
 | The crop is expected to fix the proportions | cropping is a translation and a trim | it cannot: the anisotropy is a ratio, and it survives the crop |
@@ -552,6 +588,8 @@ director judges.
 | `scripts/scene/silhouette.ts` | the overlay: red is reference only, blue is model only |
 | `scripts/scene/check.ts` | capture, overlay, measure, and the orientation guard |
 | `scripts/scene/compare_silhouette.py` | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm |
+| `scenes/<subject>/scene.json` | the subject path, so the calque can find `dimensions.json` and the crops |
+| `blueprints/<category>/<subject>/cropped/manifest.json` | each crop's box, offset, size, and the file it came from |
 | `scripts/measure/index.html` | **stage 1 tool**: the point picker, served at `/measure/` |
 | `scripts/measure/report.py` | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict |
 | `blueprints/<category>/<subject>/measurements.json` | **written by the picker**, read by the report |

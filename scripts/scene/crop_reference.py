@@ -37,6 +37,22 @@ import numpy as np
 from view_scale import subject_mask
 
 
+def repo_rel(path: str) -> str:
+    """A path relative to the repository root, whatever the working directory was.
+
+    This matters more than it looks. The manifest is read by the browser, which resolves every
+    reference through `/repo/<path>`. A path recorded relative to whatever directory the tool was
+    run from carries `../../` in it, and the browser then asks for a file outside the repository and
+    gets a 404. Measure once, record absolutely: derive the root from the `blueprints` component.
+    """
+    absolute = os.path.abspath(path)
+    parts = absolute.split(os.sep)
+    if "blueprints" not in parts:
+        return path
+    root = os.sep.join(parts[: parts.index("blueprints")])
+    return os.path.relpath(absolute, root)
+
+
 def find(path: str) -> str:
     """The view's reference, whatever extension the generator gave it."""
     if os.path.exists(path):
@@ -70,9 +86,13 @@ def crop_one(path: str, out_path: str, margin: int) -> dict:
     cropped.save(out_path)
 
     return {
-        "file": out_path,
-        "source": path,
+        "file": repo_rel(out_path),
+        "source": repo_rel(path),
+        # `box` is in the source image's pixels. `offset` is the same box inside the CROPPED image,
+        # which is what a consumer needs: the subject's position relative to the file it will open.
         "box": [x0, y0, x1, y1],
+        "offset": [x0 - (x0 - margin if x0 >= margin else 0),
+                   y0 - (y0 - margin if y0 >= margin else 0)],
         "margin": margin,
         "source_px": [width, height],
         "size_px": [cropped.width, cropped.height],
@@ -100,7 +120,7 @@ def main() -> None:
     if missing:
         raise SystemExit(f"no reference for: {', '.join(missing)} (have: {', '.join(available)})")
 
-    manifest = {"subject": subject, "margin": args.margin, "views": {}}
+    manifest = {"subject": repo_rel(subject), "margin": args.margin, "views": {}}
     for view in wanted:
         source = find(os.path.join(subject, view, "reference.png"))
         out_path = os.path.join(out_dir, f"{view}.png")

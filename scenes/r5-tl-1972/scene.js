@@ -157,6 +157,211 @@ controls.maxDistance = 24;
 controls.maxPolarAngle = Math.PI / 2;
 controls.enabled = false; // enabled only on the perspective views
 
+// ------------------------------------------------------------------ calque
+
+// The reference views, inserted into the scene as planes, the way a Blender user drops a
+// front/side/back image in and traces it. This is the whole point: a model traced against a calque
+// cannot drift from the reference, because the reference is in the same space as the model.
+//
+// Three things make the calque trustworthy, and each one is a measurement rather than a guess:
+//
+//   1. It is sized in METRES, from the real dimensions and the subject's pixel box. A view's two
+//      scales differ -- the generated images are stretched -- so the plane is stretched by kx on one
+//      axis and ky on the other. A single scale would put a 1400 mm roof at 1470.
+//   2. It is placed on the subject's box, not on the image centre. The cropped images carry a 2 px
+//      margin, so the two are not the same point, and anchoring on the wrong one shifts every
+//      trace by that margin.
+//   3. It shows only from its own view. An elevation is a projection down one axis: seen from 20
+//      degrees off, it is a picture of a car that is not there. So a plate is masked by default and
+//      appears only when the camera is on the axis that drew it.
+//
+// The `depth` option is the difference between the two tracing habits:
+//
+//   behind  the plate sits behind the model, opaque. The model occludes it, and the edge you chase
+//           is where the model silhouette leaves the reference silhouette.
+//   front   the plate sits in front, translucent. You see the reference line over the model, which
+//           is how a stray vertex is caught before the silhouette hides it.
+
+const VERTICAL_OF = { x: "width", y: "height", z: "length" };
+
+const plates = new THREE.Group();
+plates.name = "Calque";
+plates.renderOrder = -1;
+scene.add(plates);
+
+const calque = {
+  meta: null,     // dimensions.json and cropped/manifest.json, loaded once
+  view: null,     // the view whose plate is shown, or null
+  opacity: 1,
+  depth: "behind",
+  loaded: new Map(),
+};
+
+async function calqueLoad(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`calque: ${response.status} on ${url}`);
+  return response.json();
+}
+
+async function calqueMeta() {
+  if (calque.meta) return calque.meta;
+  const config = await fetch("./scene.json").then((r) => r.json());
+  const subject = config.subject;
+  const [dimensions, manifest] = await Promise.all([
+    calqueLoad(`/repo/${subject}/dimensions.json`),
+    calqueLoad(`/repo/${subject}/cropped/manifest.json`),
+  ]);
+  calque.meta = { subject, dimensions, manifest };
+  return calque.meta;
+}
+
+// The screen basis of a named view, without a camera: `right` is what the frame's +x maps to in
+// the world, `up` its +y, `dir` points from the subject toward the camera.
+function viewBasis(view) {
+  const v = VIEWS[view];
+  const az = THREE.MathUtils.degToRad(v.azimuth);
+  const el = THREE.MathUtils.degToRad(v.elevation);
+  const dir = new THREE.Vector3(
+    Math.cos(el) * Math.cos(az),
+    Math.sin(el),
+    Math.cos(el) * Math.sin(az),
+  ).normalize();
+  const up = new THREE.Vector3(...(v.up ?? [0, 1, 0])).normalize();
+  const right = new THREE.Vector3().crossVectors(up, dir).normalize();
+  const trueUp = new THREE.Vector3().crossVectors(dir, right).normalize();
+  return { right, up: trueUp, dir };
+}
+
+async function buildPlate(view) {
+  const { subject, dimensions, manifest } = await calqueMeta();
+  const entry = manifest.views[view];
+  if (!entry) throw new Error(`calque: no cropped reference for "${view}" -- run crop_reference.py`);
+
+  const real = dimensions.real;
+  // Which real dimension the image spans on each axis, per view. Written out rather than derived:
+  // the mapping is the one thing here that cannot be guessed from a name.
+  const SPANS = {
+    left: ["length", "height"],
+    right: ["length", "height"],
+    front: ["width", "height"],
+    back: ["width", "height"],
+    top: ["width", "length"],
+  };
+  const [spanHName, spanVName] = SPANS[view];
+  const realH = real[spanHName].value;
+  const realV = real[spanVName].value;
+
+  const [x0, y0, x1, y1] = entry.box;
+  const spanH = x1 - x0 + 1;
+  const spanV = y1 - y0 + 1;
+  // `entry.box` is in the SOURCE image's pixels; `offset` is where the subject box sits inside the
+  // CROPPED image. Mixing the two puts the plane off by the crop origin, which is hundreds of
+  // pixels, and the error looks like a modelling error rather than a bug.
+  const [offsetX, offsetY] = entry.offset ?? [entry.margin, entry.margin];
+  const kx = realH / spanH;            // metres per image pixel, horizontally
+  const ky = realV / spanV;            // and vertically, a different number
+  const [imgW, imgH] = entry.size_px;
+
+  // The calque is checked against the scales stage 1 wrote. If they disagree, the crop and the
+  // calibration were made from different boxes, and every trace would carry the difference.
+  const declared = dimensions.views[view]?.scale_mm_per_px;
+  if (declared) {
+    const dx = Math.abs(kx * 1000 / declared.horizontal - 1) * 100;
+    const dy = Math.abs(ky * 1000 / declared.vertical - 1) * 100;
+    if (dx > 1 || dy > 1) {
+      console.warn(
+        `calque ${view}: scale differs from dimensions.json by ${dx.toFixed(2)} % / ` +
+        `${dy.toFixed(2)} %. The crop and the calibration disagree; re-run view_scale.py.`,
+      );
+    }
+  }
+
+  const texture = await new THREE.TextureLoader().loadAsync(`/repo/${entry.file}`);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+
+  // Sizes and offset are in metres, so the plane lives in the model's own coordinates.
+  const width = imgW * kx;
+  const height = imgH * ky;
+  const geometry = new THREE.PlaneGeometry(width, height);
+
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: calque.opacity,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+    depthWrite: calque.depth === "behind",
+    depthTest: calque.depth === "behind",
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = `Calque_${view}`;
+  mesh.userData.view = view;
+  // `behind` must lose the depth test against the model; `front` must win it, or the model paints
+  // over the reference and the tracing aid disappears exactly when it is needed.
+  mesh.renderOrder = calque.depth === "behind" ? -1 : 10;
+
+  const basis = viewBasis(view);
+  // real.height is an object -- { value, source } -- because every real dimension carries where it
+  // came from. Reading it as a number yields NaN, and a NaN position makes the plane undrawable
+  // while every other field still looks correct.
+  const realHeight = real.height.value;
+  const centre = new THREE.Vector3(0, realHeight / 2, 0);
+  if (view === "top") centre.set(0, 0, 0);
+
+  // Subject box centre inside the cropped image, as an offset in screen coordinates.
+  const dx = (offsetX + spanH / 2 - imgW / 2) * kx;
+  const dy = -(offsetY + spanV / 2 - imgH / 2) * ky;
+
+  const orientation = new THREE.Matrix4().makeBasis(basis.right, basis.up, basis.dir);
+  mesh.quaternion.setFromRotationMatrix(orientation);
+
+  const behind = view === "top" ? 6 : 5;
+  const depth = calque.depth === "behind" ? -behind : 0.02;
+  mesh.position
+    .copy(centre)
+    .addScaledVector(basis.right, dx)
+    .addScaledVector(basis.up, dy)
+    .addScaledVector(basis.dir, depth);
+
+  mesh.userData.metrics = {
+    kx_mm: kx * 1000, ky_mm: ky * 1000,
+    plane_m: [width, height],
+    subject_box_mm: [spanH * kx * 1000, spanV * ky * 1000],
+  };
+  return mesh;
+}
+
+async function showPlate(view) {
+  calque.view = view;
+  // Detach, never dispose. The cached mesh is reused on every later call, so releasing its GPU
+  // buffers here leaves a plate that loads, parenting cleanly, and draws nothing at all.
+  for (const child of [...plates.children]) plates.remove(child);
+  if (!view) return null;
+
+  let mesh = calque.loaded.get(view);
+  if (!mesh) {
+    mesh = await buildPlate(view);
+    calque.loaded.set(view, mesh);
+  }
+  mesh.material.opacity = calque.opacity;
+  mesh.material.depthWrite = calque.depth === "behind";
+  mesh.material.depthTest = calque.depth === "behind";
+  plates.add(mesh);
+  return mesh;
+}
+
+// A plate belongs to one axis. Any other camera gets nothing, which is the mask.
+function syncPlate() {
+  const wanted = Object.prototype.hasOwnProperty.call(VIEWS, currentView) ? currentView : null;
+  const plateView = wanted && !VIEWS[wanted].perspective ? wanted : null;
+  if (plateView !== calque.view) {
+    showPlate(plateView).catch((error) => console.warn(String(error)));
+  }
+  plates.visible = Boolean(plateView);
+}
+
 // ------------------------------------------------------------------ lights
 
 const key = new THREE.DirectionalLight(0xffffff, 2.6);
@@ -289,6 +494,7 @@ function setView(name) {
   placeCamera(currentView);
   syncButtons();
   updateHud(currentView);
+  syncPlate();
   return nextFrame();
 }
 
@@ -339,6 +545,7 @@ function ctlCamera(options = {}) {
   syncButtons();
   applyCamera();
   updateHud("custom");
+  syncPlate();
   return nextFrame();
 }
 
@@ -503,6 +710,64 @@ window.__ctl = {
     // orbit controls both set this to "custom", so a hand-moved camera can never claim to be `left`.
     view: currentView,
     target: [state.target.x, state.target.y, state.target.z],
+  }),
+  // The calque: show a reference view as a plane, or take it away.
+  //   calque({ view: "left" })                 show it, opaque, behind the model
+  //   calque({ depth: "front", opacity: 0.35 })  trace over the model
+  //   calque({ off: true })                    hide
+  calque: async (options = {}) => {
+    if (options.off) {
+      calque.view = null;
+      plates.visible = false;
+      for (const child of [...plates.children]) plates.remove(child);
+      return nextFrame();
+    }
+    if (typeof options.opacity === "number") calque.opacity = options.opacity;
+    if (options.depth) calque.depth = options.depth;
+    if (options.opacity !== undefined || options.depth !== undefined) {
+      for (const mesh of calque.loaded.values()) {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      }
+      calque.loaded.clear();
+    }
+    const view = options.view ?? calque.view ?? currentView;
+    await showPlate(view);
+    plates.visible = true;
+    updateHud(currentView);
+    return nextFrame();
+  },
+  calqueDebug: () => {
+    const mesh = plates.children[0];
+    if (!mesh) return { children: plates.children.length, plateVisible: plates.visible };
+    mesh.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(mesh);
+    return {
+      plateVisible: plates.visible,
+      meshVisible: mesh.visible,
+      inScene: Boolean(mesh.parent && mesh.parent.parent),
+      position: mesh.position.toArray().map((v) => Number(v.toFixed(3))),
+      quaternion: mesh.quaternion.toArray().map((v) => Number(v.toFixed(3))),
+      worldBox: { min: box.min.toArray().map((v) => Number(v.toFixed(2))),
+                  max: box.max.toArray().map((v) => Number(v.toFixed(2))) },
+      geometry: mesh.geometry.parameters,
+      hasMap: Boolean(mesh.material.map),
+      mapImage: mesh.material.map ? [mesh.material.map.image?.width, mesh.material.map.image?.height] : null,
+      opacity: mesh.material.opacity,
+      transparent: mesh.material.transparent,
+      depthTest: mesh.material.depthTest,
+      renderOrder: mesh.renderOrder,
+      cameraPosition: activeCamera.position.toArray().map((v) => Number(v.toFixed(2))),
+    };
+  },
+  calqueInfo: () => ({
+    shown: plates.visible ? calque.view : null,
+    depth: calque.depth,
+    opacity: calque.opacity,
+    plates: plates.children.map((child) => ({
+      view: child.userData.view,
+      metrics: child.userData.metrics,
+    })),
   }),
   reset: ctlReset,
   wait: () => nextFrame(),

@@ -1,97 +1,54 @@
-// R5 TL 1972 — the body volume. Authoring source for stage 2 of volume modelling.
+// R5 TL 1972 — the body volume. Stage 2 of volume modelling, started from zero.
 //
-// This file is the body and nothing else. The body is the volume that holds the subject together,
-// and it is what remains when every separate part is removed. Every accessory -- bumper, lamp,
-// pane, strip, mirror, wheel, and the plate that closes a wheel arch -- lives in `accessories.js`
-// and is NOT mounted here. Stage 2 is judged on this volume alone; stage 3 puts the parts back on.
+// NOTHING HERE IS TRACED YET. This file is the frame the tracing will fill, and it is deliberately
+// almost empty. The previous body was built before any measuring instrument existed, and every one
+// of its numbers had to be guessed from a picture by eye; by the time the instruments were ready it
+// had become impossible to say why any vertex was where it was. So it is gone. `563c7ce` still has
+// it, for reference only: do not copy numbers out of it.
 //
-// This file is a pure ES module: no DOM, no renderer, no network, and no sibling import. The viewer
-// imports it in the browser, and a script imports it in Bun to measure it. One source, one truth.
+// The rules this file exists to enforce:
 //
-// Units: metres. 1 unit = 1 m, the game-asset convention. Axis: +Y up, +Z forward (the nose).
-// Origin: the centre of the base, so the tyres touch Y = 0 when they are mounted.
+//   1. The body is ONE closed volume. No hole. Wheel arches, window openings and lamp recesses are
+//      cut in stage 3, when the part that fills each one has been measured. A hole changes the
+//      silhouette, and the silhouette is what the gate measures.
+//   2. Every number carries the measurement that produced it. A value with no source is a guess
+//      with good manners, and there is no room for one.
+//   3. Nothing is placed by eye. Steps 1 to 3 of the method give a metric frame; the calque
+//      (`scene.json` -> `/repo/.../cropped/`) puts the reference in it; and a point is read in that
+//      frame, not in a screenshot.
 //
-// Method. No CSG. Each volume is a side profile extruded across X, then tapered so it is not a
-// slab. The wheel arches are holes in the lower profile, so one shape carries the whole silhouette.
+// Units: metres. Axis: +Y up, +Z forward (the nose). Origin: the centre of the base, so the subject
+// stands on Y = 0.
 //
-// The proportions are MEASURED, not estimated. `dimensions.json` holds the real dimensions and the
-// two scales of every view; `scripts/measure/` reads distances on the reference images. The numbers
-// below come from those runs, and each comment names the measurement it answers to.
+// This file is a pure ES module: no DOM, no renderer, no network, and no sibling import.
 
 import * as THREE from "three";
 
-// The real dimensions: an INPUT, and the only thing the gates measure against. They come from the
-// manufacturer's sheet for a Renault 5 TL (1972) and are mirrored in `dimensions.json` under `real`.
-// They are never read from the views that the model is checked against: that check would be
-// circular, every error would be normalized away, and every gate would pass.
+// The real dimensions: an INPUT. They come from the manufacturer's sheet for a Renault 5 TL (1972)
+// and they are mirrored in `dimensions.json` under `real`. They are never read from the views that
+// the model is checked against, because that check would be circular: every error would be
+// normalized away and every gate would pass.
 export const REAL = {
   length: 3.521,
   width: 1.525,
   height: 1.4,
 };
 
-// How the model is authored, in metres. These are geometry values, not targets: some of them are
-// still the picture's figures and stage 2 replaces them one measurement at a time.
-export const DIM = {
-  length: 3.52,
-  width: 1.53,
-
-  // NOT the car's height, and stage 2 replaces it first. 1.542 was obtained by dividing the height
-  // in pixels by the SAME scale as the length, which assumes the picture is not stretched. It is
-  // stretched, by 6 to 9 %, so that number describes the image and nothing else. The real height is
-  // 1.400 m, from the manufacturer sheet, and it is recorded in `dimensions.json`.
-  height: 1.542, // picture height; superseded by 1.400 in stage 2
-
-  wheelRadius: 0.265, // tyre diameter 530 mm, measured tyre, both flank views
-  wheelWidth: 0.17,
-  track: 0.665, // wheel centre, so the outer face sits just inside the flank
-  axleFront: 1.18, // measured: front axle 580 mm from the nose
-
-  // -1.19 gives a wheelbase of 2.370 m. The measured wheelbase is 2.414 m, rim centre to rim
-  // centre on the left view, and the manufacturer sheet says 2.420. Stage 2 moves this to -1.234.
-  axleRear: -1.19,
-
-  bodyHalfLength: 1.76,
-  bodyHalfWidth: 0.765,
-  cabinHalfWidth: 0.666, // the greenhouse is 0.87 of the body width at the belt
-  cabinRoofHalfWidth: 0.474, // and 0.62 of it at the roof: the tumblehome
-  sill: 0.265, // measured underside
-  belt: 0.985, // measured glass bottom, steady from the cowl to the tail
-  archRadius: 0.315,
-};
-
-// The side profile of the lower body, in (Z, Y). Measured upper edge from the nose:
-//   0 -> 520   150 -> 660   320 -> 900   640 -> 1000   1010 -> 1025 (cowl)
-// then the belt line at 985 runs to the tail, and the tail panel closes at 3521.
-export const BODY_PROFILE = [
-  [1.76, 0.3],
-  [1.66, 0.265],
-  [-1.68, 0.265],
-  [-1.76, 0.32],
-  [-1.76, 0.72],
-  [-1.68, 0.985],
-  [0.75, 0.985],
-  [0.75, 1.025],
-  [1.12, 1.0],
-  [1.44, 0.9],
-  [1.61, 0.66],
-  [1.76, 0.52],
-];
-
-// The greenhouse. Measured: windshield base at 1010 mm, roof from 1560 to 2800, hatch slope down to
-// 890 at 3400. The roof sits at 1.515-1.529, and that is the picture's height, not the car's: the
-// real roof line is 1.400. Stage 2 lowers it here rather than by scaling the whole volume.
-export const CABIN_PROFILE = [
-  [0.75, 0.985],
-  [0.2, 1.515],
-  [-1.0, 1.529],
-  [-1.64, 0.94],
-];
+// The body as it stands: a plain box at the right overall size, and nothing else.
+//
+// It is a placeholder with a purpose. It gives the calque a visible object to occlude, it puts the
+// scene's camera framing on the right volume, and it makes the first silhouette comparison honest:
+// the numbers will be obviously wrong, so the difference between them and the next pass will be
+// visibly the work done, not the noise of a model that looks close by accident.
+//
+// Replace it section by section, in this order, and re-run `compare_silhouette.py` after each one:
+//   a. the side elevation profile, traced on `left` with kx 2.824 / ky 2.651 mm per pixel
+//   b. the plan profile, traced on `top`
+//   c. the cross-sections, read off `front` and `back`
+export const SECTIONS = [];
 
 // ---------------------------------------------------------------- materials
 
-// The body's own materials. An accessory brings the ones it needs from the same table, so the paint
-// on a bumper matches the paint on the flank by construction.
 export function createMaterials() {
   const m = {};
   m.paint = new THREE.MeshStandardMaterial({
@@ -130,10 +87,25 @@ export function createMaterials() {
   return m;
 }
 
-// ---------------------------------------------------------------- geometry helpers
+// ---------------------------------------------------------------- helpers used by stage 3
+
+// A closed polygon in the (Z, Y) plane, extruded across X and centred on X = 0.
+// Unused at stage 2, where the body is not yet a profile. Kept because stage 3 cuts the arches.
+export function extrudeAcrossX(points, width, holes = []) {
+  const shape = new THREE.Shape();
+  points.forEach(([z, y], i) => (i === 0 ? shape.moveTo(z, y) : shape.lineTo(z, y)));
+  shape.closePath();
+  shape.holes.push(...holes);
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: width, bevelEnabled: false, curveSegments: 24,
+  });
+  geometry.rotateY(-Math.PI / 2);
+  geometry.translate(width / 2, 0, 0);
+  return geometry;
+}
 
 // The wheel arch, as a filled shape: a circular segment whose chord lies on the body's underside.
-// Not used in stage 2 -- the body is not cut yet. It is here because stage 3 cuts the arch with it.
+// Stage 3 cuts the arch with it. Stage 2 has no arch.
 export function archShape({ z, y, radius, floor }) {
   const chord = Math.sqrt(Math.max(radius * radius - (y - floor) ** 2, 0.0001));
   const shape = new THREE.Shape();
@@ -145,89 +117,25 @@ export function archShape({ z, y, radius, floor }) {
   return shape;
 }
 
-// Multiply each vertex's X by a function of its Y and Z. This is how a constant-section extrusion
-// becomes a tapered one: the tumblehome of the greenhouse, and the narrowing of the body ends.
-// Without it, every car is a slab with a roof.
-export function taper(geometry, { byY, byZ } = {}) {
-  const position = geometry.getAttribute("position");
-  for (let i = 0; i < position.count; i += 1) {
-    const x = position.getX(i);
-    const y = position.getY(i);
-    const z = position.getZ(i);
-    let factor = 1;
-    if (byY) factor *= byY(y);
-    if (byZ) factor *= byZ(z);
-    position.setX(i, x * factor);
-  }
-  position.needsUpdate = true;
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
 export const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
-// A closed polygon in the (Z, Y) plane, extruded across X and centred on X = 0.
-export function extrudeAcrossX(points, width, holes = []) {
-  const shape = new THREE.Shape();
-  points.forEach(([z, y], i) => (i === 0 ? shape.moveTo(z, y) : shape.lineTo(z, y)));
-  shape.closePath();
-  shape.holes.push(...holes);
+// ---------------------------------------------------------------- the body
 
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: width,
-    bevelEnabled: false,
-    curveSegments: 24,
-  });
-  geometry.rotateY(-Math.PI / 2);
-  geometry.translate(width / 2, 0, 0);
-  return geometry;
-}
-
-// The half-width of the greenhouse at a given height, so a pane can be laid on its surface.
-export function cabinHalfWidthAt(y) {
-  const ratio = DIM.cabinRoofHalfWidth / DIM.cabinHalfWidth;
-  return DIM.cabinHalfWidth * (1 - (1 - ratio) * clamp01((y - DIM.belt) / 0.545));
-}
-
-// ---------------------------------------------------------------- parts
-
-function buildLowerBody(materials) {
-  // NO HOLES. Stage 2 models the body as one closed volume, and the silhouette is the thing the
-  // gate measures. A cut-out changes the silhouette, so cutting one now makes the gate unable to
-  // measure what it is for. Wheel arches, window openings and lamp recesses are all cut in stage 3,
-  // when the part they receive has been measured and is ready to go in.
-  const geometry = extrudeAcrossX(BODY_PROFILE, DIM.width);
-  // The body tucks in at both ends: the reference's plan view narrows to about 0.9 of full width.
-  taper(geometry, {
-    byZ: (z) => 1 - 0.09 * clamp01((Math.abs(z) - 1.15) / 0.61),
-    byY: (y) => 1 - 0.05 * clamp01((y - DIM.sill) / (DIM.belt - DIM.sill)),
-  });
+function buildPlaceholder(materials) {
+  // The real box, centred on X = 0 and Z = 0, sitting on Y = 0. Ground clearance belongs to the
+  // wheels, which are stage 3, so the box starts at the ground and reaches the real height.
+  const geometry = new THREE.BoxGeometry(REAL.width, REAL.height, REAL.length);
   const mesh = new THREE.Mesh(geometry, materials.paint);
   mesh.name = "Body";
+  mesh.position.set(0, REAL.height / 2, 0);
   return mesh;
 }
 
-function buildCabin(materials) {
-  const geometry = extrudeAcrossX(CABIN_PROFILE, DIM.cabinHalfWidth * 2);
-  // Tumblehome: the greenhouse is full width at the belt and 0.712 of it at the roof.
-  const ratio = DIM.cabinRoofHalfWidth / DIM.cabinHalfWidth;
-  taper(geometry, {
-    byY: (y) => 1 - (1 - ratio) * clamp01((y - DIM.belt) / 0.545),
-  });
-  const mesh = new THREE.Mesh(geometry, materials.paint);
-  mesh.name = "Cabin";
-  return mesh;
-}
-
-// ---------------------------------------------------------------- assembly
-
-// The body volume, and nothing else. Two named nodes, both closed volumes, both paint.
 export function buildBody(materials = createMaterials()) {
   const root = new THREE.Group();
   root.name = "R5_TL_1972";
-  root.add(buildLowerBody(materials));
-  root.add(buildCabin(materials));
-  root.userData.dimensions = DIM;
+  root.add(buildPlaceholder(materials));
+  root.userData.real = REAL;
   root.userData.stage = 2;
   return root;
 }
@@ -266,21 +174,16 @@ export function target() {
 // The delta between the built body and the real dimensions, per axis, in millimetres.
 // A positive delta means the model is too big on that axis.
 //
-// Height is measured FROM THE GROUND, not from the lowest vertex. This is not a detail: stage 2
-// removes the wheels, so the body's lowest point is the sill, 265 mm up. A bounding box would then
-// report 1.264 m for a body whose roof is at 1.529, and stage 2 would "fix" the roof downwards by
-// 265 mm to compensate for a wheel that is merely not mounted yet.
-//
-// The asset contract puts the origin at the centre of the base, so the ground is Y = 0 and the
-// height of the subject is simply the top of the body.
+// Height is measured FROM THE GROUND, not from the lowest vertex. This matters: at stage 2 the
+// wheels are not mounted, so the body's lowest point is the sill, which is not zero. A bounding box
+// would report the body as short by exactly the ground clearance, and a later pass would "fix" the
+// roof downwards to compensate for a wheel that was merely absent.
 export function deviation(object) {
   const { min, max, size } = measure(object);
-  const real = REAL;
   return {
-    length: Number(((size[2] - real.length) * 1000).toFixed(1)),
-    height: Number((max[1] * 1000 - real.height * 1000).toFixed(1)),
-    width: Number(((size[0] - real.width) * 1000).toFixed(1)),
-    // How far the body floats above the ground, which is the ground clearance of the subject.
+    length: Number(((size[2] - REAL.length) * 1000).toFixed(1)),
+    height: Number((max[1] * 1000 - REAL.height * 1000).toFixed(1)),
+    width: Number(((size[0] - REAL.width) * 1000).toFixed(1)),
     sill: Number((min[1] * 1000).toFixed(1)),
   };
 }

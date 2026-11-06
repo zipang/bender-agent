@@ -47,6 +47,8 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
 | `index.html` | The page and the import map. |
 
 - `model.js` must stay importable outside a browser. The live scene and the exported `.glb` are then built from the same source.
+- Trace on the **calque**: the reference views are planes in the scene, sized in metres from `kx` and `ky`. `bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.55`.
+- A calque is masked to its own view, and `shot` hides it unless asked. A silhouette comparison that included the plate would compare the reference to itself.
 - Judge a body on its **binary silhouette**, not on a shaded render. `scripts/scene/compare_silhouette.py` overlays the two masks and prints the deltas in millimetres.
 - Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save. It also serves `/measure/`, the point picker, and `/repo/` for the reference images and their `dimensions.json`.
 - Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing `scene.js` to look from another angle is not a loop.

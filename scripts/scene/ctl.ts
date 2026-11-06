@@ -149,6 +149,13 @@ async function main(): Promise<void> {
         );
       }
     }
+    // The calque is an aid for a human eye, not part of the render. A silhouette comparison must
+    // never see it: the plate IS the reference, so a mask that includes it would compare the
+    // reference to itself and report a perfect score for any model.
+    if (!rest.includes("--plate")) {
+      await evaluate("window.__ctl.calque({ off: true })", session);
+    }
+
     await ab(["screenshot", "canvas", scratch, "--session", session]);
     // The sidecar is what makes the picture measurable. It records the camera that drew it, so a
     // silhouette tool can convert pixels to millimetres instead of guessing a scale.
@@ -166,6 +173,26 @@ async function main(): Promise<void> {
 
   let call: string | null = null;
   let report: string | null = null;
+
+  if (command === "calque") {
+    await waitForReady(session);
+    if (rest.includes("--off")) {
+      await evaluate("window.__ctl.calque({ off: true })", session);
+      console.log("calque  hidden");
+      return;
+    }
+    const args: string[] = [];
+    const view = option(rest, "view");
+    if (view) args.push(`view: ${JSON.stringify(view)}`);
+    const opacity = numberOption(rest, "opacity");
+    if (opacity !== null) args.push(`opacity: ${opacity}`);
+    const depth = option(rest, "depth");
+    if (depth) args.push(`depth: ${JSON.stringify(depth)}`);
+    await evaluate(`window.__ctl.calque({ ${args.join(", ")} }).then(() => true)`, session);
+    const info = await evaluate("window.__ctl.calqueInfo()", session);
+    console.log(JSON.stringify(info, null, 2));
+    return;
+  }
 
   switch (command) {
     case "view":

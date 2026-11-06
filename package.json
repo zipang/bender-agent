@@ -1,0 +1,12 @@
+{
+  "name": "3d-models",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "bun run scripts/scene/serve.ts --scene scenes/r5-tl-1972 --port 5180",
+    "check": "bun run scripts/scene/check.ts --subject blueprints/vehicules/r5-tl-1972 --prefix r5-L3"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  }
+}

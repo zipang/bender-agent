@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>R5 TL 1972 — scene</title>
+    <style>
+      :root { color-scheme: light; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #eef0f2; }
+      body { font: 12px/1.45 ui-monospace, "SF Mono", Menlo, monospace; color: #22262b; }
+      canvas { display: block; }
+
+      #hud {
+        position: fixed; top: 16px; left: 16px; padding: 12px 14px;
+        background: rgb(255 255 255 / 0.82); border: 1px solid #d5d9de;
+        border-radius: 8px; backdrop-filter: blur(6px); pointer-events: none;
+        min-width: 190px;
+      }
+      #hud h1 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #6a7480; }
+      #hud dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; }
+      #hud dt { color: #6a7480; }
+      #hud dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+
+      #views {
+        position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 6px; padding: 6px; background: rgb(255 255 255 / 0.82);
+        border: 1px solid #d5d9de; border-radius: 8px; backdrop-filter: blur(6px);
+      }
+      #views button {
+        font: inherit; padding: 5px 10px; border: 1px solid transparent; border-radius: 5px;
+        background: transparent; color: #22262b; cursor: pointer;
+      }
+      #views button:hover { background: #e7eaee; }
+      #views button[aria-pressed="true"] { background: #22262b; color: #fff; }
+
+      body.shot #hud, body.shot #views { display: none; }
+      body.shot, body.shot html { background: #fff; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/vendor/three/build/three.module.js",
+          "three/addons/": "/vendor/three/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="hud">
+      <h1>R5 TL 1972</h1>
+      <dl>
+        <dt>view</dt><dd id="hud-view">—</dd>
+        <dt>tris</dt><dd id="hud-tris">—</dd>
+        <dt>meshes</dt><dd id="hud-meshes">—</dd>
+        <dt>draws</dt><dd id="hud-draws">—</dd>
+        <dt>size</dt><dd id="hud-size">—</dd>
+      </dl>
+    </div>
+
+    <div id="views"></div>
+
+    <script type="module" src="./scene.js"></script>
+    <script>
+      // The dev server pushes one message per file change. A full reload is enough here:
+      // the model is rebuilt from source, and it costs a fraction of a second.
+      new EventSource("/__reload").onmessage = () => location.reload();
+    </script>
+  </body>
+</html>

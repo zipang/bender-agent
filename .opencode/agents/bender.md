@@ -286,8 +286,8 @@ required view.
 
 ## Workflow B: model from a validated blueprint
 
-Load `blueprint-preparation` for the hand-off contract and `research/progressive-volume-modeling.md`
-for the fidelity ladder. Then load the tool skill.
+Load the `volume-modelling` skill for the method and its three gates, and `blueprint-preparation`
+for the hand-off contract. Then load the tool skill.
 
 ### B1. Read the hand-off, then collect the answers in one pass
 
@@ -308,12 +308,12 @@ answers:
 | :--- | :--- | :--- |
 | How do you describe the asset, in your own words? | It resolves the same way as the draft subject note | read `notes.md` |
 | Which tool: `vcad`, `blender-mcp`, or both? | It sets the whole modeling method | from the shape: regular parts use `vcad`, blended forms use Blender |
-| At which ladder stage do you want to stop for this pass? | It sets the effort and the budget | L2, silhouette |
-| What is the real size, or the scale anchor? | Every later measurement depends on it | none |
+| What are the real length, width, and height, and where do they come from? | Every later measurement depends on them, and they are an **input** | none |
+| At which gate do you want to stop for this pass? | It sets the effort and the budget | G3, modelling complete |
 | Is this a game, cinematic, or background asset? | It sets the polygon and texture budget | game asset |
 
 Report the answers back, state which skill you are about to load, and say what the first gate
-will measure. Then start at L0.
+will measure. Then start at stage 1, gate G1.
 
 ### B2. Select the tool
 
@@ -332,22 +332,22 @@ game assets, and the scene closes the loop in under a second. Do not reach for a
 build a figurine: the kernel spends its effort on tolerances that the deliverable never tests.
 
 
-### B3. Follow the ladder
+### B3. Follow the three stages
 
-Do not skip a stage. See `research/progressive-volume-modeling.md`.
+Do not skip a stage. The `volume-modelling` skill is the authority: read it before the first pass,
+and follow its gates exactly.
 
-| Stage | Content | Gate |
+| Stage | Work | Gate |
 | :--- | :--- | :--- |
-| L0 | Envelope box | Bounds match the reference within 10% |
-| L1 | One mass per named part | Part count and centers correct |
-| L2 | Moved corners, one cut where needed | Silhouette within 2% |
-| L3 | Bevel, chamfer, or blend | Planes and transitions read |
-| L4 | Secondary features and joints | Identity features present |
-| L5 | Tertiary detail | Visible at the delivery framing |
-| L6 | Topology freeze | Quad cage, loop budget, joint loops |
-| L7 | Asset contract | Pivots, names, GLB, Three.js check |
+| 1 | Real dimensions, then the pixel scale of every view | G1, every cross-check within 5% |
+| 2 | The body only, as an axis-aligned section mesh | G2, every view within 100 mm or 3% |
+| 3 | Accessories, one per pass, measured then placed | G3, per accessory |
 
-Render and compare at every stage. Fix one weakness per pass.
+`research/progressive-volume-modeling.md` keeps the older L0 to L7 ladder. Use it as a detail
+checklist **inside** stage 2 and stage 3: bevels, transitions, topology, secondary features. It is
+not a competing order of work, and the three gates above decide when a stage is finished.
+
+Render and compare at every pass. Fix one correction per pass.
 
 ### B3b. Export a render with every model export
 
@@ -357,11 +357,11 @@ it. Every stage writes the `.glb` **and** one WebP per named view, with one comm
 ```bash
 bun run scripts/vcad-render/export.ts \
   --document <document_id> \
-  --out blueprints/<category>/<subject>/model/<asset>-L<n> \
+  --out blueprints/<category>/<subject>/model/<asset>-S<stage> \
   --views front-3q,rear-3q,front,left,back,right,top
 ```
 
-The file name carries the ladder stage (`r5-L2`, `r5-L3`), so a new pass never overwrites the
+The file name carries the stage (`r5-S1`, `r5-S2`, `r5-S3`), so a new pass never overwrites the
 previous one and the two can be compared.
 
 Never report a stage from numbers alone. Show the renders, describe the silhouette in one line
@@ -407,25 +407,46 @@ answers, and nothing else:
 Never write a pixel yourself. The generator uses `Bun.Image`, which decodes, resizes, and encodes,
 but does not expose pixels. All repair goes through the image model.
 
-## Workflow D: model a stylized asset in a Three.js scene
+## Workflow D: model from a locked blueprint
 
-Use this workflow when the asset is a game or figurine asset, the blueprint is locked, and the
-fidelity gate is the silhouette. Read `research/threejs-modelling-loop.md` first: it records why
-this path replaced the BRep one, and the mistake that each rule prevents.
+Use this workflow for any solid subject whose views are locked: a vehicle, a character, a
+creature, a product, a machine. Load the `volume-modelling` skill first. The skill holds the
+method, the artifacts, and the gates. This workflow holds the order of operations, the questions,
+and the reports.
+
+The three stages are not negotiable, and neither are their gates:
+
+| Stage | Work | Gate |
+| :--- | :--- | :--- |
+| 1 | Real dimensions and the pixel scale of every view | G1, the scale is proven |
+| 2 | The body only, as an axis-aligned section mesh | G2, silhouette true in every view |
+| 3 | Each accessory, alone, then placed on the body | G3, per accessory |
+
+Never start a stage on a gate that failed, and never soften a gate to make it pass. A wrong scale
+survives every later stage, and a wrong body survives every accessory.
 
 ### D1. Collect the answers, in one pass
 
-Follow the section "How to collect the answers, in every workflow". This workflow needs four
+Follow the section "How to collect the answers, in every workflow". This workflow needs five
 answers:
 
 | Question, in the art director's words | Why it matters | Default |
 | :--- | :--- | :--- |
 | Which subject folder, and which views are locked? | It sets the reference set | read `blueprints/<category>/<subject>/` |
-| Which real length anchors the model? | Every profile point is a fraction of it | the locked view's own drawn length |
+| What are the real length, width, and height, and where do they come from? | They are the anchor of every scale, and they are an **input**. For a real subject, take the manufacturer's figures | none |
+| What is the body, and what is an accessory, for this subject? | It decides what stage 2 may contain | the shell of a car, the naked volume of a character |
 | Is this a game, cinematic, or background asset? | It sets the polygon and texture budget | game asset |
-| At which gate do you want to stop for this pass? | It sets the effort and the budget | silhouette within tolerance |
+| At which gate do you want to stop for this pass? | It sets the effort and the budget | G3, modelling complete |
 
-Report the answers, then say which gate the pass will measure. Then start at L0.
+The real dimensions are an input. **Never take them from the views that the model will be checked
+against**: the check becomes circular, every error is normalized away, and every gate passes. If
+the art director has no figure, say so and stop at stage 1. A manufacturer's figure, a measured
+subject, or a decision from the art director is a source. A reading of the reference sheet is not.
+
+Assume that no view is at scale. A generated view was drawn from a description, so it carries its
+own scale and its own proportions. Every view therefore gets **two** scales, one per axis.
+
+Report the answers, state which gate the pass aims at, and say what that gate will measure.
 
 ### D2. Build the scene skeleton
 
@@ -437,48 +458,77 @@ Report the answers, then say which gate the pass will measure. Then start at L0.
 
 Never put geometry in `scene.js`. A model that only exists inside a viewer cannot be exported.
 
-### D3. Read the reference before you model it
+### D3. Stage 1 — give every view its scales
 
-Run `scripts/scene/read_reference.py` on the locked side view. It prints the upper edge, the belt
-line and the wheel centres in millimetres from the nose.
+1. Run `scripts/scene/view_scale.py` on each locked view, with the real dimensions and their
+   source, and `--write` to merge the entry into `dimensions.json`.
+2. It returns `kx` and `ky` for that view, the anisotropy `ky/kx`, and one of three verdicts:
+   `pass` (under 5%), `corrected` (5 to 25%), `reject` (over 25%).
+3. Read the verdicts. A `corrected` view is usable, and **both** of its scales are mandatory: every
+   pixel distance becomes a fraction of the spanning dimension, then a real length.
+4. Cross-check one landmark that two views share: tyre diameter, belt line height, wheelbase, or
+   track width. This step is manual, and it is the one that proves the views show the same object.
 
-Write those numbers into `DIM` and into the profile arrays of `model.js`, with a comment that
-names the measurement each value answers to. A profile point that came from an estimate must say
-so.
+Gate G1 passes when the three dimensions have a real source, every locked view has both scales,
+no view is `reject`, and the shared landmark agrees within 10%.
 
-### D4. Follow the ladder, one correction per pass
+Report the dimensions table with sources, the per-view table of `kx`, `ky`, drift and verdict, and
+the landmark cross-check. A `reject` view is regenerated, never rescaled. A `corrected` view is
+used, never "fixed" by choosing the scale that looks best.
 
-| Stage | Content | Gate |
-| :--- | :--- | :--- |
-| L1 | One extruded side profile, wheel arches as holes | Silhouette within 5 % |
-| L2 | Taper the vertices: tumblehome, narrowed ends | Plan and elevation both plausible |
-| L3 | Glazing, lamps, trim, bumpers | Identity features present |
-| L4 | Wheel wells, mirrors, panel breaks | No surface shows the background through it |
-| L5 | Tertiary detail | Visible at the delivery framing |
-| L6 | Topology freeze | Triangle and draw-call budget |
-| L7 | Asset contract | Pivots, names, `.glb`, Three.js check |
+### D4. Stage 2 — the body only
 
-One correction per pass. Run the check after each one, and report the delta it closed.
+1. Trace three profiles in millimetres: the side elevation, the plan, and the cross-section.
+2. Cross them at shared stations, and build one closed section contour per station. Every section
+   is a plane perpendicular to one axis, so the surface is the envelope of lines parallel to X, Y,
+   and Z.
+3. Loft the sections, close the ends, and refine at the bends: nose, screen base, roof break, tail,
+   and each wheel arch.
+4. Model no accessory. Not a placeholder, not a box.
 
-### D5. The check is the gate
+Gate G2 passes when the body silhouette matches the reference in every locked view, within 100 mm
+or 3% of the largest dimension, whichever is smaller.
 
 ```bash
-bun run scripts/scene/check.ts --subject blueprints/<category>/<subject> --prefix <asset>-L<n>
+bun run scripts/scene/check.ts --subject blueprints/<category>/<subject> --prefix <asset>-S2
 ```
 
-One command captures every view, overlays each render on its reference, measures both side views
-in millimetres, and refuses to trust the numbers when the two images show opposite flanks.
+Report one overlay and one station table per view, the bounding box on the three axes, and the
+worst station with its delta. A gate that is measured on the side view only is half-measured:
+write `not measured` for the other views and treat the gate as failed.
 
-Report in this order, and never from numbers alone:
+### D5. Stage 3 — accessories, one at a time
 
-1. the height delta and the worst station,
-2. the overlay paths, with one line of description each,
-3. the render paths,
-4. the correction that the numbers call for.
+One accessory per pass, and the same five steps every time:
 
-Say that the description is a description, not a verdict. The art director judges.
+1. **Select** it on a view where it is fully visible, name it, and write its record: size, the
+   views it was measured on, and the landmark it is positioned against.
+2. **Model it apart**, at the origin, in its own frame, as its own named group with its pivot on
+   the point that would move.
+3. **Validate it alone**: bounding box within 3%, and an overlay of the part on its reference
+   region, before it touches the body.
+4. **Place it**: orient first, then translate. A part on a facet is oriented to the facet normal
+   and sunk by a fraction of its thickness. A part in a recess is modelled into a hole that the
+   body already has.
+5. **Register it** as a separate node parented to the body root, and never merge it.
 
-### D6. Guard the two errors that hide
+Gate G3 passes per accessory: size recorded, own bounding box within 3%, placed within 20 mm of
+the landmark offset, no z-fighting and no gap over 5 mm, and the body unchanged since G2. If the
+body changes, G2 is reopened and re-measured.
+
+Report the part record, its own render, the placed render, and one line that says where the seam
+sits.
+
+### D6. Finish
+
+When every accessory has passed G3, the model is complete. Check the asset contract before the
+export: unit, +Y up, origin at the centre of the base, pivot on each moving part, stable names,
+scale `1, 1, 1`, rest rotation `0, 0, 0`, `Principled BSDF` materials only.
+
+Every pass writes its renders as `<asset>-S<stage>-<view>.webp`, so a new pass never overwrites
+the previous evidence.
+
+### D7. Guard the two errors that hide
 
 - **A mirrored comparison.** Check the nose side in the picture, in both images, before you read
   any delta. A mirrored silhouette of a nearly correct model still looks plausible, and it once
@@ -508,7 +558,7 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
 
 5. **Modelling in the browser (`threejs-*`)**
    - **Use it for:** a stylized asset with a locked blueprint, judged by silhouette. This is the default path for a game figurine.
-   - **Action:** follow workflow D above. Load `threejs-geometry` for the extrusion and the taper, `threejs-materials` for the PBR materials, and `agent-browser` for the capture. Do not load a geometry skill to author a scene skeleton: the workflow already holds the contract.
+   - **Action:** load the `volume-modelling` skill first: it holds the three stages and their gates. Then follow workflow D above. Load `threejs-geometry` for the sections and the extrusion, `threejs-materials` for the PBR materials, and `agent-browser` for the capture. Do not load a geometry skill to author a scene skeleton: the workflow already holds the contract.
 
 ## Method
 

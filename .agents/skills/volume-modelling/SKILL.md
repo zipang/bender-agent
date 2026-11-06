@@ -147,7 +147,8 @@ python3 scripts/scene/view_scale.py \
   --write blueprints/<category>/<subject>/dimensions.json
 ```
 
-Run it once per locked view. It appends one entry per view and recomputes the document gate.
+Run it once per view, and add `--optional` for a view that must not gate the stage. It appends one
+entry per view and recomputes the two document fields: `scales` and `g1`.
 
 ### Gate G1 — every view has a scale, and the drift is declared
 

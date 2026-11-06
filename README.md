@@ -47,6 +47,7 @@ The project uses local skills in [`.agents/skills/`](./.agents/skills) and two M
 | **Three.js Web Pipeline** | `threejs-web` | `@gltf-transform/cli` | `.glb` optimization (Draco, Meshopt, WebP, KTX2), pivot and naming rules, and Three.js / React Three Fiber integration. |
 | **Three.js (13 skills)** | `threejs-*` | `three` | Current API reference for three.js r186: fundamentals, geometry, materials, lighting, textures, animation, loaders, shaders, post-processing, interaction, performance, React Three Fiber, and the glTF asset pipeline. From [CloudAI-X/threejs-skills](https://github.com/CloudAI-X/threejs-skills). |
 | **Blueprint Preparation** | `blueprint-preparation` | Vercel AI SDK, AI Gateway | Reference workflow before modeling. Drafts one reference image from subject and style sets, then generates front, left, back, right, top, and bottom views. |
+| **Volume Modelling** | `volume-modelling` | any modelling tool | The modelling method, in three gated stages: prove the real dimensions and the per-view pixel scale, build the bare body as an axis-aligned section mesh, then add each accessory separately and place it on the body. No stage starts before the previous gate passes. |
 | **AI SDK** | `ai-sdk` | `ai` package | Provider-neutral text, image, and structured output calls. |
 
 ## MCP server setup

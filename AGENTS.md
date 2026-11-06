@@ -53,6 +53,18 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
 - Flat views use an orthographic camera. A perspective camera can never line up with an orthographic reference.
 - Keep the authoring source of a scene committed. Keep its renders and its `.glb` local.
 
+## Modelling rules
+
+- Every modelling run follows the `volume-modelling` skill: three stages, three gates. No stage
+  starts before the previous gate passes, and no gate is softened to make it pass.
+- Stage 1 writes `blueprints/<category>/<subject>/dimensions.json`. The real dimensions are an
+  input: a specification sheet, a measurement, or a decision of the art director. Never read them
+  from the views that the model will be checked against.
+- Stage 2 builds the body only. No accessory, no placeholder, no reference box.
+- Stage 3 adds one accessory per pass: measured, modelled apart, validated alone, then oriented
+  and translated onto the body as its own named node.
+- Never merge an accessory into the body mesh.
+
 ## Blueprint rules
 
 - One subject is one folder: `blueprints/<category>/<subject>/`.

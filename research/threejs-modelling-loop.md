@@ -3,8 +3,12 @@
 **A measured, repeatable way to build a 3D asset in the browser, with the reference as the
 specification and the render as the evidence.**
 
-Status: method report and field notes. It records what worked, what cost time, and the loop that
-replaced the slow path.
+Status: field notes. The **toolchain** it describes is current and is reused by the
+`volume-modelling` skill: serve the source, capture, overlay, measure, and guard the orientation.
+The **modelling strategy** it describes — one side profile extruded, then fitted against one view —
+is superseded. Fitting one view proves nothing about the width, the plan, or the parts that are not
+the body. Use the `volume-modelling` skill for the order of work, which proves the scale on every
+view before the body is built, and builds the accessories one at a time after it.
 
 Date: 2026-11-06. Scope: hard-surface assets modelled from a locked multi-view blueprint.
 

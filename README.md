@@ -45,6 +45,7 @@ The project uses local skills in [`.agents/skills/`](./.agents/skills) and two M
 | **vcad** | `vcad` | `@vcad/mcp` | Parametric BRep CAD. Primitives, booleans, fillets, chamfers, patterns, assemblies, **Loon** language, and `.glb` / `.stl` export. |
 | **Blender MCP** | `blender-mcp` | `mcp-for-blender` | Live Blender control through `bpy`. Polygon modeling, modifiers, PBR materials, HDRI lighting, rigging, multi-angle review (`look`), and glTF export. |
 | **Three.js Web Pipeline** | `threejs-web` | `@gltf-transform/cli` | `.glb` optimization (Draco, Meshopt, WebP, KTX2), pivot and naming rules, and Three.js / React Three Fiber integration. |
+| **Three.js (13 skills)** | `threejs-*` | `three` | Current API reference for three.js r186: fundamentals, geometry, materials, lighting, textures, animation, loaders, shaders, post-processing, interaction, performance, React Three Fiber, and the glTF asset pipeline. From [CloudAI-X/threejs-skills](https://github.com/CloudAI-X/threejs-skills). |
 | **Blueprint Preparation** | `blueprint-preparation` | Vercel AI SDK, AI Gateway | Reference workflow before modeling. Drafts one reference image from subject and style sets, then generates front, left, back, right, top, and bottom views. |
 | **AI SDK** | `ai-sdk` | `ai` package | Provider-neutral text, image, and structured output calls. |
 
@@ -163,19 +164,42 @@ one more decision from the art director before they can start.
 | Document | Content |
 | :--- | :--- |
 | [`research/progressive-volume-modeling.md`](./research/progressive-volume-modeling.md) | The fidelity ladder from a bounding envelope to a finished asset. It surveys the existing 3D skills and defines the stage gates and the iteration loop. |
+| [`research/threejs-modelling-loop.md`](./research/threejs-modelling-loop.md) | The measured modelling loop in Three.js: serve the source, extrude a measured profile, then capture, overlay and measure in one command. Records the tool choice, the mistakes that cost time, and the rule that prevents each. |
 | [`research/blueprint-preparation-investigation.md`](./research/blueprint-preparation-investigation.md) | Investigation of image-model workflows that create six-view reference packages before 3D modeling. |
 | [`scripts/blueprint-generate/README.md`](./scripts/blueprint-generate/README.md) | The three-stage generator: draft, clean, and views. Options, folder contract, prompt templates, and model filter. |
+
+## Modelling a scene in the browser
+
+A scene is one directory under `scenes/`. `model.js` is the asset and the only source of truth: it
+imports `three` and nothing else, so the live scene and the exported `.glb` are built from the same
+file. `scene.js` owns the renderer, the cameras and the lights. There is no build step.
+
+```bash
+bun run serve                    # serve scenes/r5-tl-1972 on port 5180, reload on save
+bun run scripts/scene/check.ts   # capture, overlay, measure, and check the orientation
+```
+
+| Script | Role |
+| :--- | :--- |
+| `scripts/scene/serve.ts` | Static server for the scene and the `three` package, plus a reload channel over server-sent events. |
+| `scripts/scene/shot.ts` | Capture every named view to WebP through `agent-browser`. |
+| `scripts/scene/silhouette.ts` | Overlay the render on the reference: red is reference only, blue is model only, magenta is both. |
+| `scripts/scene/measure_view.py` | Reduce both images to a silhouette and print the same landmarks in millimetres, with deltas. |
+| `scripts/scene/read_reference.py` | Read the reference itself into profile data, which is how the model's numbers are authored. |
+| `scripts/scene/check.ts` | Run the whole chain, guard against a mirrored comparison, and print one report. |
+
 
 ## Repository layout
 
 ```text
 .
-├── .agents/skills/          # Local skills (vcad, blender-mcp, blueprint-preparation, ...)
+├── .agents/skills/          # Local skills (vcad, blender-mcp, threejs-*, blueprint-preparation, ...)
 ├── .opencode/agents/        # Agent definitions (bender.md)
 ├── assets/img/              # Documentation images
 ├── blueprints/              # Subjects, views, and drafts
 ├── research/                # Method documents and investigation reports
-├── scripts/                 # TypeScript tools
+├── scenes/                  # Three.js scenes. One directory per subject, model.js is the asset
+├── scripts/                 # TypeScript tools (blueprint-generate, scene, vcad-render)
 ├── opencode.jsonc           # OpenCode project configuration and MCP servers
 ├── AGENTS.md                # Rules for agents that work in this repository
 └── README.md                # This file
@@ -199,6 +223,8 @@ one more decision from the art director before they can start.
 - **Mass**: One named volume of the object. The model has one primitive per mass at stage L1.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
+- **Scene**: One directory under `scenes/`. `model.js` builds the asset and `scene.js` renders it. The browser loads the source directly, without a build step.
+- **Silhouette overlay**: A comparison image where red is present in the reference only, blue in the model only, and magenta in both.
 - **Pivot**: The origin of a node. The pivot is the center of rotation for animation.
 - **Skill**: A folder with a `SKILL.md` file. It holds instructions and helper files that an agent loads on demand.
 - **STE**: Simplified Technical English. This is the writing standard for all documents in this repository.

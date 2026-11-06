@@ -31,9 +31,27 @@ assets/img/              # Images for the documentation.
 blueprints/              # Subjects and their generated views.
 blueprints/drafts/       # Raw material. Not ready for generation.
 research/                # Method documents and investigation reports.
+scenes/                  # Three.js scenes. One directory per subject.
 scripts/                 # TypeScript tools.
 opencode.jsonc           # Project configuration and MCP servers.
 ```
+
+## Scene rules
+
+A scene is one directory under `scenes/<subject>/`. It holds three files, and no build step:
+
+| File | Role |
+| :--- | :--- |
+| `model.js` | The asset. Exports `buildCar()`. Imports `three` and nothing else: no DOM, no renderer, no network. |
+| `scene.js` | The viewer. Owns the renderer, the cameras, the lights, and the script API that capture uses. |
+| `index.html` | The page and the import map. |
+
+- `model.js` must stay importable outside a browser. The live scene and the exported `.glb` are then built from the same source.
+- Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save.
+- Every modelling pass ends with `bun run scripts/scene/check.ts`. It captures, overlays, measures, and checks the orientation.
+- Never compare a render to a reference without checking that both show the same flank. A mirrored silhouette still looks plausible.
+- Flat views use an orthographic camera. A perspective camera can never line up with an orthographic reference.
+- Keep the authoring source of a scene committed. Keep its renders and its `.glb` local.
 
 ## Blueprint rules
 

@@ -321,9 +321,16 @@ will measure. Then start at L0.
 | :--- | :--- |
 | Mechanical, regular, or exact parts | `vcad` |
 | Organic, sculpted, or blended forms | `blender-mcp` |
+| **A stylized asset with a locked blueprint, judged by silhouette** | **a Three.js scene** (see workflow D) |
 | Both, on one asset | vcad for the masses, Blender for the surface |
 
 Load the matching skill before you call its tools.
+
+Pick the Three.js scene when three conditions hold: the asset is stylized rather than exact, a
+measured blueprint exists, and the fidelity gate is a silhouette. Those conditions describe most
+game assets, and the scene closes the loop in under a second. Do not reach for a BRep kernel to
+build a figurine: the kernel spends its effort on tolerances that the deliverable never tests.
+
 
 ### B3. Follow the ladder
 
@@ -400,6 +407,85 @@ answers, and nothing else:
 Never write a pixel yourself. The generator uses `Bun.Image`, which decodes, resizes, and encodes,
 but does not expose pixels. All repair goes through the image model.
 
+## Workflow D: model a stylized asset in a Three.js scene
+
+Use this workflow when the asset is a game or figurine asset, the blueprint is locked, and the
+fidelity gate is the silhouette. Read `research/threejs-modelling-loop.md` first: it records why
+this path replaced the BRep one, and the mistake that each rule prevents.
+
+### D1. Collect the answers, in one pass
+
+Follow the section "How to collect the answers, in every workflow". This workflow needs four
+answers:
+
+| Question, in the art director's words | Why it matters | Default |
+| :--- | :--- | :--- |
+| Which subject folder, and which views are locked? | It sets the reference set | read `blueprints/<category>/<subject>/` |
+| Which real length anchors the model? | Every profile point is a fraction of it | the locked view's own drawn length |
+| Is this a game, cinematic, or background asset? | It sets the polygon and texture budget | game asset |
+| At which gate do you want to stop for this pass? | It sets the effort and the budget | silhouette within tolerance |
+
+Report the answers, then say which gate the pass will measure. Then start at L0.
+
+### D2. Build the scene skeleton
+
+1. Create `scenes/<subject>/` with `model.js`, `scene.js`, and `index.html`.
+2. `model.js` imports `three` only. It exports `buildCar()` and `measure()`.
+3. `scene.js` owns the renderer, both cameras, the lights, and the script API: `window.__ready`,
+   `window.__setView(name)` and `window.__stats()`.
+4. Start the server and open the page. Confirm that the HUD shows a triangle count.
+
+Never put geometry in `scene.js`. A model that only exists inside a viewer cannot be exported.
+
+### D3. Read the reference before you model it
+
+Run `scripts/scene/read_reference.py` on the locked side view. It prints the upper edge, the belt
+line and the wheel centres in millimetres from the nose.
+
+Write those numbers into `DIM` and into the profile arrays of `model.js`, with a comment that
+names the measurement each value answers to. A profile point that came from an estimate must say
+so.
+
+### D4. Follow the ladder, one correction per pass
+
+| Stage | Content | Gate |
+| :--- | :--- | :--- |
+| L1 | One extruded side profile, wheel arches as holes | Silhouette within 5 % |
+| L2 | Taper the vertices: tumblehome, narrowed ends | Plan and elevation both plausible |
+| L3 | Glazing, lamps, trim, bumpers | Identity features present |
+| L4 | Wheel wells, mirrors, panel breaks | No surface shows the background through it |
+| L5 | Tertiary detail | Visible at the delivery framing |
+| L6 | Topology freeze | Triangle and draw-call budget |
+| L7 | Asset contract | Pivots, names, `.glb`, Three.js check |
+
+One correction per pass. Run the check after each one, and report the delta it closed.
+
+### D5. The check is the gate
+
+```bash
+bun run scripts/scene/check.ts --subject blueprints/<category>/<subject> --prefix <asset>-L<n>
+```
+
+One command captures every view, overlays each render on its reference, measures both side views
+in millimetres, and refuses to trust the numbers when the two images show opposite flanks.
+
+Report in this order, and never from numbers alone:
+
+1. the height delta and the worst station,
+2. the overlay paths, with one line of description each,
+3. the render paths,
+4. the correction that the numbers call for.
+
+Say that the description is a description, not a verdict. The art director judges.
+
+### D6. Guard the two errors that hide
+
+- **A mirrored comparison.** Check the nose side in the picture, in both images, before you read
+  any delta. A mirrored silhouette of a nearly correct model still looks plausible, and it once
+  survived three passes.
+- **A wrong projection.** Flat views use the orthographic camera. A perspective camera against an
+  orthographic reference turns a correct roof into a wrong one, and sends you fixing the model.
+
 ## Expertise and tool selection
 
 For each asset, select the best workflow, or a hybrid workflow. Load the matching skill with the `skill` tool before you use its tools.
@@ -419,6 +505,10 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
 4. **Reference preparation (`blueprint-preparation`)**
    - **Use it for:** creating the six orthographic views from one reference image before modeling.
    - **Action:** follow workflow A above. Load the `ai-sdk` skill for the generator code.
+
+5. **Modelling in the browser (`threejs-*`)**
+   - **Use it for:** a stylized asset with a locked blueprint, judged by silhouette. This is the default path for a game figurine.
+   - **Action:** follow workflow D above. Load `threejs-geometry` for the extrusion and the taper, `threejs-materials` for the PBR materials, and `agent-browser` for the capture. Do not load a geometry skill to author a scene skeleton: the workflow already holds the contract.
 
 ## Method
 

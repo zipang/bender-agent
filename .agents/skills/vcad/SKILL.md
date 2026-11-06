@@ -218,6 +218,65 @@ create primitive  →  read part_id  →  create boolean/modifier  →  read NEW
 Name every node. The feature tree is the only record of the model, and a named tree is the only one
 you can debug.
 
+## The export rule — a model without a picture is not a deliverable
+
+**Every modelling stage ends with one command, and that command writes the `.glb` *and* the
+renders.** No stage is reported to the art director from numbers alone.
+
+```bash
+cd /path/to/repo
+bun run scripts/vcad-render/export.ts \
+  --document <document_id> \
+  --out blueprints/<category>/<subject>/model/<asset>-L<n> \
+  --views front-3q,rear-3q,front,left,back,right,top
+```
+
+It writes one model file and one WebP per named view:
+
+```
+blueprints/vehicules/r5-tl-1972/model/r5-L2-front-3q.webp
+blueprints/vehicules/r5-tl-1972/model/r5-L2-rear-3q.webp
+blueprints/vehicules/r5-tl-1972/model/r5-L2-front.webp
+…
+blueprints/vehicules/r5-tl-1972/model/r5-L2.glb
+```
+
+The name carries the ladder stage, so two passes never overwrite each other and the art director
+can compare L1 and L2 side by side.
+
+### Why a script and not the tool
+
+`render_view` does return the picture, but the MCP host turns it into an attachment and **strips the
+base64 payload** from the result the agent receives. The agent sees the image and cannot write it.
+The bytes survive in the raw JSON-RPC reply, in `content[].data`, so the script speaks JSON-RPC to
+the server over stdio and keeps them. It also converts to WebP, which keeps a render near 30 KB
+instead of 150 KB.
+
+The server is durable, so a `document_id` minted in one process is still readable by the script.
+
+### The named views
+
+| View | Azimuth | Elevation | Use |
+| :--- | :--- | :--- | :--- |
+| `front-3q` | 60 | 30 | **the judgement view**: front, one flank, and roof in one frame |
+| `rear-3q` | 240 | 30 | the same from the other end |
+| `front` | 90 | 0 | orthographic elevation |
+| `back` | 270 | 0 | orthographic elevation |
+| `left` | 180 | 0 | orthographic profile |
+| `right` | 0 | 0 | orthographic profile |
+| `top` | 0 | 89 | plan |
+| `bottom` | 0 | −89 | underbody |
+| `iso` | 40 | 22 | generic orbit |
+
+`+Y` is the front direction, so the front camera sits at azimuth 90. The default view set is
+`front-3q, rear-3q, front, left, back, right, top`.
+
+### What to look at in the renders
+
+The two three-quarter views carry the most information, and they expose the failures that numbers
+hide: a slab-shaped greenhouse, a missing bonnet slope, wheels crossing the bodywork, a flat tail.
+Report what you see as a description of the silhouette, never as a verdict.
+
 ## Rules that prevent broken geometry
 
 - **One offset per part.** A second `translate` replaces the first. Compute it once.

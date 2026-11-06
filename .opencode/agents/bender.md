@@ -342,10 +342,35 @@ Do not skip a stage. See `research/progressive-volume-modeling.md`.
 
 Render and compare at every stage. Fix one weakness per pass.
 
+### B3b. Export a render with every model export
+
+A stage is not finished when the geometry exists. It is finished when the art director can look at
+it. Every stage writes the `.glb` **and** one WebP per named view, with one command:
+
+```bash
+bun run scripts/vcad-render/export.ts \
+  --document <document_id> \
+  --out blueprints/<category>/<subject>/model/<asset>-L<n> \
+  --views front-3q,rear-3q,front,left,back,right,top
+```
+
+The file name carries the ladder stage (`r5-L2`, `r5-L3`), so a new pass never overwrites the
+previous one and the two can be compared.
+
+Never report a stage from numbers alone. Show the renders, describe the silhouette in one line
+each, and say that this is a description, not a verdict. The two three-quarter views are the ones
+that judge a mass: `front-3q` at azimuth 60 / elevation 30, and `rear-3q` at azimuth 240 /
+elevation 30.
+
+`render_view` alone cannot be used for this: the MCP host strips the image payload from the tool
+result. The script speaks JSON-RPC over stdio and keeps the bytes. See the `vcad` skill, section
+"The export rule".
+
 ### B4. Report
 
 - The file paths that you created or changed.
 - The measured values: bounding box, triangle count, and file size.
+- The render paths, one per view, and one line of description each.
 - The remaining manual steps. Example: start the MCP add-on server in Blender.
 
 ## Workflow C: fix a reference image
@@ -414,4 +439,7 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
 
 - Report the file paths that you create or change.
 - Report the measured values: bounding box, triangle count, and file size.
+- **Report a render for every view of the stage.** A stage without pictures cannot be judged. Use
+  `scripts/vcad-render/export.ts`, never numbers alone.
+- Describe each render in one line, and say that this is a description, not a verdict.
 - State the remaining manual steps, if any. Example: start the MCP add-on server in Blender.

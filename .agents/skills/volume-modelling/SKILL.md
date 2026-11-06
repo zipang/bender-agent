@@ -367,8 +367,41 @@ Two depth modes, and they answer different questions:
 | `behind` | the model occludes the reference | find where the silhouette leaves the reference |
 | `front` | the reference line lies over the model | catch a stray vertex before the silhouette hides it |
 
-The plate is **masked to its own view**: it is an elevation, so from any other angle it is a picture
-of a car that is not there. A perspective view gets nothing.
+The plate is **masked to its own axis**: it is an elevation, so from any other angle it is a picture
+of a car that is not there. A perspective view gets nothing. The mask tests the angle, not the name
+of the view, because zooming for precision renames the view to `custom` and the plate must survive
+that: the same elevation at another zoom is still the same projection.
+
+### 2.5b Measure in model units, not in pixels
+
+The plate is in the scene at the model's own scale, so a point picked on it **is** a model
+coordinate. There is no pixels-to-millimetres step left to get wrong.
+
+```bash
+bun run scripts/scene/ctl.ts ortho --height 1.63        # zoom so the subject fills the frame
+bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.6
+bun run scripts/scene/ctl.ts measure --on               # click the calque
+bun run scripts/scene/ctl.ts measure                     # the points, in mm, per axis
+bun run scripts/scene/ctl.ts measure --clear
+```
+
+A point on the left calque reports `Z` from the nose and `Y` from the ground, in millimetres, which
+are exactly the two numbers a side profile needs. Shift-click picks the model instead of the
+reference, so a model vertex and a reference point can be compared in one pass, in the same units.
+
+**The precision is not the unit, it is the screen.** A click resolves to one screen pixel, so the
+panel prints the current millimetres per screen pixel. Set `--height` until that number is close to
+the image's own scale — 2.82 mm/px on the left view — or the tool is coarser than the picture it
+shows. At `--height 4.4` it reads 7.6 mm/px and a 3500 mm span comes out 17 mm short; at
+`--height 1.63` it reads 2.83 and the same span lands within 0.2 mm.
+
+Two checks worth running before a tracing pass, both of which catch a broken calque rather than a
+broken model:
+
+- pick the two edges of the subject on the calque and read the span: it must equal the real
+  dimension for that axis, within 1 mm;
+- pick a known landmark on two views — the wheelbase at the rim centres — and confirm the two
+  agree. On this subject the scene reads 2414.1 mm where `dimensions.json` records 2414.2.
 
 `ctl.ts shot` hides the calque unless you pass `--plate`. This is not a convenience. The plate *is*
 the reference, so a silhouette comparison that included it would compare the reference to itself and
@@ -563,6 +596,9 @@ director judges.
 | The model appears smeared across the whole canvas | out-of-range samples clamped to the border instead of left empty | resample to empty, never to the edge |
 | The calque loads and draws nothing | `real.height` is `{ value, source }`, and reading it as a number gives NaN | read `.value`, and check the plane's world box |
 | The calque sits off by a few hundred pixels | the subject box is in the source image but the plane is built on the crop | use `offset`, which is the box inside the cropped file |
+| Every calque measurement is ~0.3 % short | the scale was built on the cropped file, margin included, instead of the subject box | scale on `subject_box`, never on `crop_box` |
+| The calque disappears when you zoom | the mask tested the view's NAME, and zooming renames it `custom` | mask by angle, not by name |
+| A measurement is a few millimetres off | the click is one screen pixel at a coarse zoom | raise the zoom until mm/px matches the image |
 | The calque is missing after a restart of the dev server | the running server predates the `/repo/` route | restart it; a 404 on `/repo/` is the tell |
 | A silhouette comparison scores a perfect match | the calque was in the capture | `shot` hides it; only `--plate` shows it |
 | A distance is off by a few percent on a stretched view | the diagonal was scaled by one factor | convert per axis: `dx` with `kx`, `dy` with `ky` |

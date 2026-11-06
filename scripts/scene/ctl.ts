@@ -174,6 +174,43 @@ async function main(): Promise<void> {
   let call: string | null = null;
   let report: string | null = null;
 
+  if (command === "measure") {
+    await waitForReady(session);
+    if (rest.includes("--off")) {
+      await evaluate("window.__ctl.measure({ off: true }).then(() => true)", session);
+      console.log("measure  off");
+      return;
+    }
+    if (rest.includes("--clear")) {
+      await evaluate("window.__ctl.measure({ clear: true }).then(() => true)", session);
+      console.log("measure  cleared");
+      return;
+    }
+    if (rest.includes("--on")) {
+      await evaluate("window.__ctl.measure({ on: true }).then(() => true)", session);
+      console.log("measure  on -- click the calque; shift-click picks the model");
+      return;
+    }
+    // No flag: report. This is the command a tracing pass uses most, so it is the default.
+    const points = await evaluate("window.__ctl.measurePoints()", session);
+    console.log(JSON.stringify(points, null, 2));
+    return;
+  }
+
+  if (command === "pick") {
+    // pick <nx> <ny> [--model] -- place a point at a normalised device coordinate.
+    const [nx, ny] = [Number(rest[0]), Number(rest[1])];
+    if (Number.isNaN(nx) || Number.isNaN(ny)) throw new Error("pick needs nx and ny in -1..1");
+    const source = rest.includes("--model") ? "model" : "calque";
+    await waitForReady(session);
+    const record = await evaluate(
+      `window.__ctl.measurePick(${nx}, ${ny}, ${JSON.stringify(source)})`,
+      session,
+    );
+    console.log(JSON.stringify(record, null, 2));
+    return;
+  }
+
   if (command === "calque") {
     await waitForReady(session);
     if (rest.includes("--off")) {

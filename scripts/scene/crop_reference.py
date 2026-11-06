@@ -85,14 +85,17 @@ def crop_one(path: str, out_path: str, margin: int) -> dict:
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     cropped.save(out_path)
 
+    # Two different rectangles, and confusing them costs a real, silent error.
+    #
+    # `crop_box` is the whole cropped file, margin included. `subject_box` is the subject alone.
+    # A scale must be built on the SUBJECT: mapping the full crop to the real length makes the
+    # subject 4 px short of it, which on the left view is 11 mm, and every trace then carries that.
     return {
         "file": repo_rel(out_path),
         "source": repo_rel(path),
-        # `box` is in the source image's pixels. `offset` is the same box inside the CROPPED image,
-        # which is what a consumer needs: the subject's position relative to the file it will open.
-        "box": [x0, y0, x1, y1],
-        "offset": [x0 - (x0 - margin if x0 >= margin else 0),
-                   y0 - (y0 - margin if y0 >= margin else 0)],
+        "crop_box": [x0, y0, x1, y1],
+        "subject_box": [int(cols[0]), int(rows[0]), int(cols[-1]), int(rows[-1])],
+        "offset": [int(cols[0]) - x0, int(rows[0]) - y0],
         "margin": margin,
         "source_px": [width, height],
         "size_px": [cropped.width, cropped.height],
@@ -127,12 +130,13 @@ def main() -> None:
         entry = crop_one(source, out_path, args.margin)
         manifest["views"][view] = entry
         if not args.json:
-            box = entry["box"]
+            subject_box = entry["subject_box"]
             print(
                 f"{view:<7} {entry['source_px'][0]}x{entry['source_px'][1]}"
                 f" -> {entry['size_px'][0]}x{entry['size_px'][1]} px"
-                f"   box {box[0]},{box[1]} .. {box[2]},{box[3]}"
-                f"   subject {box[2] - box[0] + 1} x {box[3] - box[1] + 1} px"
+                f"   subject {subject_box[2] - subject_box[0] + 1}"
+                f" x {subject_box[3] - subject_box[1] + 1} px"
+                f"   margin {entry['offset'][0]},{entry['offset'][1]}"
             )
 
     os.makedirs(out_dir, exist_ok=True)

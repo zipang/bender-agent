@@ -251,13 +251,13 @@ async function buildPlate(view) {
   const realH = real[spanHName].value;
   const realV = real[spanVName].value;
 
-  const [x0, y0, x1, y1] = entry.box;
-  const spanH = x1 - x0 + 1;
-  const spanV = y1 - y0 + 1;
-  // `entry.box` is in the SOURCE image's pixels; `offset` is where the subject box sits inside the
-  // CROPPED image. Mixing the two puts the plane off by the crop origin, which is hundreds of
-  // pixels, and the error looks like a modelling error rather than a bug.
-  const [offsetX, offsetY] = entry.offset ?? [entry.margin, entry.margin];
+  // The scale is built on the SUBJECT, never on the cropped file. The crop keeps a margin, and
+  // mapping the whole file to the real length makes the subject shorter than the real subject by
+  // twice that margin: 4 px, 11 mm on the left view, carried by every point traced afterwards.
+  const [sx0, sy0, sx1, sy1] = entry.subject_box;
+  const spanH = sx1 - sx0 + 1;
+  const spanV = sy1 - sy0 + 1;
+  const [offsetX, offsetY] = entry.offset;
   const kx = realH / spanH;            // metres per image pixel, horizontally
   const ky = realV / spanV;            // and vertically, a different number
   const [imgW, imgH] = entry.size_px;
@@ -266,9 +266,11 @@ async function buildPlate(view) {
   // calibration were made from different boxes, and every trace would carry the difference.
   const declared = dimensions.views[view]?.scale_mm_per_px;
   if (declared) {
+    // dimensions.json was written from the same subject box, so these must now agree to rounding.
+    // A tolerance of 0.2 % is the rounding of two independent divisions, nothing more.
     const dx = Math.abs(kx * 1000 / declared.horizontal - 1) * 100;
     const dy = Math.abs(ky * 1000 / declared.vertical - 1) * 100;
-    if (dx > 1 || dy > 1) {
+    if (dx > 0.2 || dy > 0.2) {
       console.warn(
         `calque ${view}: scale differs from dimensions.json by ${dx.toFixed(2)} % / ` +
         `${dy.toFixed(2)} %. The crop and the calibration disagree; re-run view_scale.py.`,
@@ -352,15 +354,204 @@ async function showPlate(view) {
   return mesh;
 }
 
-// A plate belongs to one axis. Any other camera gets nothing, which is the mask.
+// A plate belongs to one axis, and the mask tests the AXIS, not the name of the view.
+//
+// This distinction is load-bearing. Masking on `currentView` looked right and broke tracing: zooming
+// in for precision sets the view to "custom", so the plate vanished exactly when it was needed. An
+// elevation seen from 20 degrees off is a picture of a car that is not there, but the same elevation
+// seen from the same axis at a different zoom is the same projection, and it stays valid.
+function matchingView() {
+  if (state.perspective) return null;
+  for (const [name, view] of Object.entries(VIEWS)) {
+    if (view.perspective) continue;
+    const dAz = Math.abs(((state.azimuth - view.azimuth + 540) % 360) - 180);
+    const dEl = Math.abs(state.elevation - view.elevation);
+    if (dAz < 0.5 && dEl < 0.5) return name;
+  }
+  return null;
+}
+
 function syncPlate() {
-  const wanted = Object.prototype.hasOwnProperty.call(VIEWS, currentView) ? currentView : null;
-  const plateView = wanted && !VIEWS[wanted].perspective ? wanted : null;
+  const plateView = matchingView();
   if (plateView !== calque.view) {
     showPlate(plateView).catch((error) => console.warn(String(error)));
   }
   plates.visible = Boolean(plateView);
 }
+
+// ------------------------------------------------------------------ measure in model units
+
+// The calque is in the scene at the model's own scale, so a point on it IS a model coordinate:
+// there is no pixels-to-millimetres conversion left to get wrong. A raycast against the plate
+// returns world metres directly, and the two in-plane axes of the view are the two numbers the
+// model file wants.
+//
+// The honest limit is not the unit, it is the SCREEN. A click resolves to one screen pixel, and the
+// subject covers as many screen pixels as the current zoom gives it. So the panel always prints the
+// current millimetres per screen pixel: trace at a zoom where that number is close to the image's
+// own scale (2.8 mm/px on the left view), or the tool will be coarser than the picture it shows.
+
+const measurement = {
+  active: false,
+  points: [],   // { source, view, world: [x,y,z], u, v, mmPerPx }
+};
+
+// The two model axes a view's plane spans, and how to name them in a report.
+const PLANE_AXES = {
+  left: ["z", "y"], right: ["z", "y"],
+  front: ["x", "y"], back: ["x", "y"],
+  top: ["x", "z"],
+};
+
+function viewOfPlate() {
+  return plates.children[0]?.userData.view ?? null;
+}
+
+// Millimetres of world per screen pixel, at the depth the camera is aimed at. For an orthographic
+// camera this is exact everywhere; for a perspective one it is the value at the target.
+function mmPerScreenPx() {
+  const height = renderer.domElement.height;
+  if (!state.perspective) return (state.orthoHeight * 1000) / height;
+  const distance = state.distance;
+  const worldHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(state.fov) / 2);
+  return (worldHeight * 1000) / height;
+}
+
+// Pick at a normalised device coordinate -- (-1,-1) is the bottom left, (1,1) the top right -- so a
+// caller can test the chain without synthesising a mouse event.
+function pickAt(nx, ny, source) {
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(nx, ny), activeCamera);
+
+  if (source === "model") {
+    const hit = raycaster.intersectObject(car, true)[0];
+    if (!hit) return null;
+    return { source: "model", view: null, world: hit.point.toArray() };
+  }
+
+  // The plate, even when the model is in front of it: measurement is about the reference, and the
+  // model must not be able to block the point you are trying to read.
+  const plate = plates.children[0];
+  if (!plate) return null;
+  const hit = raycaster.intersectObject(plate, false)[0];
+  if (!hit) return null;
+
+  const local = plate.worldToLocal(hit.point.clone());
+  return {
+    source: "calque",
+    view: plate.userData.view,
+    world: hit.point.toArray().map((v) => Number(v.toFixed(4))),
+    u: local.x,
+    v: local.y,
+  };
+}
+
+function measureRecord(point) {
+  const axes = point.view ? PLANE_AXES[point.view] : ["x", "y"];
+  const [a, b] = axes;
+  const value = (p, axis) => ({ x: p[0], y: p[1], z: p[2] })[axis] * 1000;
+  return {
+    ...point,
+    mmPerPx: Number(mmPerScreenPx().toFixed(3)),
+    axes,
+    read: {
+      [a]: Number(value(point.world, a).toFixed(1)),
+      [b]: Number(value(point.world, b).toFixed(1)),
+    },
+  };
+}
+
+function measurePoint(nx, ny, source = "calque") {
+  const point = pickAt(nx, ny, source);
+  if (!point) return null;
+  const record = measureRecord(point);
+  measurement.points.push(record);
+  pcbRender();
+  return record;
+}
+
+// The distance between two picks, in model units and broken down per axis.
+function measureBetween(i, j) {
+  const a = measurement.points[i];
+  const b = measurement.points[j];
+  if (!a || !b) return null;
+  const d = [b.world[0] - a.world[0], b.world[1] - a.world[1], b.world[2] - a.world[2]];
+  const axes = a.axes ?? ["x", "y"];
+  return {
+    from: i,
+    to: j,
+    axes,
+    delta_mm: Object.fromEntries(axes.map((axis, k) => [
+      axis, Number((d[["x", "y", "z"].indexOf(axis)] * 1000).toFixed(1)),
+    ])),
+    length_mm: Number((Math.hypot(...d) * 1000).toFixed(1)),
+  };
+}
+
+// ------------------------------------------------------------------ measure panel
+
+let pcb = null;
+
+function pcbRender() {
+  if (!pcb) {
+    pcb = document.createElement("div");
+    pcb.id = "measure-panel";
+    pcb.style.cssText = [
+      "position:fixed", "left:16px", "bottom:16px", "z-index:20",
+      "background:#1118", "color:#e7e9ee", "border:1px solid #2e333c", "border-radius:6px",
+      "padding:8px 10px", "font:12px/1.5 ui-monospace,monospace", "max-width:520px",
+      "white-space:pre", "pointer-events:none", "display:none",
+    ].join(";");
+    document.body.appendChild(pcb);
+  }
+  if (!measurement.active && measurement.points.length === 0) {
+    pcb.style.display = "none";
+    return;
+  }
+  pcb.style.display = "block";
+  const lines = [
+    `measure  ${measurement.active ? "click to place a point, shift-click to pick the model" : "idle"}`,
+    `precision ${mmPerScreenPx().toFixed(2)} mm per screen px  (the image itself is 2.8 on left)`,
+  ];
+  measurement.points.forEach((p, i) => {
+    const [a, b] = p.axes;
+    lines.push(`  ${String(i + 1).padStart(2)}  ${a.toUpperCase()} ${String(p.read[a]).padStart(7)} mm   ` +
+               `${b.toUpperCase()} ${String(p.read[b]).padStart(7)} mm   ${p.source}`);
+  });
+  if (measurement.points.length >= 2) {
+    const last = measureBetween(measurement.points.length - 2, measurement.points.length - 1);
+    const parts = Object.entries(last.delta_mm).map(([k, v]) => `d${k.toUpperCase()} ${v >= 0 ? "+" : ""}${v}`);
+    lines.push(`  delta  ${parts.join("   ")}   length ${last.length_mm} mm`);
+  }
+  pcb.textContent = lines.join("\n");
+}
+
+function measureOn() {
+  measurement.active = true;
+  pcbRender();
+  return nextFrame();
+}
+
+function measureOff() {
+  measurement.active = false;
+  pcbRender();
+  return nextFrame();
+}
+
+function measureClear() {
+  measurement.points.length = 0;
+  pcbRender();
+  return nextFrame();
+}
+
+renderer.domElement.addEventListener("pointerdown", (event) => {
+  if (!measurement.active) return;
+  if (event.button !== 0) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  const ny = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  measurePoint(nx, ny, event.shiftKey ? "model" : "calque");
+});
 
 // ------------------------------------------------------------------ lights
 
@@ -769,6 +960,34 @@ window.__ctl = {
       metrics: child.userData.metrics,
     })),
   }),
+  // Measurement in model units. A point on the calque is a model coordinate, because the plate is
+  // already at the model's scale and in its frame.
+  measure: (options = {}) => {
+    if (options.off) return measureOff();
+    if (options.clear) return measureClear();
+    if (options.on) return measureOn();
+    return nextFrame();
+  },
+  measurePoints: () => ({
+    active: measurement.active,
+    mmPerScreenPx: Number(mmPerScreenPx().toFixed(3)),
+    points: measurement.points,
+    between: measurement.points.length >= 2
+      ? measureBetween(0, measurement.points.length - 1)
+      : null,
+  }),
+  // Pick programmatically, at a normalised device coordinate. This is what lets the chain be tested
+  // without a mouse: pick the two ends of the calibrated plate and check the distance in metres.
+  measurePick: (nx, ny, source = "calque") => {
+    const record = measurePoint(nx, ny, source);
+    if (!record) return null;
+    return {
+      ...record,
+      between: measurement.points.length >= 2
+        ? measureBetween(measurement.points.length - 2, measurement.points.length - 1)
+        : null,
+    };
+  },
   reset: ctlReset,
   wait: () => nextFrame(),
 };

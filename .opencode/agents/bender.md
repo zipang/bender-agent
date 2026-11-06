@@ -432,7 +432,7 @@ answers:
 
 | Question, in the art director's words | Why it matters | Default |
 | :--- | :--- | :--- |
-| Which subject folder, and which views are locked? | It sets the reference set | read `blueprints/<category>/<subject>/` |
+| Which subject folder, which views are locked, and are they all required? | It sets the reference set and the gate scope | `left`, `right`, `front`, `back`, and `top` are required; `bottom` is optional |
 | What are the real length, width, and height, and where do they come from? | They are the anchor of every scale, and they are an **input**. For a real subject, take the manufacturer's figures | none |
 | What is the body, and what is an accessory, for this subject? | It decides what stage 2 may contain | the shell of a car, the naked volume of a character |
 | Is this a game, cinematic, or background asset? | It sets the polygon and texture budget | game asset |
@@ -469,8 +469,12 @@ Never put geometry in `scene.js`. A model that only exists inside a viewer canno
 4. Cross-check one landmark that two views share: tyre diameter, belt line height, wheelbase, or
    track width. This step is manual, and it is the one that proves the views show the same object.
 
-Gate G1 passes when the three dimensions have a real source, every locked view has both scales,
-no view is `reject`, and the shared landmark agrees within 10%.
+Gate G1 passes when the three dimensions have a real source, every **required** view has both
+scales, no required view is `reject`, and the shared landmark agrees within 10%.
+
+The bottom view is optional by default: the subject usually stands on it, it is not seen, and an
+image model invents one. It informs, it does not decide, and it does not enter a gate. Model it
+properly only when the art director asks for the underside, or when the deliverable exposes it.
 
 Report the dimensions table with sources, the per-view table of `kx`, `ky`, drift and verdict, and
 the landmark cross-check. A `reject` view is regenerated, never rescaled. A `corrected` view is

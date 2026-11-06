@@ -64,6 +64,9 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
 - Stage 3 adds one accessory per pass: measured, modelled apart, validated alone, then oriented
   and translated onto the body as its own named node.
 - Never merge an accessory into the body mesh.
+- Not every locked view has the same authority. `left`, `right`, `front`, `back` and `top` are
+  required. `bottom` is optional: the subject usually stands on it, and an image model invents one.
+  An optional view informs, it does not decide, and it does not enter a gate.
 
 ## Blueprint rules
 

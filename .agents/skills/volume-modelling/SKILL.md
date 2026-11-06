@@ -24,6 +24,24 @@ whole pass, and the gate cannot see a mistake that was already accepted.
 The precondition is a blueprint: a set of views whose scale is not yet known but whose shape is
 accepted by the art director. If the views do not exist, stop. Use `blueprint-preparation` first.
 
+### Which views are required
+
+Not every locked view carries the same authority. Decide this before stage 1, and write it down.
+
+| View | Default | Why |
+| :--- | :--- | :--- |
+| left, right, front, back | **required** | they carry the silhouette that the deliverable is judged on |
+| top | **required** when the width or the depth varies along the length | it is the only source of the plan profile |
+| bottom | **optional, best effort** | the subject usually stands on it, so it is not seen; and an image model has almost no underside in its training data, so it invents one |
+
+An optional view does not enter a gate, and it does not cost a pass. Model the region it shows as
+best effort, and state that the result is a hypothesis. Model it properly only when the art
+director asks for it by name, or when the deliverable exposes the underside.
+
+The rule for a view that is optional in principle: **it informs, it does not decide**. Where it
+agrees with a required view, it is useful. Where it disagrees, the required view wins, and the
+disagreement is reported rather than resolved by averaging.
+
 ## The five rules
 
 1. **One stage at a time.** A stage is finished when its gate passes. Never start the next stage
@@ -136,8 +154,9 @@ Run it once per locked view. It appends one entry per view and recomputes the do
 Pass only when all four conditions hold:
 
 1. The three real dimensions are written, with a source, and none is `estimate`.
-2. Every locked view has both `kx` and `ky` in `dimensions.json`.
-3. Every view is `pass` or `corrected`. No view is `reject`.
+2. Every **required** view has both `kx` and `ky` in `dimensions.json`.
+3. Every required view is `pass` or `corrected`. No required view is `reject`. An optional view is
+   recorded for the record, and it does not block the gate.
 4. One landmark visible on two views agrees within 10% after normalization. Good landmarks: the
    tyre diameter on the side and front views, the belt line height on the side and front views, the
    wheelbase on the side and plan views, the track width on the front and plan views.
@@ -183,7 +202,8 @@ report it as a shape error for the whole pass.
 - **Plan profile** (top view): `(x, z)` — the left and right edges as functions of the length.
 - **Cross profile** (front or back view): `(x, y)` — the width and the height of the section.
 
-Use the view that is best for the profile, and say which one. `left` and `right` should agree;
+Use the required view that is best for the profile, and say which one. A profile traced from an
+optional view is a hypothesis, and it is marked `estimate`. `left` and `right` should agree;
 when they do not, the difference is either an asymmetry of the subject or a defect of the views.
 Report it, and do not average two views without a decision.
 
@@ -233,7 +253,7 @@ section. Do this in this order:
 
 Pass only when all four conditions hold:
 
-1. The silhouette of the body matches the reference in **every** locked view, within
+1. The silhouette of the body matches the reference in **every required view**, within
    **100 mm, or 3% of the largest dimension, whichever is smaller**.
 2. The measured wheel centres, if any, are within **3%** of the length.
 3. The body is one closed volume, with no accessory modelled on it.
@@ -269,7 +289,8 @@ Pick the accessory on a view where it is fully visible. Write its record before 
 ```
 
 A part measured on one view has a 2D size. An accessory needs a third dimension, so measure it on
-a second view whenever that view exists. When it does not, mark the third dimension `estimate`.
+a second **required** view whenever that view exists. When it does not, or when the only second
+view is optional, mark the third dimension `estimate`.
 
 ### 3.2 Model it apart
 
@@ -371,7 +392,8 @@ director judges.
 | Silhouette matches on one view, not on the others | one profile fitted, the others assumed | measure all views at the same stations |
 | The scale differs between views | a view was generated with stretched proportions | cross-check each view against a dimension it does not span |
 | A width-based view drifts by 5 to 12% | a protruding accessory — mirror, antenna, bumper corner — inflates the silhouette | measure the body only, or declare the accessory and subtract its span |
-| A "plan" view drifts by 15% or more | the view is a high three-quarter, not an elevation: it shows the roof and the flanks at once | reject it; it carries no usable scale |
+| A "plan" view drifts by 15% or more | the view is a high three-quarter, not an elevation: it shows the roof and the flanks at once | regenerate it, or drop it and say what the width is no longer measured by |
+| The underside view shows parts the subject does not have | it is optional by nature, and often invented | best effort only; it does not enter a gate |
 | Accessories cannot be placed | the body was modelled after them, or with them | stage 2 is the body only |
 | A part sits at an angle on the body | orientation and translation applied in the wrong order | orient, then translate |
 | The body changes every time a part is added | parts are merged into the body | one named node per part |

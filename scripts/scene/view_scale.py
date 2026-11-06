@@ -142,7 +142,8 @@ def measure(path: str, view: str, real: dict) -> dict:
     }
 
 
-def write_entry(path: str, entry: dict, real: dict, unit: str, source: str) -> None:
+def write_entry(path: str, entry: dict, real: dict, unit: str, source: str,
+                required: bool) -> None:
     document = {}
     if os.path.exists(path):
         with open(path, encoding="utf-8") as handle:
@@ -153,9 +154,25 @@ def write_entry(path: str, entry: dict, real: dict, unit: str, source: str) -> N
     )
     document.setdefault("unit", unit)
     document["real"] = {key: {"value": value, "source": source} for key, value in real.items()}
+    entry["required"] = required
     document.setdefault("views", {})[entry["view"]] = entry
-    verdicts = [v["gate"] for v in document["views"].values()]
-    document["gate"] = "pass" if verdicts and all(v == "pass" for v in verdicts) else "open"
+    # An optional view informs and does not decide: it is recorded, and it never blocks the gate.
+    required_views = [v for v in document["views"].values() if v.get("required", True)]
+    document["scales"] = (
+        "pass"
+        if required_views and all(v["gate"] in ("pass", "corrected") for v in required_views)
+        else "open"
+    )
+    # The scales are only two of the four conditions of G1. The third is the landmark cross-check,
+    # which no script can run yet, so G1 stays open until a `landmarks` entry says it passed.
+    landmarks = document.get("landmarks") or {}
+    document["g1"] = (
+        "pass"
+        if document["scales"] == "pass"
+        and landmarks
+        and all(v.get("delta_pct", 100) <= 10 for v in landmarks.values())
+        else "open"
+    )
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(document, handle, indent=2)
         handle.write("\n")
@@ -170,6 +187,8 @@ def main() -> None:
     parser.add_argument("--height", type=float, help="real height in metres")
     parser.add_argument("--write", metavar="dimensions.json",
                         help="merge the entry into this dimensions.json")
+    parser.add_argument("--optional", action="store_true",
+                        help="record the view but keep it out of the gate (the underside, usually)")
     parser.add_argument("--source", default="art director",
                         help="where the real dimensions come from, for the record")
     parser.add_argument("--json", action="store_true", help="print the entry as JSON only")
@@ -195,7 +214,7 @@ def main() -> None:
     entry = measure(args.image, args.view, real)
 
     if args.write:
-        write_entry(args.write, entry, real, "m", args.source)
+        write_entry(args.write, entry, real, "m", args.source, not args.optional)
 
     if args.json:
         print(json.dumps(entry, indent=2))
@@ -203,7 +222,8 @@ def main() -> None:
 
     horizontal, vertical = VIEW_TABLE[args.view]
     prints = [
-        f"view        {entry['view']}   {entry['image_px'][0]}x{entry['image_px'][1]} px",
+        f"view        {entry['view']}   {entry['image_px'][0]}x{entry['image_px'][1]} px"
+        f"{'   (optional)' if args.optional else ''}",
         f"silhouette  {entry['silhouette_px'][0]} x {entry['silhouette_px'][1]} px",
         f"spans       {entry['spans']}",
         f"scale       horizontal {entry['scale_mm_per_px']['horizontal']:.3f} mm/px   "

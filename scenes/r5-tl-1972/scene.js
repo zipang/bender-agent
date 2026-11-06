@@ -12,7 +12,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { buildCar, measure } from "./model.js";
+import { buildBody, measure, target, deviation } from "./model.js";
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get("shot") === "1";
@@ -141,6 +141,15 @@ function placeCamera(name) {
 }
 
 const controls = new OrbitControls(camera, renderer.domElement);
+// Any manual orbit invalidates the view name: the page is no longer showing `left`, it is showing
+// wherever the user dragged it. Without this, a capture could inherit a hand-moved camera and still
+// report the view it was told to report.
+controls.addEventListener("start", () => {
+  if (currentView !== "custom") {
+    currentView = "custom";
+    syncButtons();
+  }
+});
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 3;
@@ -195,7 +204,9 @@ scene.add(grid);
 
 // ------------------------------------------------------------------ model
 
-const car = buildCar();
+// The body only. Every accessory lives in accessories.js and is not mounted: stage 2 is judged on
+// this volume alone, and a part that is present hides the volume that the gate is about.
+const car = buildBody();
 scene.add(car);
 
 // ------------------------------------------------------------------ hud
@@ -441,8 +452,31 @@ function ctlReset() {
 
 window.__setView = setView;
 window.__views = Object.keys(VIEWS);
+// The orthographic frame in millimetres per pixel, and the pixel size it maps to. A silhouette
+// comparison needs these: without them the render is just a picture and cannot be laid on the
+// reference in metric space.
+function orthoFrame() {
+  const camera_ = activeCamera;
+  return {
+    mmPerPx: state.perspective
+      ? null
+      : (state.orthoHeight * 1000) / window.innerHeight,
+    viewport: [window.innerWidth, window.innerHeight],
+    orthoHeight: state.perspective ? null : state.orthoHeight,
+    target: [state.target.x, state.target.y, state.target.z],
+    azimuth: state.azimuth,
+    elevation: state.elevation,
+    perspective: state.perspective,
+  };
+}
+
 window.__stats = () => ({
   ...measure(car),
+  frame: orthoFrame(),
+  // What the body is checked against, and where it stands. Millimetres, because that is the unit of
+  // the gates: G2 allows 100 mm or 3 % of the largest dimension, whichever is smaller.
+  target: target(),
+  deviation: deviation(car),
   calls: renderer.info.render.calls,
   view: currentView,
   viewport: [window.innerWidth, window.innerHeight],
@@ -465,6 +499,9 @@ window.__ctl = {
   stats: () => window.__stats(),
   state: () => ({
     ...state,
+    // The view NAME, so a caller can prove the page is on the view it asked for. `camera` and the
+    // orbit controls both set this to "custom", so a hand-moved camera can never claim to be `left`.
+    view: currentView,
     target: [state.target.x, state.target.y, state.target.z],
   }),
   reset: ctlReset,

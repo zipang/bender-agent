@@ -342,6 +342,35 @@ and `ctl.ts camera` for the angle the argument is actually about.
 A flat view is **always** orthographic. A perspective camera against an orthographic reference turns
 a correct roof into a wrong one, and sends you fixing the model instead of the camera.
 
+### 2.6 Compare silhouettes, not shading
+
+A shaded render hides an error that a silhouette cannot, so G2 is judged on a binary mask.
+
+```bash
+bun run scripts/scene/ctl.ts open --shot --url http://127.0.0.1:5180
+bun run scripts/scene/ctl.ts shot /tmp/opencode/left.webp --view left
+python3 scripts/scene/compare_silhouette.py \
+  --subject blueprints/<category>/<subject> --view left \
+  --render /tmp/opencode/left.webp --out /tmp/opencode/cmp-left.png
+```
+
+`--shot` loads the capture page: white field, no ground, no grid, no HUD. Without it the ground
+plane is a large light shape, and the mask reads it as subject.
+
+`shot --view <name>` **re-applies the view** before it captures, and fails if the page does not
+report that view afterwards. The page is live and a human may be orbiting it, so a capture must not
+inherit whatever the window happens to show. A file that looks like evidence and is not is worse
+than no file.
+
+The overlay is grey where both agree, red where only the reference has the subject, blue where only
+the model does. The scale is read in the tool, not by eye: the reference gets `kx` and `ky` from
+`dimensions.json`, the model gets its metric size from the sidecar `shot` writes next to the image.
+
+**Do not anchor a wheel-less body on the reference's tyre contact.** Stage 2 has no wheels, so its
+lowest point is the sill, 265 mm up. The tool lifts the model by exactly that declared distance, so
+both bottoms mean the underside of the body. The band below the sill is the wheel zone and is not
+comparable at stage 2; a gate that counts it wrong is measuring a part that is not mounted yet.
+
 ### Gate G2 — the body is true
 
 Pass only when all four conditions hold:
@@ -349,15 +378,20 @@ Pass only when all four conditions hold:
 1. The silhouette of the body matches the reference in **every required view**, within
    **100 mm, or 3% of the largest dimension, whichever is smaller**.
 2. The measured wheel centres, if any, are within **3%** of the length.
-3. The body is one closed volume, with no accessory modelled on it.
+3. The body is one closed volume, with no accessory modelled on it and **no hole cut in it**.
+   Wheel arches, window openings and lamp recesses are cut in stage 3, when the part that fills them
+   has been measured. A hole changes the silhouette, and the gate measures the silhouette.
 4. Each of the three bounding-box dimensions is within **3%** of `dimensions.json`.
+5. Height is measured **from the ground**, Y = 0, not from the lowest vertex: a body without wheels
+   has its lowest point at the sill, and a bounding box would report the body as 265 mm too short.
 
 Say the numbers view by view. A gate that passes on the side view and is not measured on the plan
 view has not passed; it is half-measured. If a view cannot be measured yet, write `not measured`
 and treat the gate as failed.
 
-**Report:** one overlay and one station table per view, the bounding box on three axes, and the
-worst station with its delta.
+**Report:** one overlay and one station table per view, the bounding box on three axes, the IoU of
+each silhouette, and the worst station with its delta. A shaded render is not evidence: G2 is
+measured on the binary mask from section 2.6.
 
 ---
 
@@ -492,6 +526,9 @@ director judges.
 | The body changes every time a part is added | parts are merged into the body | one named node per part |
 | A mirrored comparison passes | the two images show opposite flanks | check which side carries the roof mass in both |
 | A correct roof measures wrong | perspective camera against an orthographic view | use the orthographic camera for flat views |
+| A capture shows an angle nobody asked for | the page was live, and a hand had orbited it | `shot --view <name>` re-applies the view and verifies it |
+| A stage-2 body looks 265 mm too short everywhere | the comparison anchored its sill on the reference's tyre contact | lift the model by the sill, and exclude the wheel band |
+| The model appears smeared across the whole canvas | out-of-range samples clamped to the border instead of left empty | resample to empty, never to the edge |
 | A distance is off by a few percent on a stretched view | the diagonal was scaled by one factor | convert per axis: `dx` with `kx`, `dy` with `ky` |
 | A stretched view reports a small drift | the span was smoothed, and the smoothing ate the roof or the nose | read the span from the cropped box, not from a profile |
 | The crop is expected to fix the proportions | cropping is a translation and a trim | it cannot: the anisotropy is a ratio, and it survives the crop |
@@ -514,6 +551,7 @@ director judges.
 | `scripts/scene/measure_view.py` | the same landmarks for both images, in millimetres |
 | `scripts/scene/silhouette.ts` | the overlay: red is reference only, blue is model only |
 | `scripts/scene/check.ts` | capture, overlay, measure, and the orientation guard |
+| `scripts/scene/compare_silhouette.py` | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm |
 | `scripts/measure/index.html` | **stage 1 tool**: the point picker, served at `/measure/` |
 | `scripts/measure/report.py` | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict |
 | `blueprints/<category>/<subject>/measurements.json` | **written by the picker**, read by the report |

@@ -114,7 +114,10 @@ async function main(): Promise<void> {
   const session = options.session;
 
   if (command === "open") {
-    const url = `${options.url.replace(/\/$/, "")}/`;
+    // --shot loads the capture page: white field, no ground, no grid, no HUD. A silhouette
+    // comparison needs that, because a ground plane is a large light shape that reads as subject.
+    const query = rest.includes("--shot") ? "?shot=1" : "";
+    const url = `${options.url.replace(/\/$/, "")}/${query}`;
     await ab(["open", url, "--session", session]);
     await waitForReady(session);
     console.log(`open  ${url}`);
@@ -126,13 +129,38 @@ async function main(): Promise<void> {
     if (!target) throw new Error("shot needs a path, for example /tmp/opencode/side.webp");
     const path = resolve(target);
     const scratch = `${path}.png`;
+
+    // The camera is re-applied, always. The page is live and a human may have orbited it, so the
+    // shot does not inherit whatever the window happens to show: it states the view it wants, and
+    // then verifies that the page really is on it. A capture that silently records someone else's
+    // camera is worse than no capture, because the file looks like evidence.
+    const wanted = option(rest, "view");
+    if (wanted) {
+      await waitForReady(session);
+      const applied = (await evaluate(
+        `window.__ctl.view(${JSON.stringify(wanted)}).then(() => window.__ctl.state())`,
+        session,
+      )) as Record<string, unknown> | null;
+      const state = (await evaluate("window.__ctl.state()", session)) as Record<string, unknown>;
+      if (state.view !== wanted) {
+        throw new Error(
+          `asked for view "${wanted}" but the page reports "${String(state.view)}"` +
+            (applied ? "" : " (the apply call returned nothing)"),
+        );
+      }
+    }
     await ab(["screenshot", "canvas", scratch, "--session", session]);
+    // The sidecar is what makes the picture measurable. It records the camera that drew it, so a
+    // silhouette tool can convert pixels to millimetres instead of guessing a scale.
+    const stats = (await evaluate("window.__stats()", session)) as Record<string, unknown>;
+    await Bun.write(`${path}.json`, JSON.stringify(stats, null, 2) + "\n");
     if (path.endsWith(".webp")) {
       const png = await Bun.file(scratch).bytes();
       await Bun.write(path, await new Bun.Image(png).webp({ quality: 94 }).bytes());
       await Bun.file(scratch).delete();
     }
     console.log(`shot  ${path}`);
+    console.log(`side  ${path}.json`);
     return;
   }
 

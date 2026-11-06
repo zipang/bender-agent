@@ -47,6 +47,7 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
 | `index.html` | The page and the import map. |
 
 - `model.js` must stay importable outside a browser. The live scene and the exported `.glb` are then built from the same source.
+- Judge a body on its **binary silhouette**, not on a shaded render. `scripts/scene/compare_silhouette.py` overlays the two masks and prints the deltas in millimetres.
 - Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save. It also serves `/measure/`, the point picker, and `/repo/` for the reference images and their `dimensions.json`.
 - Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing `scene.js` to look from another angle is not a loop.
 - Every modelling pass ends with `bun run scripts/scene/check.ts`. It captures, overlays, measures, and checks the orientation.
@@ -62,6 +63,9 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
   input: a specification sheet, a measurement, or a decision of the art director. Never read them
   from the views that the model will be checked against.
 - Stage 2 builds the body only. No accessory, no placeholder, no reference box.
+- Stage 2 cuts **no hole**. Wheel arches, window openings and lamp recesses belong to stage 3, when
+  the part that fills them has been measured. A hole changes the silhouette, and G2 measures the
+  silhouette.
 - Stage 3 adds one accessory per pass: measured, modelled apart, validated alone, then oriented
   and translated onto the body as its own named node.
 - Never merge an accessory into the body mesh.

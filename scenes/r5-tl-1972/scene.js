@@ -41,11 +41,9 @@ scene.environmentIntensity = 0.55;
 // ------------------------------------------------------------------ camera
 
 const camera = new THREE.PerspectiveCamera(26, window.innerWidth / window.innerHeight, 0.1, 200);
-const target = new THREE.Vector3(0, 0.7, 0);
 
 // The blueprint sheets are orthographic elevations, so a perspective shot can never line up with
 // one. The flat views therefore use a second camera: an orthographic one, framed on the model.
-const orthoHeight = 4.4;
 const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -50, 200);
 ortho.up.set(0, 1, 0);
 
@@ -77,37 +75,69 @@ const VIEWS = {
 const DISTANCE = 10.5;
 let activeCamera = camera;
 
+// One state drives both cameras. A named view is just a preset written into it, so a manual
+// `camera({azimuth: 37})` and a named view cannot disagree about what the page is showing.
+const state = {
+  azimuth: 60,
+  elevation: 30,
+  distance: DISTANCE,
+  target: new THREE.Vector3(0, 0.7, 0),
+  perspective: true,
+  orthoHeight: 4.4,
+  fov: 26,
+  up: [0, 1, 0],
+};
+
 function frameOrtho() {
   const aspect = window.innerWidth / window.innerHeight;
-  ortho.left = (-orthoHeight * aspect) / 2;
-  ortho.right = (orthoHeight * aspect) / 2;
-  ortho.top = orthoHeight / 2;
-  ortho.bottom = -orthoHeight / 2;
+  const h = state.orthoHeight;
+  ortho.left = (-h * aspect) / 2;
+  ortho.right = (h * aspect) / 2;
+  ortho.top = h / 2;
+  ortho.bottom = -h / 2;
   ortho.updateProjectionMatrix();
+}
+
+function applyCamera() {
+  const az = THREE.MathUtils.degToRad(state.azimuth);
+  const el = THREE.MathUtils.degToRad(state.elevation);
+  const t = state.target;
+  const position = new THREE.Vector3(
+    t.x + state.distance * Math.cos(el) * Math.cos(az),
+    t.y + state.distance * Math.sin(el),
+    t.z + state.distance * Math.cos(el) * Math.sin(az),
+  );
+
+  activeCamera = state.perspective ? camera : ortho;
+  activeCamera.up.set(...state.up);
+  activeCamera.position.copy(position);
+  activeCamera.lookAt(t);
+
+  if (state.perspective) {
+    camera.fov = state.fov;
+    camera.updateProjectionMatrix();
+  } else {
+    frameOrtho();
+  }
+
+  controls.enabled = Boolean(state.perspective);
+  if (state.perspective) {
+    controls.target.copy(t);
+    controls.update();
+  }
+  return activeCamera;
 }
 
 function placeCamera(name) {
   const view = VIEWS[name] ?? VIEWS["front-3q"];
-  const az = THREE.MathUtils.degToRad(view.azimuth);
-  const el = THREE.MathUtils.degToRad(view.elevation);
-  const position = new THREE.Vector3(
-    target.x + DISTANCE * Math.cos(el) * Math.cos(az),
-    target.y + DISTANCE * Math.sin(el),
-    target.z + DISTANCE * Math.cos(el) * Math.sin(az),
-  );
-
-  activeCamera = view.perspective ? camera : ortho;
-  activeCamera.up.set(...(view.up ?? [0, 1, 0]));
-  activeCamera.position.copy(position);
-  activeCamera.lookAt(target);
-
-  controls.enabled = Boolean(view.perspective);
-  if (view.perspective) {
-    controls.target.copy(target);
-    controls.update();
-  } else {
-    frameOrtho();
-  }
+  Object.assign(state, {
+    azimuth: view.azimuth,
+    elevation: view.elevation,
+    distance: DISTANCE,
+    perspective: Boolean(view.perspective),
+    up: view.up ?? [0, 1, 0],
+  });
+  applyCamera();
 }
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -148,20 +178,20 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0xb9bcc0, 0.35));
 
 // In capture mode there is no ground: the blueprint sheets are white field, and a shadow
 // would break the comparison. In the viewer the ground gives scale and contact.
-if (!SHOT) {
-  const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(9, 48),
-    new THREE.MeshStandardMaterial({ color: 0xdfe2e6, roughness: 0.95, metalness: 0 }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  ground.name = "Ground";
-  scene.add(ground);
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(9, 48),
+  new THREE.MeshStandardMaterial({ color: 0xdfe2e6, roughness: 0.95, metalness: 0 }),
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+ground.name = "Ground";
+ground.visible = !SHOT;
+scene.add(ground);
 
-  const grid = new THREE.GridHelper(12, 24, 0xb0b6bd, 0xcdd2d7);
-  grid.position.y = 0.001;
-  scene.add(grid);
-}
+const grid = new THREE.GridHelper(12, 24, 0xb0b6bd, 0xcdd2d7);
+grid.position.y = 0.001;
+grid.visible = !SHOT;
+scene.add(grid);
 
 // ------------------------------------------------------------------ model
 
@@ -251,6 +281,164 @@ function setView(name) {
   return nextFrame();
 }
 
+// ------------------------------------------------------------------ control surface
+
+// A capture that only knows the eight named views cannot answer the question a modelling pass
+// actually asks: "and from here, does it still read?". These commands move the camera freely and
+// change what the frame contains, so a pass can be judged from any angle and with the body alone.
+
+const meshesMatching = (name) => {
+  const out = [];
+  car.traverse((object) => {
+    if (!object.isMesh) return;
+    if (name && object.name !== name) return;
+    out.push(object);
+  });
+  return out;
+};
+
+let savedVisibility = null;
+
+function restoreVisibility() {
+  if (!savedVisibility) return;
+  for (const [object, visible] of savedVisibility) object.visible = visible;
+  savedVisibility = null;
+}
+
+function ctlCamera(options = {}) {
+  for (const field of ["azimuth", "elevation", "distance", "fov", "orthoHeight"]) {
+    if (typeof options[field] === "number") state[field] = options[field];
+  }
+  if (typeof options.perspective === "boolean") state.perspective = options.perspective;
+  if (Array.isArray(options.up)) state.up = options.up;
+  if (options.target) {
+    state.target.set(
+      options.target.x ?? state.target.x,
+      options.target.y ?? state.target.y,
+      options.target.z ?? state.target.z,
+    );
+  }
+  if (options.reset) {
+    state.target.set(0, 0.7, 0);
+    state.up = [0, 1, 0];
+    state.orthoHeight = 4.4;
+    state.fov = 26;
+  }
+  currentView = "custom";
+  syncButtons();
+  applyCamera();
+  updateHud("custom");
+  return nextFrame();
+}
+
+function ctlOrtho(options = {}) {
+  // `enabled: true` asks for the orthographic camera; without it, the projection is toggled.
+  const perspective =
+    options.enabled === true ? false : options.enabled === false ? true : !state.perspective;
+  return ctlCamera({
+    perspective,
+    orthoHeight: typeof options.height === "number" ? options.height : state.orthoHeight,
+  });
+}
+
+function ctlWireframe(options = {}) {
+  const enabled = options.enabled !== false;
+  const meshes = meshesMatching(options.name ?? null);
+  for (const mesh of meshes) {
+    for (const material of [].concat(mesh.material)) {
+      if (material && "wireframe" in material) material.wireframe = enabled;
+    }
+  }
+  return nextFrame();
+}
+
+function ctlIsolate(options = {}) {
+  const name = options.name ?? null;
+  restoreVisibility();
+  if (name === null) return nextFrame();
+  const node = car.getObjectByName(name);
+  if (!node) throw new Error(`no node named "${name}" in the model`);
+  // The map holds every node of the car, so one restore puts the model back exactly as it was.
+  savedVisibility = new Map();
+  car.traverse((object) => savedVisibility.set(object, object.visible));
+  car.traverse((object) => { object.visible = false; });
+  node.traverse((object) => { object.visible = true; });
+  for (let parent = node.parent; parent; parent = parent.parent) parent.visible = true;
+  return nextFrame();
+}
+
+function ctlVisible(options = {}) {
+  const name = options.name;
+  if (!name) throw new Error("visible() needs a name");
+  const node = car.getObjectByName(name);
+  if (!node) throw new Error(`no node named "${name}" in the model`);
+  node.visible = options.visible !== false;
+  return nextFrame();
+}
+
+function ctlBackground(options = {}) {
+  const color = options.color ?? null;
+  if (color === null || color === "transparent") {
+    scene.background = null;
+    renderer.setClearAlpha(0);
+  } else {
+    scene.background = new THREE.Color(color);
+    renderer.setClearAlpha(1);
+  }
+  return nextFrame();
+}
+
+function ctlGrid(options = {}) {
+  grid.visible = options.enabled !== false;
+  return nextFrame();
+}
+
+function ctlGround(options = {}) {
+  ground.visible = options.enabled !== false;
+  return nextFrame();
+}
+
+function ctlShadows(options = {}) {
+  const enabled = options.enabled !== false;
+  renderer.shadowMap.enabled = enabled;
+  key.castShadow = enabled;
+  ground.receiveShadow = enabled;
+  renderer.shadowMap.needsUpdate = true;
+  return nextFrame();
+}
+
+function ctlExposure(options = {}) {
+  if (typeof options.value === "number") renderer.toneMappingExposure = options.value;
+  return nextFrame();
+}
+
+function nodeList() {
+  const out = [];
+  car.traverse((object) => {
+    if (!object.name) return;
+    out.push({
+      name: object.name,
+      type: object.type,
+      visible: object.visible,
+      triangles: object.isMesh && object.geometry?.index
+        ? object.geometry.index.count / 3
+        : object.isMesh ? (object.geometry?.attributes?.position?.count ?? 0) / 3 : 0,
+    });
+  });
+  return out;
+}
+
+function ctlReset() {
+  restoreVisibility();
+  ctlWireframe({ enabled: false });
+  scene.background = new THREE.Color(SHOT ? 0xffffff : 0xeef0f2);
+  renderer.setClearAlpha(1);
+  grid.visible = !SHOT;
+  ground.visible = !SHOT;
+  renderer.toneMappingExposure = 1.05;
+  return setView(params.get("view") ?? "front-3q");
+}
+
 window.__setView = setView;
 window.__views = Object.keys(VIEWS);
 window.__stats = () => ({
@@ -260,5 +448,29 @@ window.__stats = () => ({
   viewport: [window.innerWidth, window.innerHeight],
 });
 
+window.__ctl = {
+  view: setView,
+  views: () => Object.keys(VIEWS),
+  camera: ctlCamera,
+  ortho: ctlOrtho,
+  wireframe: ctlWireframe,
+  isolate: ctlIsolate,
+  visible: ctlVisible,
+  background: ctlBackground,
+  grid: ctlGrid,
+  ground: ctlGround,
+  shadows: ctlShadows,
+  exposure: ctlExposure,
+  nodes: nodeList,
+  stats: () => window.__stats(),
+  state: () => ({
+    ...state,
+    target: [state.target.x, state.target.y, state.target.z],
+  }),
+  reset: ctlReset,
+  wait: () => nextFrame(),
+};
+
 placeCamera(currentView);
 syncButtons();
+

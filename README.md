@@ -182,12 +182,27 @@ bun run scripts/scene/check.ts   # capture, overlay, measure, and check the orie
 
 | Script | Role |
 | :--- | :--- |
-| `scripts/scene/serve.ts` | Static server for the scene and the `three` package, plus a reload channel over server-sent events. |
+| `scripts/scene/serve.ts` | Static server for the scene and the `three` package, plus a reload channel over server-sent events, the `/measure/` picker, and `/repo/` for reference images. |
+| `scripts/scene/ctl.ts` | Drive the live page: camera angle, projection, wireframe, node isolation, background, and one-shot captures. |
 | `scripts/scene/shot.ts` | Capture every named view to WebP through `agent-browser`. |
 | `scripts/scene/silhouette.ts` | Overlay the render on the reference: red is reference only, blue is model only, magenta is both. |
 | `scripts/scene/measure_view.py` | Reduce both images to a silhouette and print the same landmarks in millimetres, with deltas. |
 | `scripts/scene/read_reference.py` | Read the reference itself into profile data, which is how the model's numbers are authored. |
 | `scripts/scene/check.ts` | Run the whole chain, guard against a mirrored comparison, and print one report. |
+| `scripts/scene/view_scale.py` | Stage 1: the two scales of a reference view, its drift, and its verdict. |
+| `scripts/measure/index.html` | Stage 1: pick points on a reference image and read distances in millimetres, per axis. |
+| `scripts/measure/report.py` | Stage 1: turn the picked points into millimetres, group the landmarks by key, and close gate G1. |
+
+```bash
+python3 scripts/scene/view_scale.py blueprints/vehicules/r5-tl-1972/left/reference.png \
+  --view left --length 3.521 --width 1.525 --height 1.400 --source "manufacturer" \
+  --write blueprints/vehicules/r5-tl-1972/dimensions.json
+
+bun run serve   # then open /measure/?subject=blueprints/vehicules/r5-tl-1972&view=left
+
+python3 scripts/measure/report.py blueprints/vehicules/r5-tl-1972 --annotate --write
+bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
+```
 
 
 ## Repository layout

@@ -1,0 +1,214 @@
+{
+  "subject": "r5-tl-1972",
+  "unit": "m",
+  "real": {
+    "length": {
+      "value": 3.521,
+      "source": "manufacturer, Renault 5 (1972): 3521 x 1525 x 1400 mm"
+    },
+    "width": {
+      "value": 1.525,
+      "source": "manufacturer, Renault 5 (1972): 3521 x 1525 x 1400 mm"
+    },
+    "height": {
+      "value": 1.4,
+      "source": "manufacturer, Renault 5 (1972): 3521 x 1525 x 1400 mm"
+    }
+  },
+  "views": {
+    "left": {
+      "file": "blueprints/vehicules/r5-tl-1972/left/reference.png",
+      "view": "left",
+      "image_px": [
+        1376,
+        768
+      ],
+      "body_px": [
+        1242,
+        505
+      ],
+      "silhouette_box_px": [
+        72,
+        149,
+        1318,
+        676
+      ],
+      "protrusion_px": [
+        5,
+        23
+      ],
+      "spans": "length horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 2.8349,
+        "vertical": 2.7723
+      },
+      "anisotropy": 0.9779,
+      "drift_pct": 2.21,
+      "naive_scale_error_mm": -31.6,
+      "gate": "pass",
+      "required": true
+    },
+    "right": {
+      "file": "blueprints/vehicules/r5-tl-1972/right/reference.png",
+      "view": "right",
+      "image_px": [
+        1376,
+        768
+      ],
+      "body_px": [
+        1216,
+        512
+      ],
+      "silhouette_box_px": [
+        85,
+        150,
+        1305,
+        684
+      ],
+      "protrusion_px": [
+        5,
+        23
+      ],
+      "spans": "length horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 2.8956,
+        "vertical": 2.7344
+      },
+      "anisotropy": 0.9443,
+      "drift_pct": 5.57,
+      "naive_scale_error_mm": -82.5,
+      "gate": "corrected",
+      "required": true
+    },
+    "front": {
+      "file": "blueprints/vehicules/r5-tl-1972/front/reference.webp",
+      "view": "front",
+      "image_px": [
+        2048,
+        1152
+      ],
+      "body_px": [
+        980,
+        757
+      ],
+      "silhouette_box_px": [
+        529,
+        211,
+        1512,
+        1091
+      ],
+      "protrusion_px": [
+        4,
+        124
+      ],
+      "spans": "width horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 1.5561,
+        "vertical": 1.8494
+      },
+      "anisotropy": 1.1885,
+      "drift_pct": 18.85,
+      "naive_scale_error_mm": 222.0,
+      "gate": "corrected",
+      "required": true
+    },
+    "back": {
+      "file": "blueprints/vehicules/r5-tl-1972/back/reference.png",
+      "view": "back",
+      "image_px": [
+        1376,
+        768
+      ],
+      "body_px": [
+        692,
+        587
+      ],
+      "silhouette_box_px": [
+        339,
+        76,
+        1035,
+        730
+      ],
+      "protrusion_px": [
+        5,
+        68
+      ],
+      "spans": "width horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 2.2038,
+        "vertical": 2.385
+      },
+      "anisotropy": 1.0822,
+      "drift_pct": 8.22,
+      "naive_scale_error_mm": 106.4,
+      "gate": "corrected",
+      "required": true
+    },
+    "top": {
+      "file": "blueprints/vehicules/r5-tl-1972/top/reference.png",
+      "view": "top",
+      "image_px": [
+        1376,
+        768
+      ],
+      "body_px": [
+        345,
+        704
+      ],
+      "silhouette_box_px": [
+        506,
+        40,
+        873,
+        743
+      ],
+      "protrusion_px": [
+        23,
+        0
+      ],
+      "spans": "width horizontally, length vertically",
+      "scale_mm_per_px": {
+        "horizontal": 4.4203,
+        "vertical": 5.0014
+      },
+      "anisotropy": 1.1315,
+      "drift_pct": 13.15,
+      "naive_scale_error_mm": 409.1,
+      "gate": "corrected",
+      "required": true
+    },
+    "bottom": {
+      "file": "blueprints/vehicules/r5-tl-1972/bottom/reference.png",
+      "view": "bottom",
+      "image_px": [
+        896,
+        1200
+      ],
+      "body_px": [
+        476,
+        1022
+      ],
+      "silhouette_box_px": [
+        197,
+        92,
+        704,
+        1114
+      ],
+      "protrusion_px": [
+        32,
+        1
+      ],
+      "spans": "width horizontally, length vertically",
+      "scale_mm_per_px": {
+        "horizontal": 3.2038,
+        "vertical": 3.4452
+      },
+      "anisotropy": 1.0754,
+      "drift_pct": 7.54,
+      "naive_scale_error_mm": 246.7,
+      "gate": "corrected",
+      "required": false
+    }
+  },
+  "scales": "pass",
+  "g1": "open"
+}

@@ -150,6 +150,43 @@ python3 scripts/scene/view_scale.py \
 Run it once per view, and add `--optional` for a view that must not gate the stage. It appends one
 entry per view and recomputes the two document fields: `scales` and `g1`.
 
+### 1.6 Measure on the image, not by eye
+
+A scale is useless until a distance is read on it. Never estimate a distance from the picture: a
+number that looks authoritative and is wrong survives every later stage, and it is the hardest kind
+of error to find.
+
+Two tools do the job, and they are the only ones allowed to produce a distance. A point may be placed
+by the art director or by an agent, because the placement is visible and checkable; the number is
+only used once the annotated copy has been looked at.
+
+**`scripts/measure/index.html`** places the points. Start the dev server, then open:
+
+```text
+http://127.0.0.1:5180/measure/?subject=blueprints/<category>/<subject>&view=<view>
+```
+
+Click to place a point, drag nothing, name what it is, select two rows, and press *Measure the two
+selected points*. The page reads the scale of that view from `dimensions.json`, converts the
+distance **per axis** — `dx` with `kx`, `dy` with `ky` — and draws the result on the image. Arrow
+keys nudge the selected point by 1 px, Shift by 10 px. *Save to the subject folder* writes
+`measurements.json`.
+
+**`scripts/measure/report.py`** does the arithmetic and the check:
+
+```bash
+python3 scripts/measure/report.py blueprints/<category>/<subject>
+python3 scripts/measure/report.py blueprints/<category>/<subject> --annotate
+python3 scripts/measure/report.py blueprints/<category>/<subject> --write
+```
+
+`--annotate` writes one PNG per view into `measured/`, so the placement can be checked without a
+browser. `--write` records the landmark verdict in `dimensions.json`, which is what closes G1.
+
+Give a measurement a **key** when the same physical dimension appears on several views: the tyre
+diameter, the wheelbase, the belt line height. The report groups the keys, prints the spread, and
+fails the landmark when the spread is over 10%. That grouping is condition 4 of G1.
+
 ### Gate G1 — every view has a scale, and the drift is declared
 
 Pass only when all four conditions hold:
@@ -163,8 +200,8 @@ Pass only when all four conditions hold:
    wheelbase on the side and plan views, the track width on the front and plan views.
 
 Condition 4 is the one that proves the views describe the same object, and it is the only condition
-that the anisotropy test cannot replace. It is **not yet automated**: read the two measurements and
-compare them by hand, and record both in the report.
+that the anisotropy test cannot replace. `scripts/measure/report.py --write` runs it and records the
+verdict; run it before you claim G1, and never accept a key whose spread is over 10%.
 
 On failure, report the view, the drift, and the landmark that disagrees. Do not rescale a view to
 make it agree, and do not change a real dimension to fit a view. One of them is wrong, and the art
@@ -249,6 +286,30 @@ section. Do this in this order:
 3. the top edge and the bottom edge along the length,
 4. the half-width along the length,
 5. the section contour at the stations that still differ.
+
+### 2.5 See the frame before you trust the numbers
+
+A section table can be right while the volume is wrong, and the art director judges the volume. So
+every pass ends with a look, never with numbers alone.
+
+```bash
+bun run scripts/scene/serve.ts --scene scenes/<subject> &     # the dev server
+bun run scripts/scene/ctl.ts open                              # one page, reused
+bun run scripts/scene/ctl.ts view left
+bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
+bun run scripts/scene/ctl.ts ortho --on --height 4.4           # flat view, orthographic
+bun run scripts/scene/ctl.ts wireframe --on                    # topology, not shading
+bun run scripts/scene/ctl.ts isolate Wheel_FL                  # one part, alone
+bun run scripts/scene/ctl.ts nodes                             # every named node
+bun run scripts/scene/ctl.ts shot /tmp/opencode/left.webp      # one frame
+```
+
+`ctl.ts` prints the camera state and the frame statistics after every command, so one call says
+where the page stands. `shot.ts` still captures the named views in one pass; use it for the record,
+and `ctl.ts camera` for the angle the argument is actually about.
+
+A flat view is **always** orthographic. A perspective camera against an orthographic reference turns
+a correct roof into a wrong one, and sends you fixing the model instead of the camera.
 
 ### Gate G2 — the body is true
 
@@ -400,6 +461,8 @@ director judges.
 | The body changes every time a part is added | parts are merged into the body | one named node per part |
 | A mirrored comparison passes | the two images show opposite flanks | check which side carries the roof mass in both |
 | A correct roof measures wrong | perspective camera against an orthographic view | use the orthographic camera for flat views |
+| A distance is off by a few percent on a stretched view | the diagonal was scaled by one factor | convert per axis: `dx` with `kx`, `dy` with `ky` |
+| A landmark agrees because both views are wrong | the two measurements share the same mistake | check each against the annotated image, not only against each other |
 | The material is white in the viewer | material set on the viewport field, not on the shader | set the base colour on the BSDF node |
 
 ## Files this skill reads and writes
@@ -416,3 +479,10 @@ director judges.
 | `scripts/scene/measure_view.py` | the same landmarks for both images, in millimetres |
 | `scripts/scene/silhouette.ts` | the overlay: red is reference only, blue is model only |
 | `scripts/scene/check.ts` | capture, overlay, measure, and the orientation guard |
+| `scripts/measure/index.html` | **stage 1 tool**: the point picker, served at `/measure/` |
+| `scripts/measure/report.py` | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict |
+| `blueprints/<category>/<subject>/measurements.json` | **written by the picker**, read by the report |
+| `blueprints/<category>/<subject>/measured/` | the annotated copies, one per view |
+| `scripts/scene/ctl.ts` | **render control**: camera, projection, wireframe, isolate, nodes, shot |
+| `scripts/scene/shot.ts` | captures every named view in one pass |
+| `scripts/scene/serve.ts` | the dev server: scene, `/measure/`, `/repo/`, `/measure/save` |

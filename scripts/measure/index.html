@@ -1,0 +1,451 @@
+<!doctype html>
+<!--
+  Point picker for reference views.
+
+  Stage 1 of volume modelling needs measurements, and a measurement is two points and a scale.
+  Guessing either produces a number that looks authoritative and is wrong. So this page does
+  exactly one thing: you place points on the reference image, you name what they are, and the page
+  converts the distance between them into millimetres using the two scales of that view.
+
+  Nothing is detected automatically. A silhouette detector has to guess what the subject is; a
+  point placed on the image cannot. The art director places the points, and the page draws them
+  back so the placement can be checked before anyone trusts the number.
+
+  Open it from the dev server:
+
+    http://127.0.0.1:5180/measure/?subject=blueprints/vehicules/r5-tl-1972&view=front
+
+  Every distance is read twice: horizontally with kx, vertically with ky. On a stretched view
+  those two scales differ, and using one of them for both axes is the error this page prevents.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Measure a reference view</title>
+    <style>
+      :root {
+        --bg: #16181c;
+        --panel: #1f2228;
+        --line: #2e333c;
+        --text: #e7e9ee;
+        --muted: #9aa3b2;
+        --accent: #ff8b3d;
+        --ok: #57c98b;
+        --warn: #f0c419;
+        --bad: #e2564a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      #stage { overflow: auto; display: grid; place-items: center; padding: 16px; }
+      canvas { cursor: crosshair; image-rendering: pixelated; background: #fff; box-shadow: 0 2px 24px #0008; }
+      aside { border-left: 1px solid var(--line); overflow-y: auto; padding: 14px; }
+      h1 { font-size: 13px; margin: 0 0 2px; font-weight: 600; }
+      h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 18px 0 6px; }
+      .sub { color: var(--muted); font-size: 11px; margin-bottom: 12px; word-break: break-all; }
+      table { width: 100%; border-collapse: collapse; }
+      td, th { padding: 3px 4px; text-align: left; vertical-align: middle; }
+      th { color: var(--muted); font-weight: 500; font-size: 11px; }
+      tr.sel { background: #ff8b3d22; }
+      tr:hover { background: #ffffff08; }
+      input[type="text"] {
+        width: 100%; background: #12141a; color: var(--text); border: 1px solid var(--line);
+        border-radius: 4px; padding: 3px 5px; font: inherit;
+      }
+      input[type="text"]:focus { outline: 1px solid var(--accent); }
+      button {
+        background: #262a32; color: var(--text); border: 1px solid var(--line);
+        border-radius: 5px; padding: 5px 9px; font: inherit; cursor: pointer;
+      }
+      button:hover { border-color: var(--accent); }
+      button:disabled { opacity: .4; cursor: default; }
+      .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+      .num { text-align: right; font-variant-numeric: tabular-nums; }
+      .mm { color: var(--ok); }
+      #hint { color: var(--muted); font-size: 11px; margin-top: 10px; line-height: 1.5; }
+      #status { position: fixed; bottom: 0; left: 0; padding: 4px 10px; color: var(--muted); font-size: 11px; background: #0009; }
+      .legend { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: 11px; color: var(--muted); }
+      .legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="canvas"></canvas></div>
+
+    <aside>
+      <h1>Measure a reference view</h1>
+      <div class="sub" id="subject">…</div>
+
+      <h2>Scale</h2>
+      <table>
+        <tr><th>axis</th><th class="num">mm per pixel</th></tr>
+        <tr><td>horizontal</td><td class="num" id="kx">…</td></tr>
+        <tr><td>vertical</td><td class="num" id="ky">…</td></tr>
+      </table>
+      <div class="legend" id="drift"></div>
+
+      <h2>Points <span id="pointCount" style="color:var(--muted)"></span></h2>
+      <table id="points"></table>
+      <div class="row">
+        <button id="undo">Undo</button>
+        <button id="clear">Clear</button>
+      </div>
+
+      <h2>Measurements</h2>
+      <div class="row">
+        <button id="addMeasure" disabled>Measure the two selected points</button>
+      </div>
+      <table id="measurements"></table>
+
+      <div class="row" style="margin-top:16px">
+        <button id="save">Save to the subject folder</button>
+      </div>
+      <div id="hint">
+        Click the image to place a point. Select two rows, then measure. Arrow keys nudge the
+        selected point by 1 px, with Shift by 10 px.
+      </div>
+    </aside>
+
+    <div id="status">ready</div>
+
+    <script type="module">
+      const params = new URLSearchParams(location.search);
+      const subject = params.get("subject");
+      const view = params.get("view");
+      if (!subject || !view) {
+        document.getElementById("status").textContent =
+          "add ?subject=blueprints/<category>/<subject>&view=<view>";
+        throw new Error("missing query parameters");
+      }
+
+      const $ = (id) => document.getElementById(id);
+      const canvas = $("canvas");
+      const ctx = canvas.getContext("2d");
+
+      let image = null;
+      let scale = { horizontal: 0, vertical: 0 };
+      let points = {};          // name -> [x, y] in image pixels
+      let measurements = [];    // { name, from, to, key }
+      let selection = [];       // up to two point names
+      let order = [];           // point names in creation order, for stable numbering
+      let document_ = { subject, unit: "m", views: {} };
+
+      const COLOURS = ["#ff8b3d", "#4ea3ff", "#57c98b", "#f0c419", "#e2564a", "#b57bff", "#2ec7c7", "#d98cff"];
+
+      const mm = (px, axis) => px * (axis === "x" ? scale.horizontal : scale.vertical);
+
+      function nameOfPoint(index) {
+        return `p${index + 1}`;
+      }
+
+      async function load() {
+        const dimensions = await fetch(`/repo/${subject}/dimensions.json`).then((r) => r.json());
+        const entry = dimensions.views?.[view];
+        if (!entry) throw new Error(`no dimensions entry for view "${view}"`);
+        scale = entry.scale_mm_per_px;
+
+        $("subject").textContent = `${subject} / ${view}`;
+        $("kx").textContent = scale.horizontal.toFixed(3);
+        $("ky").textContent = scale.vertical.toFixed(3);
+        const drift = Math.abs(scale.vertical / scale.horizontal - 1) * 100;
+        $("drift").innerHTML =
+          `<span style="color:${drift <= 5 ? "var(--ok)" : "var(--warn)"}">` +
+          `drift ${drift.toFixed(2)} % — horizontal distances use kx, vertical distances use ky</span>`;
+
+        image = new Image();
+        image.src = `/repo/${entry.file}`;
+        await image.decode();
+        canvas.width = image.naturalWidth;
+        canvas.height = image.naturalHeight;
+        canvas.style.width = `${Math.min(image.naturalWidth, 1400)}px`;
+
+        const existing = await fetch(`/repo/${subject}/measurements.json`);
+        if (existing.ok) {
+          document_ = await existing.json();
+          const saved = document_.views?.[view];
+          if (saved) {
+            points = Object.fromEntries(saved.points ?? []);
+            // The saved form is a list of pairs, to keep a stable order in the file.
+            measurements = saved.measurements ?? [];
+            order = Object.keys(points);
+          }
+        }
+        render();
+        $("status").textContent = `${image.naturalWidth} x ${image.naturalHeight} px — click to place a point`;
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0);
+
+        // Measurements first, so the points sit on top of their lines.
+        measurements.forEach((m, index) => {
+          const a = points[m.from];
+          const b = points[m.to];
+          if (!a || !b) return;
+          const colour = COLOURS[index % COLOURS.length];
+          const dx = b[0] - a[0];
+          const dy = b[1] - a[1];
+          ctx.save();
+          ctx.strokeStyle = colour;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([7, 5]);
+          ctx.beginPath();
+          ctx.moveTo(a[0], a[1]);
+          ctx.lineTo(b[0], b[1]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Axis guides, because the two scales are read on the axes, not on the diagonal.
+          ctx.globalAlpha = 0.45;
+          ctx.beginPath();
+          ctx.moveTo(a[0], b[1]);
+          ctx.lineTo(b[0], b[1]);
+          ctx.moveTo(a[0], a[1]);
+          ctx.lineTo(a[0], b[1]);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          const label = m.label ?? m.name;
+          const text = `${label}  ${Math.abs(dx) ? mm(Math.abs(dx), "x").toFixed(0) : "0"}` +
+            ` x ${Math.abs(dy) ? mm(Math.abs(dy), "y").toFixed(0) : "0"} mm`;
+          ctx.font = "600 22px ui-monospace, monospace";
+          const w = ctx.measureText(text).width;
+          const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          ctx.fillStyle = "#000000cc";
+          ctx.fillRect(mid[0] - w / 2 - 8, mid[1] - 34, w + 16, 30);
+          ctx.fillStyle = colour;
+          ctx.fillText(text, mid[0] - w / 2, mid[1] - 12);
+          ctx.restore();
+        });
+
+        order.forEach((name, index) => {
+          const [x, y] = points[name];
+          const colour = COLOURS[index % COLOURS.length];
+          const chosen = selection.includes(name);
+          ctx.save();
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, 9, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.strokeStyle = colour;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, 9, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x - 16, y); ctx.lineTo(x + 16, y);
+          ctx.moveTo(x, y - 16); ctx.lineTo(x, y + 16);
+          ctx.stroke();
+          if (chosen) { ctx.fillStyle = `${colour}55`; ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill(); }
+          ctx.font = "600 20px ui-monospace, monospace";
+          ctx.fillStyle = "#000";
+          ctx.fillText(name, x + 15, y - 12);
+          ctx.fillStyle = colour;
+          ctx.fillText(name, x + 14, y - 13);
+          ctx.restore();
+        });
+
+        renderSidebar();
+      }
+
+      function renderSidebar() {
+        $("pointCount").textContent = order.length ? `(${order.length})` : "";
+        const pointsTable = $("points");
+        pointsTable.innerHTML =
+          `<tr><th>name</th><th class="num">x</th><th class="num">y</th><th></th></tr>` +
+          order
+            .map(
+              (name) => `
+            <tr class="${selection.includes(name) ? "sel" : ""}" data-point="${name}">
+              <td><input type="text" value="${name}" data-rename="${name}" /></td>
+              <td class="num">${points[name][0].toFixed(0)}</td>
+              <td class="num">${points[name][1].toFixed(0)}</td>
+              <td><button data-delete="${name}" title="delete">×</button></td>
+            </tr>`,
+            )
+            .join("");
+
+        pointsTable.querySelectorAll("tr[data-point]").forEach((row) => {
+          row.addEventListener("click", (event) => {
+            if (event.target.tagName === "INPUT" || event.target.tagName === "BUTTON") return;
+            const name = row.dataset.point;
+            selection = selection.includes(name)
+              ? selection.filter((n) => n !== name)
+              : [...selection, name].slice(-2);
+            render();
+          });
+        });
+        pointsTable.querySelectorAll("input[data-rename]").forEach((input) => {
+          input.addEventListener("blur", () => {
+            const old = input.dataset.rename;
+            const next = input.value.trim().replace(/\s+/g, "_");
+            if (!next || next === old || points[next]) { render(); return; }
+            points[next] = points[old];
+            order = order.map((n) => (n === old ? next : n));
+            measurements = measurements.map((m) => ({
+              ...m,
+              from: m.from === old ? next : m.from,
+              to: m.to === old ? next : m.to,
+            }));
+            selection = selection.map((n) => (n === old ? next : n));
+            delete points[old];
+            render();
+          });
+        });
+        pointsTable.querySelectorAll("button[data-delete]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const name = button.dataset.delete;
+            delete points[name];
+            order = order.filter((n) => n !== name);
+            selection = selection.filter((n) => n !== name);
+            measurements = measurements.filter((m) => m.from !== name && m.to !== name);
+            render();
+          });
+        });
+
+        $("addMeasure").disabled = selection.length !== 2;
+
+        $("measurements").innerHTML =
+          `<tr><th>name</th><th class="num">dx</th><th class="num">dy</th><th class="num">length</th><th></th></tr>` +
+          measurements
+            .map((m) => {
+              const a = points[m.from];
+              const b = points[m.to];
+              if (!a || !b) return "";
+              const dx = Math.abs(b[0] - a[0]);
+              const dy = Math.abs(b[1] - a[1]);
+              const mx = mm(dx, "x");
+              const my = mm(dy, "y");
+              const length = Math.hypot(mx, my);
+              return `<tr>
+                <td><input type="text" value="${m.name}" data-rename-m="${m.name}" /></td>
+                <td class="num mm">${mx.toFixed(0)}</td>
+                <td class="num mm">${my.toFixed(0)}</td>
+                <td class="num mm">${length.toFixed(0)}</td>
+                <td><button data-delete-m="${m.name}" title="delete">×</button></td>
+              </tr>`;
+            })
+            .join("");
+
+        $("measurements").querySelectorAll("input[data-rename-m]").forEach((input) => {
+          input.addEventListener("blur", () => {
+            const old = input.dataset.renameM;
+            const next = input.value.trim().replace(/\s+/g, "_");
+            const target = measurements.find((m) => m.name === old);
+            if (target && next && next !== old && !measurements.some((m) => m.name === next)) {
+              target.name = next;
+            }
+            render();
+          });
+        });
+        $("measurements").querySelectorAll("button[data-delete-m]").forEach((button) => {
+          button.addEventListener("click", () => {
+            measurements = measurements.filter((m) => m.name !== button.dataset.deleteM);
+            render();
+          });
+        });
+      }
+
+      function addPoint(x, y) {
+        let index = order.length;
+        while (points[nameOfPoint(index)]) index += 1;
+        const name = nameOfPoint(index);
+        points[name] = [Math.round(x), Math.round(y)];
+        order.push(name);
+        selection = [name];
+        render();
+      }
+
+      // The canvas is displayed smaller than its natural size, so every pointer coordinate is
+      // converted back to image pixels. Rounding to the pixel is deliberate: a point that sits on
+      // 137.4 px cannot be checked or nudged.
+      canvas.addEventListener("pointerdown", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+        const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+        addPoint(x, y);
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
+        const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
+        $("status").textContent = `x ${x.toFixed(0)}  y ${y.toFixed(0)} px`;
+      });
+
+      canvas.setAttribute("tabindex", "0");
+      canvas.addEventListener("keydown", (event) => {
+        const name = selection[selection.length - 1];
+        if (!name) return;
+        const step = event.shiftKey ? 10 : 1;
+        const deltas = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+        const delta = deltas[event.key];
+        if (!delta) return;
+        event.preventDefault();
+        points[name] = [points[name][0] + delta[0], points[name][1] + delta[1]];
+        render();
+      });
+
+      $("addMeasure").addEventListener("click", () => {
+        if (selection.length !== 2) return;
+        let index = measurements.length;
+        while (measurements.some((m) => m.name === `m${index + 1}`)) index += 1;
+        measurements.push({
+          name: `m${index + 1}`,
+          from: selection[0],
+          to: selection[1],
+          key: "",
+        });
+        render();
+      });
+
+      $("undo").addEventListener("click", () => {
+        const last = order.pop();
+        if (!last) return;
+        delete points[last];
+        selection = selection.filter((n) => n !== last);
+        measurements = measurements.filter((m) => m.from !== last && m.to !== last);
+        render();
+      });
+
+      $("clear").addEventListener("click", () => {
+        if (!confirm(`Clear every point and measurement in ${view}?`)) return;
+        points = {}; order = []; selection = []; measurements = [];
+        render();
+      });
+
+      $("save").addEventListener("click", async () => {
+        document_.subject = subject;
+        document_.unit = document_.unit ?? "m";
+        document_.views = document_.views ?? {};
+        document_.views[view] = {
+          file: image.src.replace(location.origin + "/repo/", ""),
+          image_px: [canvas.width, canvas.height],
+          scale_mm_per_px: scale,
+          points: Object.fromEntries(order.map((name) => [name, points[name]])),
+          measurements,
+        };
+        const response = await fetch("/measure/save", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ subject, document: document_ }),
+        });
+        const result = await response.json();
+        $("status").textContent = response.ok
+          ? `saved ${result.written}`
+          : `save failed: ${result.written ?? response.status}`;
+      });
+
+      load().catch((error) => {
+        $("status").textContent = `error: ${error.message}`;
+      });
+    </script>
+  </body>
+</html>

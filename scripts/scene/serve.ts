@@ -14,6 +14,9 @@
 //   /vendor/three/build/*    node_modules/three/build/*
 //   /vendor/three/addons/*   node_modules/three/examples/jsm/*   (import map target)
 //   /__reload                server-sent events, one message per file change
+//   /measure/                the point picker, for measuring reference images
+//   /measure/save            POST the picked points, written to the subject folder
+//   /repo/*                  any file under the repository root (reference images)
 //   /*                       any file under the scene directory
 
 import { watch } from "node:fs";
@@ -98,11 +101,35 @@ async function main(): Promise<void> {
         });
       }
 
-      if (url.pathname === "/") path = join(options.scene, "index.html");
+      // The save route must be tested before the /measure/ prefix, or the prefix serves it as a
+      // static file and answers 404.
+      if (url.pathname === "/measure/save" && request.method === "POST") {
+        // The picker cannot write files. It posts the document here, and the server puts it in the
+        // subject folder under the name the strategy expects.
+        const body = (await request.json()) as { subject?: string; document?: unknown };
+        if (!body.subject || !body.document) {
+          return new Response("expected { subject, document }", { status: 400 });
+        }
+        const target = join(options.root, body.subject, "measurements.json");
+        if (!isInside(join(options.root, "blueprints"), target)) {
+          return new Response("forbidden: subject must live under blueprints/", { status: 403 });
+        }
+        await Bun.write(target, JSON.stringify(body.document, null, 2) + "\n");
+        return new Response(JSON.stringify({ written: relative(options.root, target) }), {
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (url.pathname === "/measure" || url.pathname === "/measure/") {
+        path = join(options.root, "scripts/measure/index.html");
+      } else if (url.pathname.startsWith("/measure/")) {
+        path = join(options.root, "scripts/measure", url.pathname.slice("/measure/".length));
+      } else if (url.pathname === "/") path = join(options.scene, "index.html");
       else if (url.pathname.startsWith("/vendor/three/build/")) {
         path = join(threeRoot, "build", url.pathname.slice("/vendor/three/build/".length));
       } else if (url.pathname.startsWith("/vendor/three/addons/")) {
         path = join(threeRoot, "examples/jsm", url.pathname.slice("/vendor/three/addons/".length));
+      } else if (url.pathname.startsWith("/repo/")) {
+        path = join(options.root, decodeURIComponent(url.pathname.slice("/repo/".length)));
       } else {
         path = join(options.scene, url.pathname);
       }

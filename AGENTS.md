@@ -47,7 +47,8 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
 | `index.html` | The page and the import map. |
 
 - `model.js` must stay importable outside a browser. The live scene and the exported `.glb` are then built from the same source.
-- Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save.
+- Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save. It also serves `/measure/`, the point picker, and `/repo/` for the reference images and their `dimensions.json`.
+- Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing `scene.js` to look from another angle is not a loop.
 - Every modelling pass ends with `bun run scripts/scene/check.ts`. It captures, overlays, measures, and checks the orientation.
 - Never compare a render to a reference without checking that both show the same flank. A mirrored silhouette still looks plausible.
 - Flat views use an orthographic camera. A perspective camera can never line up with an orthographic reference.
@@ -117,6 +118,7 @@ opencode mcp list
 - **vcad:** call `inspect_cad` before each export. Check the volume, the bounding box, and the triangle count.
 - **Blender:** call `get_scene_info` before you change a scene. Call `look` after each geometry change. Check the model from the front, the side, and a three-quarter view.
 - **Web:** call `bunx @gltf-transform/cli inspect <file>.glb` after each optimization. Check the file size and the triangle count.
+- **Distances:** a distance is read from `scripts/measure/`, never estimated by eye. It converts per axis, `dx` with `kx` and `dy` with `ky`, and the annotated copy is checked before the number is used.
 
 ## File rules
 

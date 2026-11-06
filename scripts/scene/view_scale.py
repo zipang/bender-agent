@@ -108,7 +108,7 @@ def smoothed_max(profile: np.ndarray, window_pct: float) -> float:
     return float(np.convolve(padded, np.ones(window) / window, mode="valid").max())
 
 
-def measure(path: str, view: str, real: dict) -> dict:
+def measure(path: str, view: str, real: dict, span: str = "box") -> dict:
     if view not in VIEW_TABLE:
         raise SystemExit(f"unknown view '{view}', expected one of {', '.join(VIEW_TABLE)}")
     for key in ("length", "width", "height"):
@@ -124,29 +124,32 @@ def measure(path: str, view: str, real: dict) -> dict:
     raw_x = box[2] - box[0] + 1
     raw_y = box[3] - box[1] + 1
 
-    # The bounding box is not the body. A mirror, an antenna, or a bumper corner is a narrow spur:
-    # the front of a Renault 5 measures 984 px wide at its widest row and 972 px over the body,
-    # and the difference is one mirror. Anchoring a scale on the raw box makes the body look wide
-    # and the view look distorted, for no reason.
+    # Two ways to read a span, and the choice is not cosmetic.
     #
-    # A plain percentile is the wrong tool. It eats the roof as readily as a mirror: on a side view
-    # the tallest columns are few, so the 95th percentile shortens the car by 6% and turns a real
-    # anisotropy into a false pass. What separates a spur from a body is not how tall it is but how
-    # wide: a body holds its extent over many rows, a spur over a few.
+    # `box` takes the bounding box. On a cropped view -- the shape this pipeline now produces --
+    # the subject touches the frame, so the span is simply the image size: no statistics, nothing
+    # to be wrong about. This is the default, and it is the reading a human does by eye.
     #
-    # So smooth each profile over 5% of its length, then take the maximum. A spur shorter than the
-    # window averages away; a body does not.
+    # `robust` smooths each profile over 5% of its length before taking the maximum, so a narrow
+    # spur (a mirror, an antenna) averages away. It is available because a *width* anchored on a
+    # mirror is genuinely too small. But it is not the default, and it must not be applied blindly:
+    # the same smoothing eats a real extreme. A side view's roof crown is one point of the
+    # silhouette, so a window wider than the crown shortens the car by 4%, turns a real 6%
+    # anisotropy into a false pass, and sends the next stage to fix a body that was right.
     body = mask[box[1]:box[3] + 1, box[0]:box[2] + 1]
-    row_width = np.array([
-        (np.where(row)[0][-1] - np.where(row)[0][0] + 1) if row.any() else 0
-        for row in body
-    ], dtype=float)
-    col_height = np.array([
-        (np.where(col)[0][-1] - np.where(col)[0][0] + 1) if col.any() else 0
-        for col in body.T
-    ], dtype=float)
-    span_x = int(round(smoothed_max(row_width, 5)))
-    span_y = int(round(smoothed_max(col_height, 5)))
+    if span == "robust":
+        row_width = np.array([
+            (np.where(row)[0][-1] - np.where(row)[0][0] + 1) if row.any() else 0
+            for row in body
+        ], dtype=float)
+        col_height = np.array([
+            (np.where(col)[0][-1] - np.where(col)[0][0] + 1) if col.any() else 0
+            for col in body.T
+        ], dtype=float)
+        span_x = int(round(smoothed_max(row_width, 5)))
+        span_y = int(round(smoothed_max(col_height, 5)))
+    else:
+        span_x, span_y = int(raw_x), int(raw_y)
 
     horizontal, vertical = VIEW_TABLE[view]
 
@@ -231,6 +234,9 @@ def main() -> None:
                         help="record the view but keep it out of the gate (the underside, usually)")
     parser.add_argument("--source", default="art director",
                         help="where the real dimensions come from, for the record")
+    parser.add_argument("--span", choices=("box", "robust"), default="box",
+                        help="how to read the span: box is the bounding box, and it is the right "
+                             "answer on a cropped view; robust smooths narrow spurs away (default box)")
     parser.add_argument("--json", action="store_true", help="print the entry as JSON only")
     args = parser.parse_args()
 
@@ -251,7 +257,8 @@ def main() -> None:
     if len(real) != 3:
         raise SystemExit("all three of --length, --width, --height are required")
 
-    entry = measure(args.image, args.view, real)
+    entry = measure(args.image, args.view, real, args.span)
+    entry["span_mode"] = args.span
 
     if args.write:
         write_entry(args.write, entry, real, "m", args.source, not args.optional)
@@ -264,7 +271,7 @@ def main() -> None:
     prints = [
         f"view        {entry['view']}   {entry['image_px'][0]}x{entry['image_px'][1]} px"
         f"{'   (optional)' if args.optional else ''}",
-        f"body        {entry['body_px'][0]} x {entry['body_px'][1]} px"
+        f"span        {entry['body_px'][0]} x {entry['body_px'][1]} px   ({args.span})"
         f"   (bounding box {entry['silhouette_box_px'][2] - entry['silhouette_box_px'][0] + 1}"
         f" x {entry['silhouette_box_px'][3] - entry['silhouette_box_px'][1] + 1},"
         f" protrusion {entry['protrusion_px'][0]} x {entry['protrusion_px'][1]} px)",

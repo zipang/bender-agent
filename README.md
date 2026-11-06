@@ -189,12 +189,14 @@ bun run scripts/scene/check.ts   # capture, overlay, measure, and check the orie
 | `scripts/scene/measure_view.py` | Reduce both images to a silhouette and print the same landmarks in millimetres, with deltas. |
 | `scripts/scene/read_reference.py` | Read the reference itself into profile data, which is how the model's numbers are authored. |
 | `scripts/scene/check.ts` | Run the whole chain, guard against a mirrored comparison, and print one report. |
+| `scripts/scene/crop_reference.py` | Stage 1: crop each view to its subject so its spans are the image size. |
 | `scripts/scene/view_scale.py` | Stage 1: the two scales of a reference view, its drift, and its verdict. |
 | `scripts/measure/index.html` | Stage 1: pick points on a reference image and read distances in millimetres, per axis. |
 | `scripts/measure/report.py` | Stage 1: turn the picked points into millimetres, group the landmarks by key, and close gate G1. |
 
 ```bash
-python3 scripts/scene/view_scale.py blueprints/vehicules/r5-tl-1972/left/reference.png \
+python3 scripts/scene/crop_reference.py --subject blueprints/vehicules/r5-tl-1972
+python3 scripts/scene/view_scale.py blueprints/vehicules/r5-tl-1972/cropped/left.png \
   --view left --length 3.521 --width 1.525 --height 1.400 --source "manufacturer" \
   --write blueprints/vehicules/r5-tl-1972/dimensions.json
 

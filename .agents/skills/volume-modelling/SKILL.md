@@ -135,22 +135,53 @@ Never `mm = px * k`, with a single `k`. That product is wrong by the anisotropy,
 view, and no later gate can see it. This one rule is what makes a distorted view usable, and it is
 the rule that a single-scale method breaks.
 
-### 1.5 Write `dimensions.json`
+### 1.5 Crop each view to its subject, first
+
+A generated view is a picture on a white field, and the subject floats somewhere inside it. Every
+tool then has to find it again, and every one of those steps is a place to be wrong.
+
+```bash
+python3 scripts/scene/crop_reference.py --subject blueprints/<category>/<subject>
+```
+
+It writes `cropped/<view>.png`, where the subject touches the frame, plus `cropped/manifest.json`
+with the box and the margin. The locked `reference.<ext>` is read only: the crop is derived and can
+be rebuilt at any time.
+
+Two things the crop does **not** do, and they matter:
+
+- it does not change the scale;
+- it does not fix the anisotropy.
+
+Both are ratios of two spans, and cropping preserves both. An image that was 9 % short stays 9 %
+short. What the crop buys is that the span becomes the image size, so no statistical reading of the
+silhouette is needed at all.
+
+That last point is not a convenience, it is a correction. Anchoring a span on a smoothed profile
+hides a real extreme: a side view's roof crown is one point of the silhouette, so a smoothing window
+wider than the crown shortens the car and turns a real stretch into a false pass. On one subject it
+turned an 18.85 % drift into `pass` on the front view and cost two passes. Read the span from the
+cropped box, and use `--span robust` only for a stated reason.
+
+### 1.6 Write `dimensions.json`
 
 One file per subject, next to `notes.md`. The script writes it; no hand-editing is needed.
 
 ```bash
 python3 scripts/scene/view_scale.py \
-  blueprints/<category>/<subject>/left/reference.png \
+  blueprints/<category>/<subject>/cropped/left.png \
   --view left --length 3.521 --width 1.525 --height 1.400 \
   --source "manufacturer: 3521 x 1525 x 1400 mm" \
   --write blueprints/<category>/<subject>/dimensions.json
 ```
 
+The input is the **cropped** file from section 1.5. The real dimensions come from `real` in
+`dimensions.json`, which is written once and never derived from a view.
+
 Run it once per view, and add `--optional` for a view that must not gate the stage. It appends one
 entry per view and recomputes the two document fields: `scales` and `g1`.
 
-### 1.6 Measure on the image, not by eye
+### 1.7 Measure on the image, not by eye
 
 A scale is useless until a distance is read on it. Never estimate a distance from the picture: a
 number that looks authoritative and is wrong survives every later stage, and it is the hardest kind
@@ -462,6 +493,8 @@ director judges.
 | A mirrored comparison passes | the two images show opposite flanks | check which side carries the roof mass in both |
 | A correct roof measures wrong | perspective camera against an orthographic view | use the orthographic camera for flat views |
 | A distance is off by a few percent on a stretched view | the diagonal was scaled by one factor | convert per axis: `dx` with `kx`, `dy` with `ky` |
+| A stretched view reports a small drift | the span was smoothed, and the smoothing ate the roof or the nose | read the span from the cropped box, not from a profile |
+| The crop is expected to fix the proportions | cropping is a translation and a trim | it cannot: the anisotropy is a ratio, and it survives the crop |
 | A landmark agrees because both views are wrong | the two measurements share the same mistake | check each against the annotated image, not only against each other |
 | The material is white in the viewer | material set on the viewport field, not on the shader | set the base colour on the BSDF node |
 
@@ -474,6 +507,8 @@ director judges.
 | `blueprints/<category>/<subject>/dimensions.json` | **written by stage 1**, read by every later stage |
 | `scenes/<subject>/model.js` | the asset: sections, body, accessories |
 | `scenes/<subject>/scene.js` | the viewer: renderer, cameras, lights, script API |
+| `scripts/scene/crop_reference.py` | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json` |
+| `blueprints/<category>/<subject>/cropped/` | the cropped views, and the derived manifest. Rebuildable at any time |
 | `scripts/scene/view_scale.py` | **stage 1 tool**: the two scales of a view, its drift, its verdict |
 | `scripts/scene/read_reference.py` | reads a silhouette into profile data |
 | `scripts/scene/measure_view.py` | the same landmarks for both images, in millimetres |

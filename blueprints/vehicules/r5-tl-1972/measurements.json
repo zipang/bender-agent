@@ -1,0 +1,64 @@
+{
+  "subject": "blueprints/vehicules/r5-tl-1972",
+  "unit": "m",
+  "views": {
+    "left": {
+      "file": "blueprints/vehicules/r5-tl-1972/cropped/left.png",
+      "image_px": [
+        1251,
+        532
+      ],
+      "scale_mm_per_px": {
+        "horizontal": 2.8236,
+        "vertical": 2.6515
+      },
+      "points": {
+        "wheel_f": [
+          189,
+          416
+        ],
+        "wheel_r": [
+          1044,
+          418
+        ]
+      },
+      "measurements": [
+        {
+          "name": "wheelbase",
+          "from": "wheel_f",
+          "to": "wheel_r",
+          "key": "wheelbase"
+        }
+      ]
+    },
+    "right": {
+      "file": "blueprints/vehicules/r5-tl-1972/cropped/right.png",
+      "image_px": [
+        1225,
+        539
+      ],
+      "scale_mm_per_px": {
+        "horizontal": 2.8837,
+        "vertical": 2.6168
+      },
+      "points": {
+        "wheel_f": [
+          208,
+          426
+        ],
+        "wheel_r": [
+          1037,
+          424
+        ]
+      },
+      "measurements": [
+        {
+          "name": "wheelbase",
+          "from": "wheel_f",
+          "to": "wheel_r",
+          "key": "wheelbase"
+        }
+      ]
+    }
+  }
+}

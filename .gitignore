@@ -18,6 +18,11 @@ blueprints/*/*/*/*
 !blueprints/*/*/notes.md
 !blueprints/*/*/manifest.json
 
+# The crop and the annotated copies are derived: they rebuild from the reference at any time.
+# The files that record the decision -- dimensions.json and measurements.json -- are committed.
+!blueprints/*/*/dimensions.json
+!blueprints/*/*/measurements.json
+
 # Selected views are also committed.
 !blueprints/*/*/*/reference.png
 !blueprints/*/*/*/reference.webp
@@ -37,3 +42,7 @@ Thumbs.db
 
 # Blender backup files.
 *.blend1
+
+# Python bytecode
+__pycache__/
+*.pyc

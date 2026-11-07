@@ -97,6 +97,7 @@ const rig = createCameraRig({
     if (currentView === "custom") return;
     currentView = "custom";
     syncButtons();
+showLayerState();
   },
 });
 rigRef.current = rig;
@@ -111,6 +112,7 @@ const calque = createCalque({
   document: document_,
   onChange: () => {
     stage.updateHud(currentView);
+    showLayerState();
     refreshPanel();
   },
 });
@@ -145,6 +147,36 @@ function syncButtons() {
   for (const button of bar.children) {
     button.setAttribute("aria-pressed", String(button.textContent === currentView));
   }
+}
+
+// ------------------------------------------------------------------ layer switches
+
+// Two eyes, top right: the model and the reference plate. A modelling pass needs to look at the
+// plate alone -- the reference IS the subject -- and at the model alone, without the plate hiding
+// a silhouette that is being judged. Both states are plain visibility flags on the scene graph, so
+// a capture that toggles them sees exactly what the eye sees.
+const layers = {
+  model: document.getElementById("layer-model"),
+  calque: document.getElementById("layer-calque"),
+};
+
+function showLayerState() {
+  if (layers.model) layers.model.setAttribute("aria-pressed", String(root.visible));
+  if (layers.calque) layers.calque.setAttribute("aria-pressed", String(calque.info().enabled));
+}
+
+function setLayer(name, visible) {
+  if (name === "model") root.visible = Boolean(visible);
+  else if (name === "calque") calque.setEnabled(visible);
+  showLayerState();
+  return stage.nextFrame();
+}
+
+if (layers.model) {
+  layers.model.addEventListener("click", () => setLayer("model", !root.visible));
+}
+if (layers.calque) {
+  layers.calque.addEventListener("click", () => setLayer("calque", !calque.info().enabled));
 }
 
 // ------------------------------------------------------------------ script API
@@ -283,6 +315,14 @@ window.__ctl = {
     };
   },
   calqueInfo: () => calque.info(),
+  // The two eyes, from the shell: `__ctl.layers({ model: false })` is a plate-only frame, and
+  // `__ctl.layers({ calque: false })` is a bare model. Both resolve on the next drawn frame, so a
+  // screenshot taken after them shows the state that was asked for.
+  layers: async (options = {}) => {
+    if (typeof options.model === "boolean") await setLayer("model", options.model);
+    if (typeof options.calque === "boolean") await setLayer("calque", options.calque);
+    return { model: root.visible, calque: calque.info().enabled };
+  },
   // Measurement in model units. A point on the calque is a model coordinate, because the plate is
   // already at the model's scale and in its frame.
   measure: async (options = {}) => {

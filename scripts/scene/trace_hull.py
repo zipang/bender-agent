@@ -37,7 +37,26 @@ The cut is not free, and it is reported, not hidden:
   - a mirror, whose stalk is narrower than the window, disappears from the flank.
 All three are correct for a body-only volume.
 
-`--mask raw` restores the outer envelope. `--smooth-mm 0` is the same thing: no erosion.
+WHICH VIEW WIDTHS THE BODY
+
+The hull takes the narrowest of every constraint it is given, so a view that under-reports a
+dimension silently shrinks the solid -- and the numbers still look plausible.
+
+The plan view is the worst offender on a subject with mirrors. Its calibration box is sized on the
+whole silhouette, and the widest run of a generated plan is often a mirror: on this subject the plan
+reaches the real width on 13 rows out of 706, while its body sits at 1400 mm. Mapping that box to the
+real width makes every body column short, and the hull inherits the error on all of them.
+
+The face views do not have that problem. `front` and `back` both reach 1527 mm over hundreds of rows,
+so their body width is the width they were calibrated on.
+
+`--face` therefore chooses which face view constrains Y per X, and `--width-from` chooses which view
+fixes the absolute width. The default takes the width from the face and lets the plan give only the
+SHAPE of the taper: each station's plan interval is scaled so the widest body run matches the face
+view's. The nose and the tail keep the profile the plan drew, at the width the face view proves.
+
+`--width-from plan` restores the pure intersection. `--mask raw` restores the outer envelope.
+`--smooth-mm 0` disables the opening.
 
 PER STATION, A SECTION IS A SET OF VERTICAL COLUMNS
 
@@ -89,12 +108,11 @@ VIEWS = {
     "top": ("x", +1, "z", +1),
 }
 
-# The three silhouettes the hull needs, and what each one constrains.
-PROFILES = {
-    "side": "left",
-    "front": "front",
-    "plan": "top",
-}
+# The silhouettes the hull needs, and what each one constrains. The side view is fixed: it is the
+# only one that gives the height profile over the length. The face view is a choice (see the
+# docstring), and the plan view supplies the shape of the width.
+def profiles(face):
+    return {"side": "left", "face": face, "plan": "top"}
 
 WHITE_CUTOFF = 246  # a pixel darker than this on any channel is not background
 
@@ -322,32 +340,55 @@ class View:
 
 # ---------------------------------------------------------------- hull
 
-def build_hull(subject, real, step_mm, mask_mode, smooth_mm):
+def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_from):
     with open(os.path.join(subject, "cropped", "manifest.json"), encoding="utf-8") as handle:
         manifest = json.load(handle)
     with open(os.path.join(subject, "dimensions.json"), encoding="utf-8") as handle:
         dimensions = json.load(handle)
 
+    table = profiles(face_view)
     views = {}
-    for role, name in PROFILES.items():
+    for role, name in table.items():
         views[role] = View(name, subject, manifest, dimensions, real, smooth_mm, mask_mode)
-    side, front, plan = views["side"], views["front"], views["plan"]
+    side, face, plan = views["side"], views["face"], views["plan"]
 
     length = real["length"] / 1000.0
     width = real["width"] / 1000.0
     height = real["height"] / 1000.0
     step = step_mm / 1000.0
 
+    # Which view fixes the absolute width. The plan's box is often sized on a mirror, so its body
+    # columns are all short by the same ratio; the face view reaches the real width over hundreds of
+    # rows. `plan` restores the pure intersection, `face` keeps the plan's SHAPE and the face's size.
+    if width_from == "face":
+        plan_width = widest_run(*plan.rows) * plan.kx
+        face_width = widest_run(*face.rows) * face.kx
+        plan_x_scale = face_width / plan_width if plan_width > 0 and face_width > 0 else 1.0
+    elif width_from == "real":
+        # The real width is an INPUT. Every view's calibration box is sized on the whole silhouette,
+        # and the widest pixel run of that silhouette is usually an accessory -- a mirror on the plan,
+        # a bumper on the face. Mapping that box to the real width therefore makes the BODY short by
+        # the accessory's depth, in every view at once, and no view can outvote the others when all
+        # of them carry the same error.
+        #
+        # So the plan keeps the SHAPE of the taper and the real dimension fixes the scale: the widest
+        # body run of the plan becomes the real width. This is the same rule the length already
+        # follows, where the plan's box is mapped to the real length.
+        plan_width = widest_run(*plan.rows) * plan.kx
+        plan_x_scale = (width / plan_width) if plan_width > 0 else 1.0
+    else:
+        plan_x_scale = 1.0
+
     # Columns across X, at a fixed pitch, centred on 0.
     count_x = int(round(width / step)) + 1
     xs = np.linspace(-width / 2, width / 2, count_x)
 
-    # The front view: the vertical interval of every column, computed once.
-    front_span = np.full((count_x, 2), np.nan)
+    # The face view: the vertical interval of every column, computed once.
+    face_span = np.full((count_x, 2), np.nan)
     for i, x in enumerate(xs):
-        interval = front.vertical_interval(float(x))
+        interval = face.vertical_interval(float(x))
         if interval:
-            front_span[i] = interval
+            face_span[i] = interval
 
     stations = int(round(length / step)) + 1
     zs = np.linspace(-length / 2, length / 2, stations)
@@ -361,16 +402,18 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm):
             sections.append({"z": round(float(z), 4), "columns": []})
             continue
         y_lo_side, y_hi_side = side_span
-        x_lo, x_hi = plan_span
+        # The plan gives the width at this station. Scaled about the centre, it keeps the taper of
+        # the nose and the tail and adopts the width the face view proves.
+        x_lo, x_hi = plan_span[0] * plan_x_scale, plan_span[1] * plan_x_scale
 
         columns = []
         for i, x in enumerate(xs):
             if not (x_lo - 1e-9 <= x <= x_hi + 1e-9):
                 continue
-            if not np.isfinite(front_span[i, 0]):
+            if not np.isfinite(face_span[i, 0]):
                 continue
-            y_lo = max(front_span[i, 0], y_lo_side)
-            y_hi = min(front_span[i, 1], y_hi_side)
+            y_lo = max(face_span[i, 0], y_lo_side)
+            y_hi = min(face_span[i, 1], y_hi_side)
             if y_hi - y_lo < 1e-4:
                 continue
             # The grid index travels with the column: two consecutive stations rarely share the same
@@ -387,9 +430,12 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm):
         "pitch": round(step, 6),
         "columns": count_x,
         "real": {"length": length, "width": width, "height": height},
-        "views_used": list(PROFILES.values()),
+        "views_used": [name for name in table.values()],
         "mask": mask_mode,
         "smooth_mm": smooth_mm,
+        "face_view": face_view,
+        "width_from": width_from,
+        "plan_x_scale": round(plan_x_scale, 6),
         "sections": sections,
     }, views
 
@@ -432,12 +478,13 @@ def report_cuts(views, hull, smooth_mm):
     # difference with nothing on screen to say so.
     by_name = {view.name: view for view in views.values()}
     plan_width = widest_run(*by_name["top"].rows) * by_name["top"].kx * 1000
-    front_width = widest_run(*by_name["front"].rows) * by_name["front"].kx * 1000
+    face = by_name[hull["face_view"]]
+    front_width = widest_run(*face.rows) * face.kx * 1000
     if plan_width > 0 and front_width > 0:
         drift = 100.0 * abs(plan_width - front_width) / max(plan_width, front_width)
         verdict = "agree" if drift <= 5.0 else "DISAGREE"
         print(
-            f"  width  plan {plan_width:6.0f}   front {front_width:6.0f}   "
+            f"  width  plan {plan_width:6.0f}   {hull['face_view']:<5} {front_width:6.0f}   "
             f"{drift:5.2f} %   {verdict}"
         )
         if drift > 5.0:
@@ -497,6 +544,14 @@ def main() -> None:
         "--smooth-mm", type=float, default=150.0,
         help="the widest protrusion to erase, in millimetres of outline. 0 disables the opening",
     )
+    parser.add_argument(
+        "--face", choices=("front", "back"), default="back",
+        help="which view constrains the vertical profile over the width",
+    )
+    parser.add_argument(
+        "--width-from", choices=("real", "face", "plan"), default="real",
+        help="which source fixes the absolute width; `plan` is the pure intersection",
+    )
     parser.add_argument("--json", help="also write the raw data here")
     args = parser.parse_args()
 
@@ -509,9 +564,14 @@ def main() -> None:
     }
 
     smooth = 0.0 if args.mask == "raw" else args.smooth_mm
-    hull, views = build_hull(args.subject, real, args.step, args.mask, smooth)
+    hull, views = build_hull(
+        args.subject, real, args.step, args.mask, smooth, args.face, args.width_from
+    )
 
-    print(f"mask      {args.mask}" + ("" if smooth == 0 else f"   opening {smooth:.0f} mm"))
+    print(
+        f"mask      {args.mask}" + ("" if smooth == 0 else f"   opening {smooth:.0f} mm")
+        + f"   face {args.face}   width from {args.width_from}"
+    )
     report_cuts(views, hull, smooth)
     columns = sum(len(s["columns"]) for s in hull["sections"])
     filled = sum(1 for s in hull["sections"] if s["columns"])
@@ -533,7 +593,10 @@ def main() -> None:
         "// station along Z. Units are metres, Y is up, +Z is forward (the nose), and the body is\n"
         "// centred on X = 0 and Z = 0.\n"
         "//\n"
-        "// Mask: the main volume. Every outline interval was eroded by a rolling window, so a\n"
+        "// Views: the side view for the height over the length, the face view for the profile\n"
+        "// over the width, and the plan view for the shape of the width. The plan's absolute\n"
+        "// width is often a mirror's, so the width itself comes from the face view.\n"
+        "//\n"
         "// protrusion narrower than the window -- a mirror, a bumper, a tyre -- is not part of it.\n"
         "// Stage 3 places those as their own nodes. The nose, the tail and the underside are\n"
         "// therefore shorter than the silhouette.\n"

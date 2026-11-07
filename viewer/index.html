@@ -33,7 +33,27 @@
       #views button:hover { background: #e7eaee; }
       #views button[aria-pressed="true"] { background: #22262b; color: #fff; }
 
-      body.shot #hud, body.shot #views { display: none; }
+      #layers {
+        position: fixed; top: 16px; right: 16px; display: flex; gap: 6px; padding: 6px;
+        background: rgb(255 255 255 / 0.82); border: 1px solid #d5d9de; border-radius: 8px;
+        backdrop-filter: blur(6px);
+      }
+      #layers button {
+        display: flex; align-items: center; gap: 6px; font: inherit; padding: 5px 9px;
+        border: 1px solid transparent; border-radius: 5px; background: transparent;
+        color: #22262b; cursor: pointer;
+      }
+      #layers button:hover { background: #e7eaee; }
+      /* The ICON carries the state, and the label stays legible: a struck-through word is harder
+         to read than the eye that already says "hidden". The two icons are the same eye; the off
+         one adds one diagonal stroke over it, so the pair reads as one symbol in two states. */
+      #layers button[aria-pressed="false"] { color: #9aa3ad; }
+      #layers svg { width: 18px; height: 18px; display: block; overflow: visible; }
+      #layers .off { display: none; }
+      #layers button[aria-pressed="false"] .on { display: none; }
+      #layers button[aria-pressed="false"] .off { display: block; }
+
+      body.shot #hud, body.shot #views, body.shot #layers { display: none; }
       body.shot, body.shot html { background: #fff; }
     </style>
     <script type="importmap">
@@ -55,6 +75,37 @@
         <dt>draws</dt><dd id="hud-draws">—</dd>
         <dt>size</dt><dd id="hud-size">—</dd>
       </dl>
+    </div>
+
+    <div id="layers">
+      <button id="layer-model" type="button" aria-pressed="true" title="show or hide the model">
+        <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
+          <circle cx="12" cy="12" r="2.9"/>
+        </svg>
+        <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
+          <circle cx="12" cy="12" r="2.9"/>
+          <path d="M2 22 22 2" stroke-width="2.1"/>
+        </svg>
+        <span class="label">model</span>
+      </button>
+      <button id="layer-calque" type="button" aria-pressed="true" title="show or hide the reference plate">
+        <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
+          <circle cx="12" cy="12" r="2.9"/>
+        </svg>
+        <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
+          <circle cx="12" cy="12" r="2.9"/>
+          <path d="M2 22 22 2" stroke-width="2.1"/>
+        </svg>
+        <span class="label">calque</span>
+      </button>
     </div>
 
     <div id="views"></div>

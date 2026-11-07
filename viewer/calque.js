@@ -38,6 +38,10 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     view: null,     // the view whose plate is shown, or null
     opacity: 1,
     depth: "behind",
+    // The user's own switch, separate from "is there a plate for this axis". `sync` runs on every
+    // view change and sets visibility from the camera, so without this flag an eye toggle would be
+    // undone the next time the camera moved a degree.
+    enabled: true,
     loaded: new Map(),
   };
 
@@ -100,13 +104,26 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     const orientation = new THREE.Matrix4().makeBasis(basis.right, basis.up, basis.dir);
     mesh.quaternion.setFromRotationMatrix(orientation);
 
-    const behind = view === "top" || view === "bottom" ? 6 : 5;
-    const depth = calque.depth === "behind" ? -behind : 0.02;
     mesh.position
       .copy(centre)
       .addScaledVector(basis.right, dx)
-      .addScaledVector(basis.up, dy)
-      .addScaledVector(basis.dir, depth);
+      .addScaledVector(basis.up, dy);
+
+    // The depth of the plate, and why a plan view cannot use the same rule as an elevation.
+    //
+    // An elevation is a wall: 5 m behind the model or 20 mm in front of it, both are free space.
+    // A plan view is a sheet parallel to the ground, and the viewer has a ground disc at Y = 0.
+    // Offsetting along `dir` puts a `top` plate at Y = -6, UNDER that disc, where it draws nothing
+    // at all -- while `bottom` lands at Y = +6 and looks correct by accident. So a plan view is
+    // placed by height above the ground instead, and the two cases are written apart.
+    if (view === "top" || view === "bottom") {
+      mesh.position.y = calque.depth === "behind"
+        ? 0.002                      // just above the ground: the body hides it where they overlap
+        : realHeight + 0.5;          // above the roof, for tracing on the plate
+    } else {
+      const depth = calque.depth === "behind" ? -5 : 0.02;
+      mesh.position.addScaledVector(basis.dir, depth);
+    }
 
     mesh.userData.metrics = {
       kx_mm: kx * 1000, ky_mm: ky * 1000,
@@ -145,7 +162,7 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     if (plateView !== calque.view) {
       showPlate(plateView).catch((error) => console.warn(String(error)));
     }
-    group.visible = Boolean(plateView);
+    group.visible = calque.enabled && Boolean(plateView);
     return plateView;
   }
 
@@ -193,13 +210,27 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
 
     const view = options.view ?? calque.view ?? rigView();
     await showPlate(view);
+    calque.enabled = true;
     group.visible = true;
     onChange?.();
     return current();
   }
 
+  /**
+   * Turn the plates on or off without forgetting which one is loaded. A hidden plate is detached
+   * from the scene, not disposed: `shownView()` keeps answering, so the measurement panel still
+   * quotes the right reference scale when the plate comes back.
+   */
+  function setEnabled(value) {
+    calque.enabled = Boolean(value);
+    group.visible = calque.enabled && Boolean(calque.view);
+    onChange?.();
+    return calque.enabled;
+  }
+
   function info() {
     return {
+      enabled: calque.enabled,
       shown: group.visible ? calque.view : null,
       depth: calque.depth,
       opacity: calque.opacity,
@@ -219,6 +250,7 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     current,
     shownView,
     set,
+    setEnabled,
     info,
   };
 }

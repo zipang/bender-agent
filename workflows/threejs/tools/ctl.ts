@@ -85,7 +85,13 @@ async function waitForReady(session: string, tries = 40): Promise<void> {
     if ((await evaluate("window.__ready === true", session)) === true) return;
     await Bun.sleep(150);
   }
-  throw new Error("timed out waiting for the first frame");
+  // A page that refused its scene never becomes ready, and "timed out" alone sends the reader
+  // looking at the clock. The viewer records its reason in `window.__error`; quote it, the way
+  // `shot.ts` does. The tool a person runs must not be the one with the least useful message.
+  const reason = await evaluate("window.__error ?? null", session).catch(() => null);
+  throw new Error(
+    "timed out waiting for the first frame" + (reason ? `\n  the page reports: ${reason}` : ""),
+  );
 }
 
 function flag(argv: string[], name: string): boolean | null {
@@ -128,8 +134,12 @@ async function main(): Promise<void> {
     const query = new URLSearchParams();
     if (rest.includes("--shot")) query.set("shot", "1");
     if (options.scene) query.set("scene", options.scene);
+    // `--url` may already carry a query, and the caller's query is the point of passing it. Glue a
+    // separator only when there is something to glue: appending `/` unconditionally turned
+    // `?scene=x` into `?scene=x/`, and the scene name reached the server with a slash on it.
     const suffix = query.size > 0 ? `?${query.toString()}` : "";
-    const url = `${options.url.replace(/\/$/, "")}/${suffix}`;
+    const base = options.url.replace(/\/$/, "");
+    const url = suffix ? `${base}${base.includes("?") ? "&" : "/?"}${suffix.slice(1)}` : base;
     await ab(["open", url, "--session", session]);
     await waitForReady(session);
     console.log(`open  ${url}  (session ${session})`);

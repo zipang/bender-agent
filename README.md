@@ -168,6 +168,7 @@ one more decision from the art director before they can start.
 | [`research/threejs-modelling-loop.md`](./research/threejs-modelling-loop.md) | The measured modelling loop in Three.js: serve the source, extrude a measured profile, then capture, overlay and measure in one command. Records the tool choice, the mistakes that cost time, and the rule that prevents each. |
 | [`research/blueprint-preparation-investigation.md`](./research/blueprint-preparation-investigation.md) | Investigation of image-model workflows that create six-view reference packages before 3D modeling. |
 | [`research/viewer-refactor-plan.md`](./research/viewer-refactor-plan.md) | The plan for one reusable viewer page, driven by `?scene=`, loaded from a Bun scene API, with a single shared view table. Lists the coupling, the migration order and the gates. |
+| [`research/contour-smoothing-plan.md`](./research/contour-smoothing-plan.md) | The contour staircase: why the subpixel edge must be fixed before the opening, the poly and bezier emit modes, and the documentation track that keeps `README.md` and `AGENTS.md` current. |
 | [`scripts/blueprint-generate/README.md`](./scripts/blueprint-generate/README.md) | The three-stage generator: draft, clean, and views. Options, folder contract, prompt templates, and model filter. |
 
 ## Modelling a scene in the browser

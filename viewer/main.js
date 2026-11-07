@@ -110,6 +110,7 @@ const calque = createCalque({
   scene: stage.scene,
   views,
   document: document_,
+  contours: modelModule.CONTOURS ?? null,
   onChange: () => {
     stage.updateHud(currentView);
     showLayerState();
@@ -157,16 +158,19 @@ function syncButtons() {
 // a capture that toggles them sees exactly what the eye sees.
 const layers = {
   model: document.getElementById("layer-model"),
+  contour: document.getElementById("layer-contour"),
   calque: document.getElementById("layer-calque"),
 };
 
 function showLayerState() {
   if (layers.model) layers.model.setAttribute("aria-pressed", String(root.visible));
+  if (layers.contour) layers.contour.setAttribute("aria-pressed", String(calque.info().contour.enabled));
   if (layers.calque) layers.calque.setAttribute("aria-pressed", String(calque.info().enabled));
 }
 
 function setLayer(name, visible) {
   if (name === "model") root.visible = Boolean(visible);
+  else if (name === "contour") calque.setContourEnabled(visible);
   else if (name === "calque") calque.setEnabled(visible);
   showLayerState();
   return stage.nextFrame();
@@ -174,6 +178,9 @@ function setLayer(name, visible) {
 
 if (layers.model) {
   layers.model.addEventListener("click", () => setLayer("model", !root.visible));
+}
+if (layers.contour) {
+  layers.contour.addEventListener("click", () => setLayer("contour", !calque.info().contour.enabled));
 }
 if (layers.calque) {
   layers.calque.addEventListener("click", () => setLayer("calque", !calque.info().enabled));
@@ -320,8 +327,13 @@ window.__ctl = {
   // screenshot taken after them shows the state that was asked for.
   layers: async (options = {}) => {
     if (typeof options.model === "boolean") await setLayer("model", options.model);
+    if (typeof options.contour === "boolean") await setLayer("contour", options.contour);
     if (typeof options.calque === "boolean") await setLayer("calque", options.calque);
-    return { model: root.visible, calque: calque.info().enabled };
+    return {
+      model: root.visible,
+      contour: calque.info().contour.enabled,
+      calque: calque.info().enabled,
+    };
   },
   // Measurement in model units. A point on the calque is a model coordinate, because the plate is
   // already at the model's scale and in its frame.

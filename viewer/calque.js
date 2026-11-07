@@ -28,11 +28,18 @@ import { viewBasis } from "./camera.js";
  * @param {object} options.document                the `/api/scene` document
  * @param {() => void} [options.onChange]          called after the plate set changes
  */
-export function createCalque({ scene, views, document: sceneDocument, onChange }) {
+export function createCalque({ scene, views, document: sceneDocument, contours, onChange }) {
   const group = new THREE.Group();
   group.name = "Calque";
   group.renderOrder = -1;
   scene.add(group);
+
+  // The outline lives in its own group, not under the plate. They are three separate layers to
+  // compare -- picture, contour, volume -- and a contour that vanishes with the picture cannot be
+  // compared against the volume alone, which is exactly the case it exists for.
+  const contourGroup = new THREE.Group();
+  contourGroup.name = "Contour";
+  scene.add(contourGroup);
 
   const calque = {
     view: null,     // the view whose plate is shown, or null
@@ -42,7 +49,15 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     // view change and sets visibility from the camera, so without this flag an eye toggle would be
     // undone the next time the camera moved a degree.
     enabled: true,
+    // The traced outline is a THIRD thing to look at: the reference picture, the contour the hull
+    // was built from, and the volume that came out. All three must sit on the same plane, or the
+    // comparison is a guess, so the contour is a child of the plate and inherits its transform.
+    contour: {
+      enabled: true,
+      views: Object.keys(contours ?? {}),
+    },
     loaded: new Map(),
+    contours: new Map(),
   };
 
   async function buildPlate(view) {
@@ -133,11 +148,100 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     return mesh;
   }
 
+  /**
+   * One traced outline, in the plate's own local metres: `u` to the right, `v` up, origin at the
+   * image centre. The placement is `placeContour`, which copies the plate's matrix.
+   */
+  function buildContour(view) {
+    const entry = contours?.[view];
+    if (!entry || !Array.isArray(entry.points) || entry.points.length < 6) return null;
+    const flat = entry.points;
+    const positions = new Float32Array((flat.length / 2) * 3);
+    for (let i = 0; i < flat.length / 2; i += 1) {
+      positions[i * 3] = flat[i * 2];
+      positions[i * 3 + 1] = flat[i * 2 + 1];
+      // A hair in front of the picture, and no depth test: the contour must be readable over the
+      // reference whether the plate is tracing behind the model or in front of it.
+      positions[i * 3 + 2] = 0.0005;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+    // Two outlines, two meanings. Solid and magenta is a view the hull was built from: the volume
+    // reproduces it by construction, so it is a diagnosis of the tracing, not of the subject.
+    // Dashed and cyan is a WITNESS -- a view the intersection never saw. A gap there is a real
+    // disagreement between the views, which is the only check of this method worth having.
+    const witness = entry.used === false;
+    const material = new THREE.LineBasicMaterial({
+      color: witness ? 0x18c8d8 : 0xff29c8,
+      transparent: true, opacity: 0.95, depthTest: false, depthWrite: false,
+      toneMapped: false,
+    });
+    const line = witness
+      ? new THREE.LineSegments(dashSegments(positions), material)
+      : new THREE.LineLoop(geometry, material);
+    line.name = `Contour_${view}`;
+    line.userData.witness = witness;
+    line.renderOrder = 30;
+    return line;
+  }
+
+  /**
+   * A flat position array split into short segments, for a dashed witness outline.
+   *
+   * `LineDashedMaterial` would need `computeLineDistances` and a pixel-space dash scale that
+   * changes with zoom; cutting the ring into fixed-length pieces keeps the dash the same size on
+   * the screen at any zoom, which is what makes a witness outline readable at trace scale.
+   */
+  function dashSegments(positions, on = 0.012, off = 0.009) {
+    const out = [];
+    const count = positions.length / 3;
+    let carried = 0;
+    let drawing = true;
+    for (let i = 0; i < count - 1; i += 1) {
+      const ax = positions[i * 3], ay = positions[i * 3 + 1], az = positions[i * 3 + 2];
+      const bx = positions[(i + 1) * 3], by = positions[(i + 1) * 3 + 1], bz = positions[(i + 1) * 3 + 2];
+      const length = Math.hypot(bx - ax, by - ay, bz - az);
+      if (length === 0) continue;
+      const period = drawing ? on : off;
+      if (carried + length < period) {
+        carried += length;
+        if (drawing) out.push(ax, ay, az, bx, by, bz);
+        continue;
+      }
+      if (drawing) out.push(ax, ay, az, bx, by, bz);
+      carried = 0;
+      drawing = !drawing;
+    }
+    return new THREE.BufferAttribute(new Float32Array(out), 3);
+  }
+
+  /**
+   * Place an outline where its plate would be. The points are already in plate-local metres, so
+   * copying the plate's position and rotation is the whole placement: recomputing it from the
+   * subject box and the crop offset would be a second chance to land a few millimetres off the
+   * picture the contour was traced from.
+   */
+  function placeContour(line, plate) {
+    line.position.copy(plate.position);
+    line.quaternion.copy(plate.quaternion);
+    line.scale.copy(plate.scale);
+  }
+
+  /** Show or hide every traced outline, without touching the plates or the model. */
+  function setContourEnabled(value) {
+    calque.contour.enabled = Boolean(value);
+    contourGroup.visible = calque.contour.enabled;
+    onChange?.();
+    return calque.contour.enabled;
+  }
+
   async function showPlate(view) {
     calque.view = view;
     // Detach, never dispose. The cached mesh is reused on every later call, so releasing its GPU
     // buffers here leaves a plate that loads, parents cleanly, and draws nothing at all.
     for (const child of [...group.children]) group.remove(child);
+    for (const child of [...contourGroup.children]) contourGroup.remove(child);
     if (!view) {
       onChange?.(); // no plate: the panel must stop quoting the last view's scale
       return null;
@@ -152,6 +256,19 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     mesh.material.depthWrite = calque.depth === "behind";
     mesh.material.depthTest = calque.depth === "behind";
     group.add(mesh);
+
+    // The contour follows the plate's transform but not its visibility: `placeContour` copies the
+    // matrix, and the two groups are switched independently.
+    let line = calque.contours.get(view);
+    if (line === undefined) {
+      line = buildContour(view);
+      calque.contours.set(view, line);
+    }
+    if (line) {
+      placeContour(line, mesh);
+      contourGroup.add(line);
+      contourGroup.visible = calque.contour.enabled;
+    }
     onChange?.();
     return mesh;
   }
@@ -188,6 +305,14 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
       mesh.material.dispose();
     }
     calque.loaded.clear();
+    // The outlines are cached apart from the plates, so they need the same release: a depth or
+    // opacity change rebuilds every plate, and keeping the old lines would double them.
+    for (const line of calque.contours.values()) {
+      if (!line) continue;
+      line.geometry.dispose();
+      line.material.dispose();
+    }
+    calque.contours.clear();
   }
 
   /**
@@ -201,6 +326,7 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
       calque.view = null;
       group.visible = false;
       for (const child of [...group.children]) group.remove(child);
+      for (const child of [...contourGroup.children]) contourGroup.remove(child);
       onChange?.();
       return null;
     }
@@ -231,6 +357,11 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
   function info() {
     return {
       enabled: calque.enabled,
+      contour: {
+        enabled: calque.contour.enabled,
+        views: calque.contour.views,
+        drawn: contourGroup.children.map((child) => child.name),
+      },
       shown: group.visible ? calque.view : null,
       depth: calque.depth,
       opacity: calque.opacity,
@@ -251,6 +382,7 @@ export function createCalque({ scene, views, document: sceneDocument, onChange }
     shownView,
     set,
     setEnabled,
+    setContourEnabled,
     info,
   };
 }

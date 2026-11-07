@@ -17,7 +17,7 @@
 // drawings say, and the deviation report says the same thing.
 
 import * as THREE from "three";
-import { SECTIONS, TRACE } from "./body-hull.js";
+import { CONTOURS, SECTIONS, TRACE } from "./body-hull.js";
 
 // The real dimensions: an INPUT. They come from the manufacturer's sheet for a Renault 5 TL (1972)
 // and they are mirrored in `dimensions.json` under `real`. They are never read from the views that
@@ -29,7 +29,7 @@ export const REAL = {
   height: 1.4,
 };
 
-export { SECTIONS, TRACE };
+export { CONTOURS, SECTIONS, TRACE };
 
 // ---------------------------------------------------------------- materials
 

@@ -106,6 +106,9 @@ VIEWS = {
     "front": ("x", +1, "y", -1),
     "back": ("x", -1, "y", -1),
     "top": ("x", +1, "z", +1),
+    # bottom: same pose as `top`, camera below and looking up. up = (0,0,-1), dir = (0,-1,0), so
+    # right = up x dir = (-1,0,0): the image's +x runs toward -X, and its +y toward +Z.
+    "bottom": ("x", -1, "z", +1),
 }
 
 # The silhouettes the hull needs, and what each one constrains. The side view is fixed: it is the
@@ -440,6 +443,44 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_fr
     }, views
 
 
+def plate_contour(view):
+    """The outline the hull was built from, in the plate's own metres.
+
+    The plate is a plane of `imgW * kx` by `imgH * ky` centred on the image, so a pixel maps to
+    local coordinates without touching the subject box or the crop offset: the plate mesh already
+    carries those. The contour is emitted in that frame on purpose -- a second mapping from model
+    axes would be a second chance to place it a few millimetres off the picture it came from.
+
+    The result is a closed ring: the top edge left to right, then the bottom edge back. It is as
+    coarse as the mask, so it shows the pixel staircase exactly as the hull inherits it. That is
+    the point of drawing it.
+
+    Coordinates alternate `u, v, u, v, ...` in metres; a flat array halves the file and the reader
+    pairs them back.
+    """
+    height, width = view.mask.shape
+    lo, hi = view.cols
+    live = np.flatnonzero(~np.isnan(lo))
+    if live.size < 2:
+        return []
+    x0, x1 = int(live[0]), int(live[-1])
+
+    def local(px, py):
+        # Pixel CENTRES: index 0 is the centre of the first pixel, half a pixel inside the edge.
+        return round((px + 0.5 - width / 2) * view.kx, 4), round(-((py + 0.5) - height / 2) * view.ky, 4)
+
+    points = []
+    for px in range(x0, x1 + 1):
+        if np.isnan(lo[px]):
+            continue
+        points.extend(local(px, lo[px]))
+    for px in range(x1, x0 - 1, -1):
+        if np.isnan(hi[px]):
+            continue
+        points.extend(local(px, hi[px]))
+    return points
+
+
 def widest_run(lo, hi):
     """The widest single interval of an array pair, in samples. 0 when nothing is left."""
     live = ~np.isnan(lo) & ~np.isnan(hi)
@@ -603,11 +644,55 @@ def main() -> None:
         "//\n"
         "// What it reproduces: the three views it was built from, by construction. What it cannot\n"
         "// check: the views it did not use. That is what `right`, `back` and `bottom` are for.\n"
+        "//\n"
+        "// CONTOURS holds the outline of every orthogonal view, in the frame of that view's plate,\n"
+        "// with `used` marking the three the hull was built from. The others are witnesses: the\n"
+        "// intersection never saw them, so their outline is a check, not an input.\n"
     )
     summary = {key: value for key, value in hull.items() if key != "sections"}
+    # Every orthogonal view gets an outline, not only the three the hull reads.
+    #
+    # The point of drawing a contour is to compare three things on one plane: the picture, the
+    # outline taken from it, and the volume that came out. A view the hull did not read is exactly
+    # where that comparison is most informative -- `right`, `front` and `bottom` are the witnesses
+    # the intersection never saw, so their outline is a check rather than an input.
+    #
+    # `used` says which is which, so the viewer can draw a witness outline differently and nobody
+    # has to remember the list.
+    with open(os.path.join(args.subject, "cropped", "manifest.json"), encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    used = {view.name for view in views.values()}
+    contours = {}
+    for name in sorted(manifest["views"]):
+        if name not in dimensions.get("views", {}):
+            continue
+        if name in used:
+            view = next(candidate for candidate in views.values() if candidate.name == name)
+        else:
+            try:
+                # Same mask and same opening as the views the hull reads. A witness drawn from the
+                # raw silhouette would differ from the solid everywhere an accessory sits, and the
+                # eye would read that difference as a modelling error instead of the cut.
+                view = View(name, args.subject, manifest, dimensions, real, smooth, args.mask)
+            except (KeyError, FileNotFoundError, ValueError):
+                continue
+        points = plate_contour(view)
+        if len(points) < 6:
+            continue
+        contours[name] = {
+            "kx": round(view.kx, 7),
+            "ky": round(view.ky, 7),
+            "size_px": [view.mask.shape[1], view.mask.shape[0]],
+            "used": name in used,
+            "points": points,
+        }
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(header)
         handle.write(f"export const TRACE = {json.dumps(summary, separators=(',', ':'))};\n\n")
+        handle.write("// The outline each view contributed, in plate-local metres (u right, v up,\n")
+        handle.write("// origin at the image centre). Drawn over the reference picture, it shows both\n")
+        handle.write("// what the hull used and the pixel staircase it inherited.\n")
+        handle.write(f"export const CONTOURS = {json.dumps(contours, separators=(',', ':'))};\n\n")
         handle.write("export const SECTIONS = [\n")
         for section in hull["sections"]:
             cols = ",".join(f"[{c[0]},{c[1]},{c[2]},{c[3]}]" for c in section["columns"])

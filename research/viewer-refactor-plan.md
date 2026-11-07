@@ -9,7 +9,8 @@ Status: in progress. This document describes the target architecture and the mig
 | 2 API | done, five endpoints, guards tested | this commit |
 | 3 Client | done, nine views byte-identical, failure path named | this commit |
 | 4 Measure | done, panel reads the API scale, 13 unit tests | this commit |
-| 5 to 9 | planned | |
+| 5 Frame | done, six formulas, IoU within 0.001 | this commit |
+| 6 to 9 | planned | |
 
 ## 1. Purpose
 

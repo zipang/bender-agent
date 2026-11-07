@@ -17,6 +17,7 @@ import { loadScene, realMetres, referenceScale, showFailure } from "/viewer/api.
 import {
   axesOf, betweenPoints, imageScaleMm, mmPerScreenPx as screenMmPerPx, panelLines, readPoint,
 } from "/viewer/measure.js";
+import { frameFrom } from "/viewer/frame.js";
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get("shot") === "1";
@@ -81,7 +82,21 @@ const VIEWS = await (async () => {
   return table.views;
 })();
 
-const DISTANCE = 10.5;
+// The scene document is loaded once, here, because the frame depends on it. It used to be loaded at
+// the very end of the file, after the lights and the ground had already been built from constants,
+// which is why those constants could never follow the subject.
+let sceneDocument;
+try {
+  sceneDocument = await loadScene();
+} catch (error) {
+  showFailure(error);
+  throw error;
+}
+
+// Every viewer distance is a multiple of the subject's largest real dimension. The six numbers this
+// replaces were measured on this car and copied as if they described a car. See `viewer/frame.js`.
+const FRAME = frameFrom(sceneDocument);
+const DISTANCE = FRAME.distance;
 let activeCamera = camera;
 
 // One state drives both cameras. A named view is just a preset written into it, so a manual
@@ -90,9 +105,9 @@ const state = {
   azimuth: 60,
   elevation: 30,
   distance: DISTANCE,
-  target: new THREE.Vector3(0, 0.7, 0),
+  target: new THREE.Vector3(...FRAME.target),
   perspective: true,
-  orthoHeight: 4.4,
+  orthoHeight: FRAME.orthoHeight,
   fov: 26,
   up: [0, 1, 0],
 };
@@ -521,10 +536,10 @@ key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 key.shadow.camera.near = 1;
 key.shadow.camera.far = 20;
-key.shadow.camera.left = -4.5;
-key.shadow.camera.right = 4.5;
-key.shadow.camera.top = 4.5;
-key.shadow.camera.bottom = -4.5;
+key.shadow.camera.left = -FRAME.shadowHalf;
+key.shadow.camera.right = FRAME.shadowHalf;
+key.shadow.camera.top = FRAME.shadowHalf;
+key.shadow.camera.bottom = -FRAME.shadowHalf;
 key.shadow.bias = -0.0004;
 key.shadow.normalBias = 0.015;
 scene.add(key);
@@ -544,7 +559,7 @@ scene.add(new THREE.HemisphereLight(0xffffff, 0xb9bcc0, 0.35));
 // In capture mode there is no ground: the blueprint sheets are white field, and a shadow
 // would break the comparison. In the viewer the ground gives scale and contact.
 const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(9, 48),
+  new THREE.CircleGeometry(FRAME.groundRadius, 48),
   new THREE.MeshStandardMaterial({ color: 0xdfe2e6, roughness: 0.95, metalness: 0 }),
 );
 ground.rotation.x = -Math.PI / 2;
@@ -553,7 +568,7 @@ ground.name = "Ground";
 ground.visible = !SHOT;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(12, 24, 0xb0b6bd, 0xcdd2d7);
+const grid = new THREE.GridHelper(FRAME.gridSize, 24, 0xb0b6bd, 0xcdd2d7);
 grid.position.y = 0.001;
 grid.visible = !SHOT;
 scene.add(grid);
@@ -687,9 +702,9 @@ function ctlCamera(options = {}) {
     );
   }
   if (options.reset) {
-    state.target.set(0, 0.7, 0);
+    state.target.set(...FRAME.target);
     state.up = [0, 1, 0];
-    state.orthoHeight = 4.4;
+    state.orthoHeight = FRAME.orthoHeight;
     state.fov = 26;
   }
   currentView = "custom";
@@ -952,14 +967,9 @@ window.__ctl = {
   wait: () => nextFrame(),
 };
 
-// The document is loaded before the first frame. A scene that cannot load must fail here, with the
-// reason on screen, and not on the first click that asks for a calque.
-try {
-  calque.document = await loadScene();
-  placeCamera(currentView);
-  syncButtons();
-} catch (error) {
-  showFailure(error);
-  throw error;
-}
+// The document is already loaded, at the top, because the frame depends on it. A scene that cannot
+// load fails there, with the reason on screen, before anything is built.
+calque.document = sceneDocument;
+placeCamera(currentView);
+syncButtons();
 

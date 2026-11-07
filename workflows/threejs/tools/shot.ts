@@ -6,10 +6,10 @@
 //
 // Usage, from the repository root (the dev server must run):
 //
-//   bun run scripts/scene/shot.ts \
+//   bun run workflows/threejs/tools/shot.ts \
 //     --out blueprints/vehicules/r5-tl-1972/model \
 //     --prefix r5-L3 \
-//     --scene scenes/r5-tl-1972
+//     --scene r5-tl-1972
 //
 // It writes <out>/<prefix>-<view>.webp and prints the measured bounds and triangle count.
 //
@@ -19,11 +19,12 @@
 
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import { VIEW_TABLE } from "./paths";
 
 // The view list comes from `viewer/views.json`, the one table the page and every tool share.
 // It used to be a constant here, and it listed `bottom`, which the page could not place: the
 // capture asked for a view the scene did not have and failed after writing a file.
-const VIEWS_TABLE = await Bun.file(resolve(import.meta.dir, "../../viewer/views.json")).json();
+const VIEWS_TABLE = await Bun.file(VIEW_TABLE).json();
 const VIEWS: string[] = Object.keys(VIEWS_TABLE.views);
 
 type Options = {

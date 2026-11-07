@@ -31,12 +31,14 @@ const SERVER_ARGS = process.env.VCAD_MCP_ARGS ? process.env.VCAD_MCP_ARGS.split(
 //
 // The three-quarter views are the ones a modeler actually judges: they carry the front, one
 // flank, and the roof in a single frame, so a wrong mass reads immediately.
-// The view table is shared: `viewer/views.json` holds the name, the order and the angles, and it
+// The view table is shared: `threejs/viewer/views.json` holds the name, the order and the angles, and it
 // records them in BOTH frames. The viewer is +Y up with +Z forward; this kernel is +Z up with +Y
 // forward, and the two are 90 degrees apart -- which is why `left` is 0 in the page and 180 here.
 // Keeping the kernel angles in the same file means a rename cannot leave one tool behind.
+// The table belongs to the Three.js workflow, because the page and its capture tools read it. A
+// vcad export runs against the same named views, so it reads the same file: one table, two readers.
 const VIEW_TABLE = await Bun.file(
-  resolve(import.meta.dir, "../../viewer/views.json"),
+  resolve(import.meta.dir, "../threejs/viewer/views.json"),
 ).json();
 const VIEWS: Record<string, { azimuth?: number; elevation?: number }> = Object.fromEntries(
   Object.entries(VIEW_TABLE.views as Record<string, { kernel?: { azimuth: number; elevation: number } }>)

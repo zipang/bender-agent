@@ -19,9 +19,9 @@ start on the subject and return nonsense.
 
 Usage:
 
-    python3 scripts/scene/crop_reference.py --subject blueprints/vehicules/r5-tl-1972
-    python3 scripts/scene/crop_reference.py --subject blueprints/vehicules/r5-tl-1972 --margin 8
-    python3 scripts/scene/crop_reference.py --subject blueprints/vehicules/r5-tl-1972 --views left,front --json
+    python3 scripts/blueprint/crop_reference.py --subject blueprints/vehicules/r5-tl-1972
+    python3 scripts/blueprint/crop_reference.py --subject blueprints/vehicules/r5-tl-1972 --margin 8
+    python3 scripts/blueprint/crop_reference.py --subject blueprints/vehicules/r5-tl-1972 --views left,front --json
 
 It writes `cropped/<view>.png` and `cropped/manifest.json` under the subject. The locked
 `reference.<ext>` of each view is read only, and is never modified: the crop is a derived file, and

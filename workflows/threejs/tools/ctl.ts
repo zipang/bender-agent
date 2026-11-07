@@ -7,16 +7,16 @@
 //
 // Usage, from the repository root (the dev server must run):
 //
-//   bun run scripts/scene/ctl.ts open
-//   bun run scripts/scene/ctl.ts view rear-3q     (no name: the page default)
-//   bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
-//   bun run scripts/scene/ctl.ts ortho --on --height 4.4
-//   bun run scripts/scene/ctl.ts wireframe --on
-//   bun run scripts/scene/ctl.ts isolate Wheel_FL
-//   bun run scripts/scene/ctl.ts isolate --all
-//   bun run scripts/scene/ctl.ts nodes
-//   bun run scripts/scene/ctl.ts shot /tmp/opencode/three-quarter.webp --view rear-3q
-//   bun run scripts/scene/ctl.ts reset
+//   bun run workflows/threejs/tools/ctl.ts open
+//   bun run workflows/threejs/tools/ctl.ts view rear-3q     (no name: the page default)
+//   bun run workflows/threejs/tools/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
+//   bun run workflows/threejs/tools/ctl.ts ortho --on --height 4.4
+//   bun run workflows/threejs/tools/ctl.ts wireframe --on
+//   bun run workflows/threejs/tools/ctl.ts isolate Wheel_FL
+//   bun run workflows/threejs/tools/ctl.ts isolate --all
+//   bun run workflows/threejs/tools/ctl.ts nodes
+//   bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/three-quarter.webp --view rear-3q
+//   bun run workflows/threejs/tools/ctl.ts reset
 //
 // Every command prints the camera state and the frame statistics, so one call tells you where the
 // page stands.

@@ -7,8 +7,8 @@ three modelling workflows its own documentation and its own tools. No step is do
 | :--- | :--- | :--- |
 | 0 Inventory | done | 2977f58 |
 | 1 Workflow folders | planned | |
-| 2 Three.js move | planned | |
-| 3 Path repair | planned | |
+| 2 Three.js move | done | c786ffe |
+| 3 Path repair | done | |
 | 4 URL and API | planned | |
 | 5 Blender and vcad docs | planned | |
 | 6 Root index | planned | |
@@ -161,6 +161,12 @@ The public path `/viewer/` stays, though the folder moves. A capture and a docum
 and changing it for a folder rename is churn with no benefit. The server maps the URL to the new
 folder in one line.
 
+`/scene/` was replaced by the real path. The rule in section 6 says a module is served at its real
+path, and the model URL is built from the scene id, so an alias would have hidden the one thing a
+failed import needs: where the file actually is. A scene module now answers at
+`/workflows/threejs/scenes/<name>/<file>.js`, under a guard that refuses everything outside that
+folder and every file that is not a module.
+
 ### 4.3 The dev commands
 
 ```bash
@@ -180,8 +186,8 @@ every step, so a failure is visible at once.
 | :--- | :--- | :--- |
 | 0 | Inventory | Record the scene list, the view table hash, and one capture per named view as the baseline. Gate: the baseline renders and the IoU is recorded. **Done.** `tickets/reorg-baseline.json` holds the nine sha256, the model numbers, the five IoU values, the five API answers, and the four guards. |
 | 1 | Workflow folders | Create `workflows/threejs`, `workflows/blender`, `workflows/vcad` with an empty `README.md` and `AGENTS.md` each. Gate: nothing else changes, and the server still runs. |
-| 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. |
-| 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. |
+| 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. **Done.** Thirty-four pure renames, 0 insertions, 0 deletions. |
+| 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. **Done.** `tools/paths.ts` holds the root once. Nine views identical, five IoU identical, `bun run check` runs end to end. |
 | 4 | URL and API | Add the `/scene/` route, keep `/viewer/`, update the scene id and the client message. Gate: a scene module with a relative import loads, `baseline.json` stays unserved, and the API document reports the new paths. |
 | 5 | Blender and vcad docs | Write the two pairs of documents. vcad states that the project does not use it, and points at the reason. Gate: each document answers what the workflow does and where its tools are. |
 | 6 | Root index | The root `README.md` becomes an index: three workflows, which one is active, the shared inputs, the glossary. The root `AGENTS.md` keeps only the rules that hold for every workflow. Gate: no command line in the root document points at a moved path. |
@@ -217,6 +223,7 @@ every step, so a failure is visible at once.
 | A traversal reaches a file outside the tree | the guard names a folder that moved | the guard names the running workflow's folder |
 | The documents quote a command that fails | the move did not update them | a move updates the documents in the same commit |
 | Two workflows share a tool | the tool was placed by convenience | a tool that one workflow runs lives in that workflow |
+| A capture fails with `window.__setView is not a function` | the pass wrote a render into the watched subject, and the page reloaded mid-capture | an output directory never reloads its own reader: `model/` is not watched |
 
 ## 7. Open points
 

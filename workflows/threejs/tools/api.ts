@@ -17,6 +17,7 @@
 
 import { readdir } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
+import { ROOT, SCENES, VIEW_TABLE, toRepoPath, isInside } from "./paths";
 
 type Json = Record<string, any>;
 
@@ -28,11 +29,6 @@ export type ApiContext = {
 };
 
 // ---------------------------------------------------------------- helpers
-
-function isInside(parent: string, child: string): boolean {
-  const rel = relative(parent, child);
-  return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
-}
 
 function reply(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2) + "\n", {
@@ -79,12 +75,16 @@ async function loadScene(
   root: string,
   requested: string,
 ): Promise<{ scene?: Scene; problems: string[]; status?: number }> {
-  // A bare directory name is accepted, because that is what a human types: `?scene=r5-tl-1972`.
-  const asPath = requested.startsWith("scenes/") ? requested : join("scenes", requested);
-  const dirAbs = resolve(root, asPath);
+  // Two forms are accepted, because two callers exist. A human types a bare directory name --
+  // `?scene=r5-tl-1972` -- and a tool passes the path it read from this API, which is relative to
+  // the repository root: `?scene=workflows/threejs/scenes/r5-tl-1972`. A bare name resolves against
+  // the workflow's own scenes folder, and that is the only folder a scene can live in.
+  const dirAbs = requested.includes("/")
+    ? resolve(ROOT, requested)
+    : join(SCENES, requested);
 
-  if (!isInside(join(root, "scenes"), dirAbs)) {
-    return { problems: [`scene resolves outside scenes/: ${requested}`], status: 403 };
+  if (!isInside(SCENES, dirAbs)) {
+    return { problems: [`scene resolves outside ${toRepoPath(SCENES)}/: ${requested}`], status: 403 };
   }
 
   const manifest = await readJson(join(dirAbs, "scene.json"));
@@ -115,8 +115,8 @@ async function loadScene(
   return {
     scene: {
       dirAbs,
-      dirRel: relative(root, dirAbs),
-      id: manifest.id ?? relative(join(root, "scenes"), dirAbs),
+      dirRel: toRepoPath(dirAbs),
+      id: manifest.id ?? relative(SCENES, dirAbs),
       manifest,
       subjectAbs,
       subjectRel: relative(root, subjectAbs),
@@ -159,8 +159,8 @@ async function sceneDocument(context: ApiContext, requested: string): Promise<Re
     if (!(role in real)) problems.push(`role "${role}" for axis ${axis} is not in dimensions.real`);
   }
 
-  const viewTable = await readJson<Json>(join(root, "viewer", "views.json"));
-  if (!viewTable?.views) return reply({ ok: false, problems: ["viewer/views.json is missing or invalid"] }, 500);
+  const viewTable = await readJson<Json>(VIEW_TABLE);
+  if (!viewTable?.views) return reply({ ok: false, problems: ["the view table (viewer/views.json) is missing or invalid"] }, 500);
 
   const views: Json = {};
   for (const [name, spec] of Object.entries<Json>(viewTable.views)) {
@@ -190,7 +190,7 @@ async function sceneDocument(context: ApiContext, requested: string): Promise<Re
     if (spec.plate) {
       const crop = crops?.views?.[name];
       if (!crop) {
-        const message = `${name}: no crop. Run scripts/scene/crop_reference.py.`;
+        const message = `${name}: no crop. Run scripts/blueprint/crop_reference.py.`;
         if (view.required) problems.push(message);
         else warnings.push(message + " The view is optional, so it informs and does not decide.");
         view.reference = null;
@@ -309,14 +309,14 @@ async function model(root: string, sceneParam: string | null): Promise<Response>
 }
 
 async function scenes(root: string): Promise<Response> {
-  const base = join(root, "scenes");
+  const base = SCENES;
   let entries: string[] = [];
   try {
     entries = await readdir(base, { withFileTypes: true }).then((list) =>
       list.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
     );
   } catch {
-    return reply({ ok: false, problems: ["no scenes/ directory"] }, 500);
+    return reply({ ok: false, problems: [`no ${toRepoPath(SCENES)}/ directory`] }, 500);
   }
 
   const out: Json[] = [];
@@ -325,7 +325,7 @@ async function scenes(root: string): Promise<Response> {
     if (!manifest) continue;
     out.push({
       id: name,
-      dir: `scenes/${name}`,
+      dir: toRepoPath(join(base, name)),
       name: manifest.name ?? name,
       subject: manifest.subject ?? null,
     });

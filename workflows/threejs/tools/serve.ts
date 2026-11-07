@@ -7,23 +7,35 @@
 //
 // Usage, from the repository root:
 //
-//   bun run scripts/scene/serve.ts --scene scenes/r5-tl-1972 --port 5180
+//   bun run workflows/threejs/tools/serve.ts --scene r5-tl-1972 --port 5180
+//
+// `--scene` takes a scene directory name, or a path from the repository root. Both name the same
+// folder: `r5-tl-1972` and `workflows/threejs/scenes/r5-tl-1972`.
 //
 // Routes:
 //   /                        redirect to the shared viewer, on the scene given by --scene
 //   /viewer/                 the shared viewer page, driven by ?scene=
+//   /viewer/*                shared viewer assets, including views.json
 //   /vendor/three/build/*    node_modules/three/build/*
 //   /vendor/three/addons/*   node_modules/three/examples/jsm/*   (import map target)
 //   /__reload                server-sent events, one message per file change
 //   /measure/                the point picker, for measuring reference images
 //   /api/*                   the scene API: scene document, assets, model, measurements
-//   /viewer/*                shared viewer assets, including views.json
 //   /repo/*                  any file under the repository root (reference images)
+//   /workflows/threejs/scenes/*.js
+//                            a scene's own modules, at their real path, so a relative import
+//                            resolves. Only JavaScript is served there.
 //   /*                       any file under the scene directory
+//
+// `/viewer/` is a public path, not a disk path. The page lives in `workflows/threejs/viewer/`, and
+// the route keeps the short URL, because documents and captures name it. A scene module, by
+// contrast, is served at its real path: the model URL is built from the scene id, and an alias
+// there would make an import failure impossible to read.
 
 import { watch, type FSWatcher } from "node:fs";
 import { resolve, join, relative, sep } from "node:path";
 import { handleApi } from "./api";
+import { ROOT, SCENES, VIEWER, toRepoPath, isInside } from "./paths";
 
 type Options = { scene: string; port: number; root: string };
 
@@ -32,22 +44,22 @@ function readOptions(argv: string[]): Options {
     const index = argv.indexOf(`--${name}`);
     return index >= 0 ? (argv[index + 1] ?? null) : null;
   };
-  const root = resolve(import.meta.dir, "../..");
-  const scene = value("scene");
-  if (!scene) throw new Error("--scene <directory> is required");
+  const requested = value("scene");
+  if (!requested) throw new Error("--scene <directory> is required");
   const port = Number(value("port") ?? 5180);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("--port must be an integer between 1 and 65535");
   }
-  return { scene: resolve(root, scene), port, root };
+  // A bare name, or a path from the repository root. The two forms are what the API publishes and
+  // what a human types, and nothing else: a third spelling is a third thing to keep in step.
+  const scene = requested.includes("/") ? resolve(ROOT, requested) : join(SCENES, requested);
+  if (!isInside(SCENES, scene)) {
+    throw new Error(`--scene must name a directory under ${relative(ROOT, SCENES)}`);
+  }
+  return { scene, port, root: ROOT };
 }
 
 const MIME_FALLBACK = "application/octet-stream";
-
-function isInside(parent: string, child: string): boolean {
-  const rel = relative(parent, child);
-  return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
-}
 
 async function main(): Promise<void> {
   const options = readOptions(Bun.argv.slice(2));
@@ -79,13 +91,19 @@ async function main(): Promise<void> {
   // The scene directory, and the shared viewer. A change to views.json must reload the page just
   // as a change to the model does, or the table is edited and the browser keeps the old one.
   watch(options.scene, { recursive: true }, (_event, filename) => reload(filename ? String(filename) : null));
-  watch(join(options.root, "viewer"), { recursive: true }, (_event, filename) =>
+  watch(VIEWER, { recursive: true }, (_event, filename) =>
     reload(filename ? `viewer/${filename}` : null));
 
   // The third directory is the subject of the scene that is open. The server learns it from the
   // API, because the scene is chosen by the browser in the URL and the server never parses that.
   // Without this watch, editing cropped/left.png or dimensions.json leaves a stale page, which is
   // the one case where a reload is genuinely required.
+  //
+  // `model/` is excluded. It holds the renders and the exports, which this pipeline WRITES while a
+  // capture runs. Watching it meant that the first render of a pass reloaded the page underneath
+  // the second one, and the capture failed with `window.__setView is not a function` -- a confusing
+  // message for a rule that is one line. An output never reloads its own reader.
+  const OUTPUT_DIRS = new Set(["model"]);
   let subjectWatcher: FSWatcher | null = null;
   let subjectDir: string | null = null;
   function watchSubject(absolute: string): void {
@@ -93,8 +111,12 @@ async function main(): Promise<void> {
     subjectWatcher?.close();
     subjectDir = absolute;
     try {
-      subjectWatcher = watch(absolute, { recursive: true }, (_event, filename) =>
-        reload(filename ? `subject/${filename}` : null));
+      subjectWatcher = watch(absolute, { recursive: true }, (_event, filename) => {
+        if (!filename) return;
+        const top = String(filename).split(/[\\/]/)[0];
+        if (OUTPUT_DIRS.has(top)) return;
+        reload(`subject/${filename}`);
+      });
     } catch {
       subjectWatcher = null; // the subject may be only partly promoted
     }
@@ -157,16 +179,16 @@ async function main(): Promise<void> {
         // The shared viewer assets. `views.json` and the page live here, and the page fetches them
         // by absolute path because the scene directory is not the root of the tree.
         const rest = url.pathname.slice("/viewer/".length);
-        path = join(options.root, "viewer", rest === "" ? "index.html" : rest);
-      } else if (url.pathname.startsWith("/scenes/")) {
+        path = join(VIEWER, rest === "" ? "index.html" : rest);
+      } else if (decodeURIComponent(url.pathname).startsWith(`/${toRepoPath(SCENES)}/`)) {
         // A scene's own modules, at their real path, so `import "./body-hull.js"` resolves. Only
-        // JavaScript is served here: the scene directory also holds `baseline.json`, and a route
-        // that hands out every file under `scenes/` would serve it as if it were a module.
+        // JavaScript is served here: a scene directory also holds `baseline.json` and the traced
+        // hull, and a route that hands out every file would serve a data file as a module.
         if (!url.pathname.endsWith(".js")) {
-          return new Response("only .js modules are served under /scenes/", { status: 403 });
+          return new Response("only .js modules are served from a scene directory", { status: 403 });
         }
-        path = join(options.root, decodeURIComponent(url.pathname));
-        if (!isInside(join(options.root, "scenes"), path)) {
+        path = resolve(options.root, `.${decodeURIComponent(url.pathname)}`);
+        if (!isInside(SCENES, path)) {
           return new Response("forbidden", { status: 403 });
         }
       } else if (url.pathname.startsWith("/repo/")) {

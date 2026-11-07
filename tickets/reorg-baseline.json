@@ -1,7 +1,7 @@
 {
   "note": "Frozen at revision 2977f58, before the workflow reorganisation. The nine captures are the gate: after each step of the move they must be byte-identical on the same machine, from the same command. The images stay in /tmp/opencode/reorg-baseline/ and are not committed.",
   "revision": "2977f58",
-  "command": "bun run scripts/scene/ctl.ts open --shot --scene scenes/r5-tl-1972 --url http://127.0.0.1:5180/ ; ctl.ts shot <file> --view <name> x9 ; ctl.ts close",
+  "command": "bun run workflows/threejs/tools/ctl.ts open --shot --scene r5-tl-1972 --url http://127.0.0.1:5180/ ; ctl.ts shot <file> --view <name> x9 ; ctl.ts close",
   "view_table": {
     "path": "viewer/views.json",
     "sha256": "ae930c31c9da35b9e52038bda826bd7acfcfe1a31b62c3c9e248be380f8ba2a1"

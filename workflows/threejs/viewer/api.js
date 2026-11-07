@@ -22,7 +22,7 @@ export function sceneParam() {
   const declared = document.body?.dataset?.scene;
   if (declared) return declared;
   throw new Error(
-    "no scene selected. Open the viewer as /?scene=scenes/<name>, or set data-scene on <body>.",
+    "no scene selected. Open the viewer as /?scene=<name>, or set data-scene on <body>.",
   );
 }
 

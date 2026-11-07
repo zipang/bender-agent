@@ -8,7 +8,7 @@
 //
 // Usage:
 //
-//   bun run scripts/scene/silhouette.ts \
+//   bun run workflows/threejs/tools/silhouette.ts \
 //     --subject blueprints/vehicules/r5-tl-1972 \
 //     --render blueprints/vehicules/r5-tl-1972/model \
 //     --prefix r5-L3

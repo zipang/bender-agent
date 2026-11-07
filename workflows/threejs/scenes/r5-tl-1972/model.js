@@ -3,7 +3,7 @@
 // The method, and why. Three orthographic silhouettes are measurements: the left view fixes the
 // outline in Z and Y, the front view in X and Y, the top view in X and Z. A point belongs to the
 // subject only if all three contain it, so the intersection of the three extruded profiles is the
-// largest volume consistent with the drawings. `scripts/scene/trace_hull.py` does that reduction and
+// largest volume consistent with the drawings. `workflows/threejs/tools/trace_hull.py` does that reduction and
 // writes `body-hull.js`; this file turns its columns into a mesh, and adds the gate numbers.
 //
 // What this method can and cannot tell you. It reproduces the three views it was built from by

@@ -135,7 +135,7 @@ def main():
     if not os.path.exists(measurements_path):
         raise SystemExit(f"no {measurements_path}: place the points with /measure/ first")
     if not os.path.exists(dimensions_path):
-        raise SystemExit(f"no {dimensions_path}: run scripts/scene/view_scale.py first")
+        raise SystemExit(f"no {dimensions_path}: run scripts/blueprint/view_scale.py first")
 
     document = load_json(measurements_path)
     dimensions = load_json(dimensions_path)

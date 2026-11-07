@@ -13,7 +13,7 @@ Orientation. The reference draws the nose on the right. Every length here is mea
 nose, so a value of 0 is the front and 3520 is the tail. That matches the model's +Z.
 
 Usage:
-    python3 scripts/scene/read_reference.py <side-view image> [--length 3520]
+    python3 scripts/blueprint/read_reference.py <side-view image> [--length 3520]
 """
 
 import argparse

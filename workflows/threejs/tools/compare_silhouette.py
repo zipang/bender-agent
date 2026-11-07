@@ -20,11 +20,11 @@ a height error visible at the roof, instead of cancelling them into a tidy ratio
 
 Usage:
 
-    bun run scripts/scene/ctl.ts open --shot --url http://127.0.0.1:5180
-    bun run scripts/scene/ctl.ts view left
-    bun run scripts/scene/ctl.ts shot /tmp/opencode/left.webp
+    bun run workflows/threejs/tools/ctl.ts open --shot --url http://127.0.0.1:5180
+    bun run workflows/threejs/tools/ctl.ts view left
+    bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/left.webp
 
-    python3 scripts/scene/compare_silhouette.py --subject blueprints/vehicules/r5-tl-1972 \\
+    python3 workflows/threejs/tools/compare_silhouette.py --subject blueprints/vehicules/r5-tl-1972 \\
         --view left --render /tmp/opencode/left.webp --out /tmp/opencode/cmp-left.png
 
 It prints the spans on both axes, the overlap, and a station table of the top edge and the bottom
@@ -87,7 +87,7 @@ def bbox(mask: np.ndarray):
 #   anchor "edge-ground": the leading edge, and the ground. Side elevations.
 #   anchor "center-top":  the horizontal centre, and the top edge. Head-on views.
 #   anchor "center":      the centre on both axes. Plan views.
-VIEWS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "viewer", "views.json")
+VIEWS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "viewer", "views.json")
 
 with open(VIEWS_FILE, encoding="utf-8") as handle:
     VIEWS = json.load(handle)["views"]

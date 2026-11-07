@@ -12,12 +12,13 @@
 //
 // Usage, from the repository root (the dev server must run):
 //
-//   bun run scripts/scene/check.ts --subject blueprints/vehicules/r5-tl-1972 --prefix r5-L3
+//   bun run workflows/threejs/tools/check.ts --subject blueprints/vehicules/r5-tl-1972 --prefix r5-L3
 //
 // Exit code 1 when the model is outside the tolerance, so a loop can gate on it.
 
 import { mkdir, readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import { ROOT, SCENES, TOOLS, VIEW_TABLE, toRepoPath } from "./paths";
 
 type Options = {
   subject: string;
@@ -56,18 +57,18 @@ async function findScene(root: string, subject: string): Promise<string | null> 
   const wanted = relative(root, subject);
   let names: string[] = [];
   try {
-    names = await readdir(join(root, "scenes"), { withFileTypes: true }).then((list) =>
+    names = await readdir(SCENES, { withFileTypes: true }).then((list) =>
       list.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
     );
   } catch {
     return null;
   }
   for (const name of names.sort()) {
-    const file = Bun.file(join(root, "scenes", name, "scene.json"));
+    const file = Bun.file(join(SCENES, name, "scene.json"));
     if (!(await file.exists())) continue;
     const manifest = await file.json().catch(() => null);
-    if (manifest?.subject && relative(root, resolve(root, manifest.subject)) === wanted) {
-      return `scenes/${name}`;
+    if (manifest?.subject && relative(ROOT, resolve(ROOT, manifest.subject)) === wanted) {
+      return toRepoPath(join(SCENES, name));
     }
   }
   return null;
@@ -133,7 +134,7 @@ print("mass-left" if centre < 0.5 else "mass-right")
 async function main(): Promise<void> {
   const options = readOptions(Bun.argv.slice(2));
   await mkdir(options.out, { recursive: true });
-  const root = resolve(import.meta.dir, "../..");
+  const root = ROOT;
 
   // 1. Capture. One page, every view, WebP on disk.
   if (!options.skipShot) {
@@ -143,19 +144,19 @@ async function main(): Promise<void> {
     const scene = options.scene ?? (await findScene(root, options.subject));
     if (!scene) {
       throw new Error(
-        `no scene under scenes/ has subject "${relative(root, options.subject)}". ` +
+        `no scene under ${toRepoPath(SCENES)}/ has subject "${relative(root, options.subject)}". ` +
           `Add one, or pass --scene.`,
       );
     }
     // The capture list comes from the shared view table. A view is captured when the caller asked
     // for it, or when it is a perspective view: those are the ones that judge a mass, so a pass
     // always wants them, and no list here has to be kept in step with the page.
-    const table = await Bun.file(join(root, "viewer/views.json")).json();
+    const table = await Bun.file(VIEW_TABLE).json();
     const capture = Object.entries(table.views as Record<string, { perspective?: boolean }>)
       .filter(([name, view]) => options.views.includes(name) || view.perspective)
       .map(([name]) => name);
     await run([
-      "bun", "run", `${root}/scripts/scene/shot.ts`,
+      "bun", "run", join(TOOLS, "shot.ts"),
       "--out", options.out,
       "--prefix", options.prefix,
       "--views", capture.join(","),
@@ -166,7 +167,7 @@ async function main(): Promise<void> {
 
   // 2. Overlay, so the eye gets a picture as well as a table.
   await run([
-    "bun", "run", `${root}/scripts/scene/silhouette.ts`,
+    "bun", "run", join(TOOLS, "silhouette.ts"),
     "--subject", options.subject,
     "--render", options.out,
     "--prefix", options.prefix,
@@ -195,7 +196,7 @@ async function main(): Promise<void> {
   let summary = "";
   if (await Bun.file(maybeline).exists()) {
     const output = await run([
-      "python3", `${root}/scripts/scene/measure_view.py`,
+      "python3", join(ROOT, "scripts/blueprint/measure_view.py"),
       maybeline, `${options.out}/${options.prefix}-${side}.webp`,
       "--json",
     ], "measure");

@@ -21,10 +21,10 @@ single global scale is wrong by the anisotropy, everywhere, and no later gate ca
 
 Usage:
 
-    python3 scripts/scene/view_scale.py blueprints/vehicules/r5-tl-1972/left/reference.png \
+    python3 scripts/blueprint/view_scale.py blueprints/vehicules/r5-tl-1972/left/reference.png \
         --view left --length 3.521 --width 1.525 --height 1.400
 
-    python3 scripts/scene/view_scale.py ... --write blueprints/vehicules/r5-tl-1972/dimensions.json
+    python3 scripts/blueprint/view_scale.py ... --write blueprints/vehicules/r5-tl-1972/dimensions.json
 
 The second form merges the entry into `dimensions.json`, so the scale of each view accumulates in
 one file that every later stage reads. Re-running a view replaces only that view's entry.

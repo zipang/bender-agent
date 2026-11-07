@@ -32,36 +32,49 @@
 // contrast, is served at its real path: the model URL is built from the scene id, and an alias
 // there would make an import failure impossible to read.
 
-import { watch, type FSWatcher } from "node:fs";
+import { existsSync, readdirSync, watch, type FSWatcher } from "node:fs";
 import { resolve, join, relative, sep } from "node:path";
 import { handleApi } from "./api";
 import { ROOT, SCENES, VIEWER, toRepoPath, isInside } from "./paths";
 
-type Options = { scene: string; port: number; root: string };
+type Options = { scene: string; name: string; port: number; root: string };
 
 function readOptions(argv: string[]): Options {
   const value = (name: string): string | null => {
     const index = argv.indexOf(`--${name}`);
     return index >= 0 ? (argv[index + 1] ?? null) : null;
   };
-  const requested = value("scene");
-  if (!requested) throw new Error("--scene <directory> is required");
+  const name = value("scene");
+  if (!name) throw new Error("--scene <name> is required");
   const port = Number(value("port") ?? 5180);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("--port must be an integer between 1 and 65535");
   }
-  // The same three forms the API accepts, because the two must never disagree: a bare name, the
-  // path this project publishes, and the legacy `scenes/<name>` that an old command line still has.
-  const legacy = "scenes/";
-  const scene = requested.startsWith(legacy)
-    ? join(SCENES, requested.slice(legacy.length))
-    : requested.includes("/")
-      ? resolve(ROOT, requested)
-      : join(SCENES, requested);
-  if (!isInside(SCENES, scene)) {
-    throw new Error(`--scene must name a directory under ${relative(ROOT, SCENES)}`);
+  // A scene name, and nothing else -- the same rule the API applies. One form means the server and
+  // the API cannot disagree about what a scene name means. A path is refused here rather than left
+  // to fail later: `join` would build a folder that does not exist, and the watcher would fail with
+  // a message about a file event instead of about the flag.
+  if (name.includes("/")) {
+    throw new Error(`--scene takes a scene name, not a path. Try --scene r5-tl-1972. Got "${name}".`);
   }
-  return { scene, port, root: ROOT };
+  const scene = join(SCENES, name);
+  if (!isInside(SCENES, scene) || scene === SCENES) {
+    throw new Error(`--scene takes a scene name, for example r5-tl-1972. Got "${name}".`);
+  }
+  // A name that matches no folder would start the server on an empty target, and the page would
+  // fail far from the flag. Refuse it here, and list what exists.
+  if (!existsSync(join(scene, "scene.json"))) {
+    const known = existsSync(SCENES)
+      ? readdirSync(SCENES, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => entry.name)
+          .sort()
+      : [];
+    throw new Error(
+      `--scene "${name}" has no scene.json. Known scenes: ${known.join(", ") || "none"}.`,
+    );
+  }
+  return { scene, name, port, root: ROOT };
 }
 
 const MIME_FALLBACK = "application/octet-stream";
@@ -171,7 +184,7 @@ async function main(): Promise<void> {
         // `set` here would clobber a caller's choice, and a capture would silently record the
         // server's scene instead of the one it was told to record.
         const target = new URLSearchParams(url.searchParams);
-        if (!target.has("scene")) target.set("scene", relative(options.root, options.scene));
+        if (!target.has("scene")) target.set("scene", options.name);
         return new Response(null, {
           status: 302,
           headers: { location: `/viewer/?${target.toString()}` },

@@ -129,21 +129,31 @@ root for the same reason. A tool that only the Three.js workflow runs lives unde
 
 ### 4.1 The scene identifier
 
-Today `?scene=` accepts `scenes/<name>` and resolves it against a fixed folder. After the move it
-accepts a path relative to the repository root:
+**What shipped is simpler than what this section planned, and the plan is kept as written.**
+
+As planned, the move made `?scene=` accept a path relative to the repository root, and kept a bare
+name beside it:
 
 ```text
 ?scene=workflows/threejs/scenes/r5-tl-1972
-```
-
-A bare name still works, and the server resolves it against the workflow's own `scenes/` folder:
-
-```text
 ?scene=r5-tl-1972        -> workflows/threejs/scenes/r5-tl-1972
 ```
 
-The guard changes with it. The check is no longer "inside `scenes/`" but "inside the scene folder of
-the running workflow". A scene outside it is refused, as a traversal attempt is refused today.
+Two spellings for one scene meant two things to keep in step, and the first one leaked: a bookmark
+of the old `scenes/<name>` form failed with "resolves outside workflows/threejs/scenes/". Adding the
+old form back as a third spelling would have settled the symptom and kept the cause.
+
+So the end state is **one form**: the directory name.
+
+```text
+?scene=r5-tl-1972
+```
+
+A path is refused with a message that names the form, before it is resolved. The folder behind the
+name is the resolver's business, not the caller's. `--scene` follows the same rule and lists the
+known names when it gets one that does not exist.
+
+The guard stays as planned: a scene outside the workflow's `scenes/` folder is refused.
 
 ### 4.2 The served routes
 

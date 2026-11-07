@@ -52,7 +52,7 @@ function readOptions(argv: string[]): Options {
   };
 }
 
-/** The scene directory whose scene.json names this subject. */
+/** The scene name whose scene.json names this subject. */
 async function findScene(root: string, subject: string): Promise<string | null> {
   const wanted = relative(root, subject);
   let names: string[] = [];
@@ -68,7 +68,7 @@ async function findScene(root: string, subject: string): Promise<string | null> 
     if (!(await file.exists())) continue;
     const manifest = await file.json().catch(() => null);
     if (manifest?.subject && relative(ROOT, resolve(ROOT, manifest.subject)) === wanted) {
-      return toRepoPath(join(SCENES, name));
+      return name;
     }
   }
   return null;
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
     const scene = options.scene ?? (await findScene(root, options.subject));
     if (!scene) {
       throw new Error(
-        `no scene under ${toRepoPath(SCENES)}/ has subject "${relative(root, options.subject)}". ` +
+        `no scene in ${toRepoPath(SCENES)}/ has subject "${relative(root, options.subject)}". ` +
           `Add one, or pass --scene.`,
       );
     }

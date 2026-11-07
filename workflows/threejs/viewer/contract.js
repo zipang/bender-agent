@@ -5,7 +5,7 @@
 // fields, not wrong types: a document without `real`, a model module without `build`, a scene
 // without a subject. Each is cheap to name here.
 
-const REQUIRED_SCENE = ["id", "dir", "name", "model"];
+const REQUIRED_SCENE = ["id", "name", "model"];
 const REQUIRED_MODEL_EXPORTS = ["build", "buildBody"];
 
 /**

@@ -148,10 +148,9 @@ bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/left.webp --view left
 bun run workflows/threejs/tools/ctl.ts close
 ```
 
-A scene is named three ways, and all of them resolve against `workflows/threejs/scenes/`: a bare
-name, the repository path that the API publishes, and the legacy `scenes/<name>` that an older
-bookmark still carries. The legacy form is kept because the project printed it for months: a folder
-move is a repair, not a breaking change.
+A scene is named by its directory name, and by nothing else: `?scene=r5-tl-1972`. A path is refused,
+and the refusal names the form. One name appears in a URL, in a command line, in a capture log and in
+`scene.json`, so one form is one thing to keep in step instead of three.
 
 | Route | Serves |
 | :--- | :--- |
@@ -159,7 +158,7 @@ move is a repair, not a breaking change.
 | `/viewer/*` | the shared page and `views.json` |
 | `/workflows/threejs/scenes/*.js` | a scene's modules, at their real path, so a relative import resolves. Every other file is refused |
 | `/vendor/three/*` | the `three` package |
-| `/api/*` | the scene document, the assets, the model, the scene list, a measurement write |
+| `/api/*` | the scene document, the assets, the model, the scene list, a measurement write. Every endpoint takes `?scene=<name>` |
 | `/repo/*` | read-only files under the repository root |
 | `/measure/` | the point picker for stage 1 |
 

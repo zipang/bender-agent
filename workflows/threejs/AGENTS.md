@@ -66,6 +66,8 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
 - The root is computed once, in `tools/paths.ts`. Never compute it again in a tool.
 - A tool that only this workflow runs lives in `tools/`. A tool that every workflow reads lives under
   `scripts/`. A tool is never placed by convenience.
+- A scene is named by its directory name, and only by that name: `?scene=r5-tl-1972`. Never a path,
+  never a second spelling.
 - A scene module is served at its real path. An alias hides the one thing an import failure needs.
 - The subject watch ignores `model/`: an output never reloads its own reader.
 - `bun run serve` and `bun run check` are the two root commands. They are the ones the documents

@@ -5,7 +5,7 @@ import { checkDocument, checkModel, describe as describeProblems } from "./contr
 
 const document_ = {
   ok: true,
-  scene: { id: "r5", dir: "scenes/r5", name: "R5", model: "/api/model?scene=scenes/r5" },
+  scene: { id: "r5", name: "R5", model: "/api/model?scene=r5" },
   subject: { dir: "blueprints/vehicules/r5" },
   views: { left: { azimuth: 0 } },
   real: { length: { mm: 3521 }, height: { mm: 1400 } },
@@ -24,7 +24,7 @@ describe("checkDocument", () => {
   });
 
   test("a missing field is named, one message each", () => {
-    const problems = checkDocument({ ...document_, scene: { id: "r5", dir: "d", model: "m" } });
+    const problems = checkDocument({ ...document_, scene: { id: "r5", model: "m" } });
     expect(problems).toContain("scene.name is missing");
   });
 

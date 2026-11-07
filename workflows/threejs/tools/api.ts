@@ -37,13 +37,16 @@ function reply(body: unknown, status = 200): Response {
   });
 }
 
-/** A scene name, a repository path, or the legacy `scenes/<name>`, in one place. */
+/**
+ * A scene is named by its directory name, and by nothing else: `?scene=r5-tl-1972`.
+ *
+ * A path used to be accepted here, in two spellings. Both are gone. A scene name appears in a URL, in
+ * `scene.json`, in a command line and in a capture log, and three spellings for one scene meant three
+ * things to keep in step and three ways to be wrong. The name is short enough to type, and the folder
+ * it resolves to is this function's business, not the caller's.
+ */
 function resolveScene(requested: string): string {
-  const legacy = `scenes/`;
-  if (requested.startsWith(legacy) && !requested.startsWith(toRepoPath(SCENES))) {
-    return join(SCENES, requested.slice(legacy.length));
-  }
-  return requested.includes("/") ? resolve(ROOT, requested) : join(SCENES, requested);
+  return join(SCENES, requested);
 }
 
 async function readJson<T = Json>(path: string): Promise<T | null> {
@@ -71,7 +74,6 @@ function toMillimetres(value: number, unit: string | undefined): number {
 
 type Scene = {
   dirAbs: string;
-  dirRel: string;
   id: string;
   manifest: Json;
   subjectAbs: string;
@@ -84,22 +86,23 @@ async function loadScene(
   root: string,
   requested: string,
 ): Promise<{ scene?: Scene; problems: string[]; status?: number }> {
-  // Three forms are accepted, and each one has a caller:
-  //
-  //   r5-tl-1972                              a human typing a name
-  //   workflows/threejs/scenes/r5-tl-1972      a tool passing back a path this API published
-  //   scenes/r5-tl-1972                       a bookmark, from when this project published it
-  //
-  // The third is a legacy form and it is kept on purpose. A bookmark is not a typo, and a URL that
-  // the project itself printed for months must not become an error because a folder moved. The fix
-  // for the move is done everywhere else; this one line is cheaper than the confusion.
-  const dirAbs = resolveScene(requested);
-
-  if (!isInside(SCENES, dirAbs)) {
+  // One form, and the name is the folder: `?scene=r5-tl-1972`. A path is refused before it is
+  // resolved, so the message names the form instead of showing a doubled folder.
+  if (requested.includes("/")) {
     return {
       problems: [
-        `scene resolves outside ${toRepoPath(SCENES)}/: ${requested}. ` +
-          `Name it as ${toRepoPath(SCENES)}/<name>, or as a bare <name>.`,
+        `scene "${requested}" is a path, not a name. Use /?scene=<name>, for example /?scene=r5-tl-1972.`,
+      ],
+      status: 400,
+    };
+  }
+  const dirAbs = resolveScene(requested);
+
+  if (!isInside(SCENES, dirAbs) || dirAbs === SCENES) {
+    return {
+      problems: [
+        `scene "${requested}" is not a scene name. ` +
+          `Name it as /?scene=<name>, for example /?scene=r5-tl-1972.`,
       ],
       status: 403,
     };
@@ -133,7 +136,6 @@ async function loadScene(
   return {
     scene: {
       dirAbs,
-      dirRel: toRepoPath(dirAbs),
       id: manifest.id ?? relative(SCENES, dirAbs),
       manifest,
       subjectAbs,
@@ -235,7 +237,7 @@ async function sceneDocument(context: ApiContext, requested: string): Promise<Re
         }
 
         view.reference = {
-          url: `/api/asset?scene=${encodeURIComponent(scene.dirRel)}&view=${encodeURIComponent(name)}`,
+          url: `/api/asset?scene=${encodeURIComponent(scene.id)}&view=${encodeURIComponent(name)}`,
           size_px: crop.size_px,
           subject_box: crop.subject_box,
           offset: crop.offset,
@@ -255,9 +257,8 @@ async function sceneDocument(context: ApiContext, requested: string): Promise<Re
     ok: problems.length === 0,
     scene: {
       id: scene.id,
-      dir: scene.dirRel,
       name: manifest.name ?? scene.id,
-      model: `/api/model?scene=${encodeURIComponent(scene.dirRel)}`,
+      model: `/api/model?scene=${encodeURIComponent(scene.id)}`,
     },
     subject: {
       dir: scene.subjectRel,
@@ -319,7 +320,9 @@ async function model(root: string, sceneParam: string | null): Promise<Response>
   // the traced sections -- and a relative specifier resolves against the module's final URL. Served
   // from `/api/model`, every such import would look for `/api/body-hull.js` and fail with nothing
   // on screen: the import rejects before any of the page's own error handling runs.
-  const target = `/${scene.dirRel}/${modulePath.replace(/^\.\//, "")}`;
+  // A URL, not a scene name: the browser must fetch the module from the folder it really lives in,
+  // so a relative import inside it resolves. The scene id is the folder name inside `scenes/`.
+  const target = `/${toRepoPath(join(SCENES, scene.id))}/${modulePath.replace(/^\.\//, "")}`;
   return new Response(null, {
     status: 302,
     headers: { location: target, "cache-control": "no-store" },
@@ -343,7 +346,6 @@ async function scenes(root: string): Promise<Response> {
     if (!manifest) continue;
     out.push({
       id: name,
-      dir: toRepoPath(join(base, name)),
       name: manifest.name ?? name,
       subject: manifest.subject ?? null,
     });

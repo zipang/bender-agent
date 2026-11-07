@@ -1,17 +1,17 @@
 # Workflow reorganisation plan
 
-Status: planned. This document moves the Three.js workflow into one folder, and gives each of the
-three modelling workflows its own documentation and its own tools. No step is done.
+Status: **complete.** All seven steps passed their gates. This document records what was coupled,
+what moved, and what each gate measured. The layout it describes is the one in place.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
 | 0 Inventory | done | 2977f58 |
-| 1 Workflow folders | planned | |
+| 1 Workflow folders | done | 78d84d9 |
 | 2 Three.js move | done | c786ffe |
 | 3 Path repair | done | 87ba954 |
 | 4 URL and API | done | 87ba954 |
 | 5 Blender and vcad docs | done | e8f1bdb |
-| 6 Root index | done | |
+| 6 Root index | done | 33d289d |
 
 ## 1. Purpose
 

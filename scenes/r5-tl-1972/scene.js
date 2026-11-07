@@ -61,16 +61,21 @@ ortho.up.set(0, 1, 0);
 // mirrored comparison can survive a whole pass. It did: the two reference files carried inverted
 // labels, and for three passes the renders were compared against the wrong flank. Check the
 // nose side once, in the render and in the reference, before trusting any overlay.
-const VIEWS = {
-  "front-3q": { azimuth: 60, elevation: 30, perspective: true },
-  "rear-3q": { azimuth: 240, elevation: 30, perspective: true },
-  front: { azimuth: 90, elevation: 0, perspective: false },
-  back: { azimuth: 270, elevation: 0, perspective: false },
-  left: { azimuth: 0, elevation: 0, perspective: false },
-  right: { azimuth: 180, elevation: 0, perspective: false },
-  top: { azimuth: 90, elevation: 89.99, perspective: false, up: [0, 0, -1] },
-  iso: { azimuth: 40, elevation: 22, perspective: true },
-};
+// The view table comes from `viewer/views.json`, not from a constant in this file.
+//
+// It used to be a constant here, and `shot.ts`, `check.ts`, `compare_silhouette.py` and the vcad
+// exporter each held their own copy of it. Five tables, five chances to disagree, and adding a view
+// meant five edits. The table also records the two coordinate frames: the viewer is +Y up with +Z
+// forward, the vcad kernel is +Z up with +Y forward, and they are 90 degrees apart.
+//
+// It is loaded before anything else, because `placeCamera` runs at module end.
+const VIEWS = await (async () => {
+  const response = await fetch("/viewer/views.json");
+  if (!response.ok) throw new Error(`views: ${response.status} on /viewer/views.json`);
+  const table = await response.json();
+  if (!table.views) throw new Error("views: /viewer/views.json has no `views` object");
+  return table.views;
+})();
 
 const DISTANCE = 10.5;
 let activeCamera = camera;
@@ -182,8 +187,6 @@ controls.enabled = false; // enabled only on the perspective views
 //   front   the plate sits in front, translucent. You see the reference line over the model, which
 //           is how a stray vertex is caught before the silhouette hides it.
 
-const VERTICAL_OF = { x: "width", y: "height", z: "length" };
-
 const plates = new THREE.Group();
 plates.name = "Calque";
 plates.renderOrder = -1;
@@ -238,18 +241,15 @@ async function buildPlate(view) {
   if (!entry) throw new Error(`calque: no cropped reference for "${view}" -- run crop_reference.py`);
 
   const real = dimensions.real;
-  // Which real dimension the image spans on each axis, per view. Written out rather than derived:
-  // the mapping is the one thing here that cannot be guessed from a name.
-  const SPANS = {
-    left: ["length", "height"],
-    right: ["length", "height"],
-    front: ["width", "height"],
-    back: ["width", "height"],
-    top: ["width", "length"],
-  };
-  const [spanHName, spanVName] = SPANS[view];
-  const realH = real[spanHName].value;
-  const realV = real[spanVName].value;
+  // Which real dimension the image spans on each axis. The VIEW says which model axes it spans
+  // (`axes: "zy"`); the SUBJECT says what those axes are called (`roles: { z: "length" }`). A car
+  // declares length where a character declares depth, and no table here has to know the difference.
+  //
+  // The default keeps an old dimensions.json readable; it is the vehicle mapping.
+  const roles = dimensions.axes ?? { x: "width", y: "height", z: "length" };
+  const [axisH, axisV] = VIEWS[view].axes.split("");
+  const realH = (real[roles[axisH]] ?? real.width).value;
+  const realV = (real[roles[axisV]] ?? real.height).value;
 
   // The scale is built on the SUBJECT, never on the cropped file. The crop keeps a margin, and
   // mapping the whole file to the real length makes the subject shorter than the real subject by
@@ -308,9 +308,10 @@ async function buildPlate(view) {
   // real.height is an object -- { value, source } -- because every real dimension carries where it
   // came from. Reading it as a number yields NaN, and a NaN position makes the plane undrawable
   // while every other field still looks correct.
-  const realHeight = real.height.value;
+  const realHeight = (real[roles.y] ?? real.height).value;
   const centre = new THREE.Vector3(0, realHeight / 2, 0);
-  if (view === "top") centre.set(0, 0, 0);
+  // A plan view is a plane at the ground, not a wall through the middle of the subject.
+  if (view === "top" || view === "bottom") centre.set(0, 0, 0);
 
   // Subject box centre inside the cropped image, as an offset in screen coordinates.
   const dx = (offsetX + spanH / 2 - imgW / 2) * kx;
@@ -319,7 +320,7 @@ async function buildPlate(view) {
   const orientation = new THREE.Matrix4().makeBasis(basis.right, basis.up, basis.dir);
   mesh.quaternion.setFromRotationMatrix(orientation);
 
-  const behind = view === "top" ? 6 : 5;
+  const behind = view === "top" || view === "bottom" ? 6 : 5;
   const depth = calque.depth === "behind" ? -behind : 0.02;
   mesh.position
     .copy(centre)
@@ -396,12 +397,8 @@ const measurement = {
   points: [],   // { source, view, world: [x,y,z], u, v, mmPerPx }
 };
 
-// The two model axes a view's plane spans, and how to name them in a report.
-const PLANE_AXES = {
-  left: ["z", "y"], right: ["z", "y"],
-  front: ["x", "y"], back: ["x", "y"],
-  top: ["x", "z"],
-};
+// The two model axes a view's plane spans come from the view itself: `axes: "zy"` is ["z", "y"].
+// This used to be a second table, which said the same thing in a different shape.
 
 function viewOfPlate() {
   return plates.children[0]?.userData.view ?? null;
@@ -447,7 +444,7 @@ function pickAt(nx, ny, source) {
 }
 
 function measureRecord(point) {
-  const axes = point.view ? PLANE_AXES[point.view] : ["x", "y"];
+  const axes = point.view ? VIEWS[point.view].axes.split("") : ["x", "y"];
   const [a, b] = axes;
   const value = (p, axis) => ({ x: p[0], y: p[1], z: p[2] })[axis] * 1000;
   return {

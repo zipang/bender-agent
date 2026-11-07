@@ -81,15 +81,22 @@ def bbox(mask: np.ndarray):
 
 # ---------------------------------------------------------------- placement
 
-# For each view: which model axis the image's horizontal runs along, and how to anchor.
-#   anchor "nose-ground": left edge is the nose, bottom edge is the ground
-#   anchor "center-roof": horizontal centre, top edge
+# The view table is shared with the page and with the other tools: `viewer/views.json` holds the
+# axes and the anchor rule, so a view cannot exist in the browser and be missing here.
+#
+#   anchor "edge-ground": the leading edge, and the ground. Side elevations.
+#   anchor "center-top":  the horizontal centre, and the top edge. Head-on views.
+#   anchor "center":      the centre on both axes. Plan views.
+VIEWS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "viewer", "views.json")
+
+with open(VIEWS_FILE, encoding="utf-8") as handle:
+    VIEWS = json.load(handle)["views"]
+
+# Only a view that owns a calque has a reference image to compare against.
 LAYOUT = {
-    "left": ("z", "nose-ground"),
-    "right": ("z", "nose-ground"),
-    "front": ("x", "center-roof"),
-    "back": ("x", "center-roof"),
-    "top": ("x", "center"),
+    name: (view["axes"], view.get("anchor", "center"))
+    for name, view in VIEWS.items()
+    if view.get("plate")
 }
 
 
@@ -183,11 +190,13 @@ def main() -> None:
         with open(sidecar_path, encoding="utf-8") as handle:
             stats = json.load(handle)
         world = stats["size"]
-        model_span_x = world[0] * 1000.0
-        model_span_y = world[1] * 1000.0
-        horizontal_axis, vertical_axis = ("z", "y") if LAYOUT[args.view][0] == "z" else ("x", "y")
-        span_h = {"x": world[0], "z": world[2]}[horizontal_axis] * 1000.0
-        span_v = {"y": world[1]}[vertical_axis] * 1000.0
+        # `axes: "zy"` means the image's width runs along Z and its height along Y. A plan view is
+        # "xz", so the vertical axis is not always Y and the index cannot be assumed.
+        axes = LAYOUT[args.view][0]
+        horizontal_axis, vertical_axis = axes[0], axes[1]
+        index = {"x": 0, "y": 1, "z": 2}
+        span_h = world[index[horizontal_axis]] * 1000.0
+        span_v = world[index[vertical_axis]] * 1000.0
     else:
         print(f"warning: no sidecar at {sidecar_path}; the model scale falls back to the reference",
               file=sys.stderr)
@@ -210,10 +219,10 @@ def main() -> None:
     sill_mm = float(stats.get("min", [0, 0, 0])[1]) * 1000.0 if os.path.exists(sidecar_path) else 0.0
 
     anchor_name = LAYOUT[args.view][1]
-    if anchor_name == "nose-ground":
+    if anchor_name == "edge-ground":
         ref_anchor = (ref_box[0], ref_box[3] - sill_mm / ky)
         model_anchor = (model_box[0], model_box[3])
-    elif anchor_name == "center-roof":
+    elif anchor_name == "center-top":
         ref_anchor = ((ref_box[0] + ref_box[2]) / 2, ref_box[1])
         model_anchor = ((model_box[0] + model_box[2]) / 2, model_box[1])
     else:

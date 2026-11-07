@@ -67,12 +67,17 @@ async function main(): Promise<void> {
   };
 
   let timer: ReturnType<typeof setTimeout> | null = null;
-  watch(options.scene, { recursive: true }, (_event, filename) => {
+  const reload = (filename: string | null) => {
     if (!filename || filename.endsWith("~")) return;
     // One reload per burst: a save often emits several events.
     if (timer) clearTimeout(timer);
-    timer = setTimeout(() => signalReload(String(filename)), 60);
-  });
+    timer = setTimeout(() => signalReload(filename), 60);
+  };
+  // The scene directory, and the shared viewer. A change to views.json must reload the page just
+  // as a change to the model does, or the table is edited and the browser keeps the old one.
+  watch(options.scene, { recursive: true }, (_event, filename) => reload(filename ? String(filename) : null));
+  watch(join(options.root, "viewer"), { recursive: true }, (_event, filename) =>
+    reload(filename ? `viewer/${filename}` : null));
 
   const server = Bun.serve({
     port: options.port,
@@ -128,6 +133,10 @@ async function main(): Promise<void> {
         path = join(threeRoot, "build", url.pathname.slice("/vendor/three/build/".length));
       } else if (url.pathname.startsWith("/vendor/three/addons/")) {
         path = join(threeRoot, "examples/jsm", url.pathname.slice("/vendor/three/addons/".length));
+      } else if (url.pathname.startsWith("/viewer/")) {
+        // The shared viewer assets. `views.json` lives here, and the page fetches it by absolute
+        // path because the scene directory is not the root of the tree.
+        path = join(options.root, url.pathname);
       } else if (url.pathname.startsWith("/repo/")) {
         path = join(options.root, decodeURIComponent(url.pathname.slice("/repo/".length)));
       } else {

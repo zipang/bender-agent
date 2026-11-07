@@ -1,0 +1,115 @@
+{
+  "$comment": [
+    "The only view table. The browser reads it, and every offline tool reads it, so a view cannot",
+    "exist in one place and be missing from another.",
+    "",
+    "Coordinate frames, because there are two and they are not the same:",
+    "",
+    "  azimuth/elevation  the viewer frame: +Y up, +Z forward (the nose). Azimuth is degrees from",
+    "                     +X in the horizontal plane. The left flank faces +X, so `left` is 0.",
+    "  kernel             the vcad frame: +Z up, +Y forward. Azimuth is degrees from +X in the XY",
+    "                     plane. Right = forward x up = (+Y) x (+Z) = +X, so `right` is 0.",
+    "",
+    "Two numbers per view, in one file, because they are two facts and not a duplicate: the frames",
+    "are a 90-degree rotation apart, and hiding one of them in a second file is how the tables",
+    "drifted before.",
+    "",
+    "axes        the two model axes the image spans, horizontal first. `zy` means the image's width",
+    "            runs along Z and its height along Y. The real dimension behind each axis is a role",
+    "            of the subject, not a name in this file: a car declares length, a character depth.",
+    "anchor      how a silhouette comparison aligns the model on the reference.",
+    "              edge-ground  the leading edge, and the ground. Side elevations.",
+    "              center-top   the horizontal centre, and the top edge. Head-on views.",
+    "              center       the centre on both axes. Plan views.",
+    "plate       true when the view owns a calque plane, so it must be an elevation.",
+    "required    false for a view that informs but does not decide. It never enters a gate."
+  ],
+  "views": {
+    "left": {
+      "azimuth": 0,
+      "elevation": 0,
+      "kernel": { "azimuth": 180, "elevation": 0 },
+      "axes": "zy",
+      "perspective": false,
+      "plate": true,
+      "required": true,
+      "anchor": "edge-ground"
+    },
+    "right": {
+      "azimuth": 180,
+      "elevation": 0,
+      "kernel": { "azimuth": 0, "elevation": 0 },
+      "axes": "zy",
+      "perspective": false,
+      "plate": true,
+      "required": true,
+      "anchor": "edge-ground"
+    },
+    "front": {
+      "azimuth": 90,
+      "elevation": 0,
+      "kernel": { "azimuth": 90, "elevation": 0 },
+      "axes": "xy",
+      "perspective": false,
+      "plate": true,
+      "required": true,
+      "anchor": "center-top"
+    },
+    "back": {
+      "azimuth": 270,
+      "elevation": 0,
+      "kernel": { "azimuth": 270, "elevation": 0 },
+      "axes": "xy",
+      "perspective": false,
+      "plate": true,
+      "required": true,
+      "anchor": "center-top"
+    },
+    "top": {
+      "azimuth": 90,
+      "elevation": 89.99,
+      "up": [0, 0, -1],
+      "kernel": { "azimuth": 0, "elevation": 89 },
+      "axes": "xz",
+      "perspective": false,
+      "plate": true,
+      "required": true,
+      "anchor": "center"
+    },
+    "bottom": {
+      "azimuth": 90,
+      "elevation": -89.99,
+      "up": [0, 0, -1],
+      "kernel": { "azimuth": 0, "elevation": -89 },
+      "axes": "xz",
+      "perspective": false,
+      "plate": true,
+      "required": false,
+      "anchor": "center"
+    },
+    "front-3q": {
+      "azimuth": 60,
+      "elevation": 30,
+      "kernel": { "azimuth": 60, "elevation": 30 },
+      "perspective": true,
+      "plate": false,
+      "required": false
+    },
+    "rear-3q": {
+      "azimuth": 240,
+      "elevation": 30,
+      "kernel": { "azimuth": 240, "elevation": 30 },
+      "perspective": true,
+      "plate": false,
+      "required": false
+    },
+    "iso": {
+      "azimuth": 40,
+      "elevation": 22,
+      "kernel": { "azimuth": 40, "elevation": 22 },
+      "perspective": true,
+      "plate": false,
+      "required": false
+    }
+  }
+}

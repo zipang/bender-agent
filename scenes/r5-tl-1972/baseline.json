@@ -45,9 +45,9 @@
         577
       ]
     },
-    "front-3q": {
-      "sha256": "01e8b3d8cd31b449ea1507586cdfc366c40112be63f651a0c2f943031e5f6196",
-      "bytes": 8910,
+    "bottom": {
+      "sha256": "68980b8c4752d8bf2c0009fcbf3a54575ad7c31c159b1c2eac8789e806440909",
+      "bytes": 2110,
       "size_m": [
         1.525,
         1.4,
@@ -56,11 +56,54 @@
       "triangles": 12,
       "meshes": 1,
       "frame": {
-        "azimuth": 60,
-        "elevation": 30,
-        "mmPerPx": null,
-        "orthoHeight": null,
-        "perspective": true,
+        "azimuth": 90,
+        "elevation": -89.99,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ],
+      "added_in": "step 1 -- the view existed in shot.ts and could not be placed; it works now"
+    },
+    "front": {
+      "sha256": "2a61250a87f9d55a5de0758e648b12114af6e852aec00b6b9b62539fdef5b348",
+      "bytes": 1808,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 90,
+        "elevation": 0,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
         "target": [
           0,
           0.7,
@@ -87,9 +130,9 @@
         577
       ]
     },
-    "front": {
-      "sha256": "2a61250a87f9d55a5de0758e648b12114af6e852aec00b6b9b62539fdef5b348",
-      "bytes": 1808,
+    "front-3q": {
+      "sha256": "01e8b3d8cd31b449ea1507586cdfc366c40112be63f651a0c2f943031e5f6196",
+      "bytes": 8910,
       "size_m": [
         1.525,
         1.4,
@@ -98,11 +141,11 @@
       "triangles": 12,
       "meshes": 1,
       "frame": {
-        "azimuth": 90,
-        "elevation": 0,
-        "mmPerPx": 7.625649913344887,
-        "orthoHeight": 4.4,
-        "perspective": false,
+        "azimuth": 60,
+        "elevation": 30,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
         "target": [
           0,
           0.7,

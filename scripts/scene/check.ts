@@ -17,7 +17,7 @@
 // Exit code 1 when the model is outside the tolerance, so a loop can gate on it.
 
 import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 type Options = {
   subject: string;
@@ -113,8 +113,13 @@ async function main(): Promise<void> {
 
   // 1. Capture. One page, every view, WebP on disk.
   if (!options.skipShot) {
-    const scene = ["left", "right", "front", "back", "top", "front-3q", "rear-3q"]
-      .filter((v) => options.views.includes(v) || v.endsWith("3q"));
+    // The capture list comes from the shared view table. A view is captured when the caller asked
+    // for it, or when it is a perspective view: those are the ones that judge a mass, so a pass
+    // always wants them, and no list here has to be kept in step with the page.
+    const table = await Bun.file(join(root, "viewer/views.json")).json();
+    const scene = Object.entries(table.views as Record<string, { perspective?: boolean }>)
+      .filter(([name, view]) => options.views.includes(name) || view.perspective)
+      .map(([name]) => name);
     await run([
       "bun", "run", `${root}/scripts/scene/shot.ts`,
       "--out", options.out,

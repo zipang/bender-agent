@@ -18,7 +18,11 @@
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const VIEWS = ["front-3q", "rear-3q", "front", "back", "left", "right", "top", "bottom"];
+// The view list comes from `viewer/views.json`, the one table the page and every tool share.
+// It used to be a constant here, and it listed `bottom`, which the page could not place: the
+// capture asked for a view the scene did not have and failed after writing a file.
+const VIEWS_TABLE = await Bun.file(resolve(import.meta.dir, "../../viewer/views.json")).json();
+const VIEWS: string[] = Object.keys(VIEWS_TABLE.views);
 
 type Options = {
   url: string;

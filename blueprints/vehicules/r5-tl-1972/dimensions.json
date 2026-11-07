@@ -1,6 +1,11 @@
 {
   "subject": "r5-tl-1972",
   "unit": "m",
+  "axes": {
+    "x": "width",
+    "y": "height",
+    "z": "length"
+  },
   "real": {
     "length": {
       "value": 3.521,

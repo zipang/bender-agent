@@ -31,21 +31,27 @@ const SERVER_ARGS = process.env.VCAD_MCP_ARGS ? process.env.VCAD_MCP_ARGS.split(
 //
 // The three-quarter views are the ones a modeler actually judges: they carry the front, one
 // flank, and the roof in a single frame, so a wrong mass reads immediately.
-const VIEWS: Record<string, { azimuth?: number; elevation?: number }> = {
-  iso: { azimuth: 40, elevation: 22 },
-  "front-3q": { azimuth: 60, elevation: 30 },
-  "rear-3q": { azimuth: 240, elevation: 30 },
-  front: { azimuth: 90, elevation: 0 },
-  back: { azimuth: 270, elevation: 0 },
-  right: { azimuth: 0, elevation: 0 },
-  left: { azimuth: 180, elevation: 0 },
-  top: { azimuth: 0, elevation: 89 },
-  bottom: { azimuth: 0, elevation: -89 },
-};
+// The view table is shared: `viewer/views.json` holds the name, the order and the angles, and it
+// records them in BOTH frames. The viewer is +Y up with +Z forward; this kernel is +Z up with +Y
+// forward, and the two are 90 degrees apart -- which is why `left` is 0 in the page and 180 here.
+// Keeping the kernel angles in the same file means a rename cannot leave one tool behind.
+const VIEW_TABLE = await Bun.file(
+  resolve(import.meta.dir, "../../viewer/views.json"),
+).json();
+const VIEWS: Record<string, { azimuth?: number; elevation?: number }> = Object.fromEntries(
+  Object.entries(VIEW_TABLE.views as Record<string, { kernel?: { azimuth: number; elevation: number } }>)
+    .filter(([, view]) => view.kernel)
+    .map(([name, view]) => [name, view.kernel!]),
+);
 
-// The default set is the two three-quarter views plus the orthographic elevations. The pair
-// replaces `iso`: it shows more of the vehicle than one 22-degree orbit does.
-const DEFAULT_VIEWS = ["front-3q", "rear-3q", "front", "left", "back", "right", "top"];
+// The default set is the two three-quarter views plus the required elevations. The pair replaces
+// `iso`: it shows more of the vehicle than one 22-degree orbit does.
+const DEFAULT_VIEWS: string[] = [
+  "front-3q", "rear-3q",
+  ...Object.entries(VIEW_TABLE.views as Record<string, { kernel?: unknown; required?: boolean }>)
+    .filter(([, view]) => view.kernel && view.required)
+    .map(([name]) => name),
+];
 
 type Options = {
   document: string;

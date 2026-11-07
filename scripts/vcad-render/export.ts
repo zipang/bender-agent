@@ -44,14 +44,15 @@ const VIEWS: Record<string, { azimuth?: number; elevation?: number }> = Object.f
     .map(([name, view]) => [name, view.kernel!]),
 );
 
-// The default set is the two three-quarter views plus the required elevations. The pair replaces
-// `iso`: it shows more of the vehicle than one 22-degree orbit does.
-const DEFAULT_VIEWS: string[] = [
-  "front-3q", "rear-3q",
-  ...Object.entries(VIEW_TABLE.views as Record<string, { kernel?: unknown; required?: boolean }>)
-    .filter(([, view]) => view.kernel && view.required)
-    .map(([name]) => name),
-];
+// The default set: every required elevation, plus every optional perspective view. The optional
+// perspective views are the inspection angles, and they are what replaces a single `iso`: a pair of
+// three-quarter views shows more of a vehicle than one 22-degree orbit does. Derived from the
+// table, so a new inspection angle is one edit and no tool names a view.
+const DEFAULT_VIEWS: string[] = Object.entries(
+  VIEW_TABLE.views as Record<string, { kernel?: unknown; required?: boolean; perspective?: boolean }>,
+)
+  .filter(([, view]) => view.kernel && (view.required || view.perspective))
+  .map(([name]) => name);
 
 type Options = {
   document: string;

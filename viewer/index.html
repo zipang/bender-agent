@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>R5 TL 1972 — scene</title>
+    <title>scene</title>
     <style>
       :root { color-scheme: light; }
       html, body { margin: 0; height: 100%; overflow: hidden; background: #eef0f2; }
@@ -45,9 +45,9 @@
       }
     </script>
   </head>
-  <body data-scene="scenes/r5-tl-1972">
+  <body>
     <div id="hud">
-      <h1>R5 TL 1972</h1>
+      <h1>scene</h1>
       <dl>
         <dt>view</dt><dd id="hud-view">—</dd>
         <dt>tris</dt><dd id="hud-tris">—</dd>
@@ -59,11 +59,6 @@
 
     <div id="views"></div>
 
-    <script type="module" src="./scene.js"></script>
-    <script>
-      // The dev server pushes one message per file change. A full reload is enough here:
-      // the model is rebuilt from source, and it costs a fraction of a second.
-      new EventSource("/__reload").onmessage = () => location.reload();
-    </script>
+    <script type="module" src="./main.js"></script>
   </body>
 </html>

@@ -1,4 +1,6 @@
 {
+  "id": "r5-tl-1972",
+  "name": "R5 TL 1972",
   "subject": "blueprints/vehicules/r5-tl-1972",
-  "notes": "The calque needs the subject path to find dimensions.json and cropped/manifest.json. It is not derivable from the folder name, because the category is part of the path."
+  "model": "./model.js"
 }

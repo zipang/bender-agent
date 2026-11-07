@@ -10,7 +10,8 @@ Status: in progress. This document describes the target architecture and the mig
 | 3 Client | done, nine views byte-identical, failure path named | this commit |
 | 4 Measure | done, panel reads the API scale, 13 unit tests | this commit |
 | 5 Frame | done, six formulas, IoU within 0.001 | this commit |
-| 6 to 9 | planned | |
+| 6 Stage | done, `scenes/*/scene.js` deleted, nine views pixel-identical | this commit |
+| 7 to 9 | planned | |
 
 ## 1. Purpose
 
@@ -290,7 +291,7 @@ Each step ends with its gates, section 7.1. No step starts before the previous o
 | 3 | Client | `viewer/api.js` loads the document and raises named errors. `calque.js` loses `calqueMeta`, `SPANS`, the scale check and the `kx` computation. |
 | 4 | Measure | `viewer/measure.js`. The panel reads `kx_mm` from the plate instead of a constant. |
 | 5 | Frame | `viewer/frame.js`. Six constants become six formulas, section 6. |
-| 6 | Stage | `viewer/camera.js`, `stage.js`, `main.js`, `index.html`. `scene.js` and `scenes/*/index.html` are deleted. |
+| 6 | Stage | **Done.** `viewer/camera.js`, `calque.js`, `picker.js`, `stage.js`, `contract.js`, `main.js`, `index.html`. `scene.js` and `scenes/*/index.html` are deleted. |
 | 7 | Tools | `ctl.ts` gains `--scene` and builds `?scene=`. `shot.ts` and `check.ts` read `views.json`. `bottom` works. |
 | 8 | Second subject | `scenes/blue-and-white-minivan-01/` with `scene.json` and `model.js` only. The page opens it with no edit outside its folder. |
 | 9 | Documents | `AGENTS.md` scene rules, `volume-modelling` section 2.5, `README.md`. |

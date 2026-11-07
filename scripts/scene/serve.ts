@@ -10,7 +10,8 @@
 //   bun run scripts/scene/serve.ts --scene scenes/r5-tl-1972 --port 5180
 //
 // Routes:
-//   /                        index.html of the scene
+//   /                        redirect to the shared viewer, on the scene given by --scene
+//   /viewer/                 the shared viewer page, driven by ?scene=
 //   /vendor/three/build/*    node_modules/three/build/*
 //   /vendor/three/addons/*   node_modules/three/examples/jsm/*   (import map target)
 //   /__reload                server-sent events, one message per file change
@@ -135,15 +136,24 @@ async function main(): Promise<void> {
         path = join(options.root, "scripts/measure/index.html");
       } else if (url.pathname.startsWith("/measure/")) {
         path = join(options.root, "scripts/measure", url.pathname.slice("/measure/".length));
-      } else if (url.pathname === "/") path = join(options.scene, "index.html");
-      else if (url.pathname.startsWith("/vendor/three/build/")) {
+      } else if (url.pathname === "/") {
+        // One page serves every scene. The redirect keeps `?shot=1` and `?view=...` that a capture
+        // appends to `/`, so ctl.ts and shot.ts still open the root URL and get the right scene.
+        const target = new URLSearchParams(url.searchParams);
+        target.set("scene", relative(options.root, options.scene));
+        return new Response(null, {
+          status: 302,
+          headers: { location: `/viewer/?${target.toString()}` },
+        });
+      } else if (url.pathname.startsWith("/vendor/three/build/")) {
         path = join(threeRoot, "build", url.pathname.slice("/vendor/three/build/".length));
       } else if (url.pathname.startsWith("/vendor/three/addons/")) {
         path = join(threeRoot, "examples/jsm", url.pathname.slice("/vendor/three/addons/".length));
       } else if (url.pathname.startsWith("/viewer/")) {
-        // The shared viewer assets. `views.json` lives here, and the page fetches it by absolute
-        // path because the scene directory is not the root of the tree.
-        path = join(options.root, url.pathname);
+        // The shared viewer assets. `views.json` and the page live here, and the page fetches them
+        // by absolute path because the scene directory is not the root of the tree.
+        const rest = url.pathname.slice("/viewer/".length);
+        path = join(options.root, "viewer", rest === "" ? "index.html" : rest);
       } else if (url.pathname.startsWith("/repo/")) {
         path = join(options.root, decodeURIComponent(url.pathname.slice("/repo/".length)));
       } else {

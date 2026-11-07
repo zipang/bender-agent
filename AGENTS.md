@@ -38,15 +38,33 @@ opencode.jsonc           # Project configuration and MCP servers.
 
 ## Scene rules
 
-A scene is one directory under `scenes/<subject>/`. It holds three files, and no build step:
+A scene is one directory under `scenes/<subject>/`. It holds two files, and no build step:
 
 | File | Role |
 | :--- | :--- |
-| `model.js` | The asset. Exports `buildCar()`. Imports `three` and nothing else: no DOM, no renderer, no network. |
-| `scene.js` | The viewer. Owns the renderer, the cameras, the lights, and the script API that capture uses. |
-| `index.html` | The page and the import map. |
+| `scene.json` | The subject directory, the model module, the display name. |
+| `model.js` | The asset. Exports `build()` (or `buildBody()`) and the gate numbers. Imports `three` and nothing else: no DOM, no renderer, no network. |
+
+The viewer is shared: one page at `/viewer/`, driven by `?scene=scenes/<subject>`. `/` redirects to
+it with the scene of `--scene`, so `bun run scripts/scene/ctl.ts open` and `shot.ts` still work.
+
+| File | Role |
+| :--- | :--- |
+| `viewer/index.html` | The only page, and the import map. |
+| `viewer/main.js` | Reads `?scene=`, loads the document, imports the model, wires the parts, exposes `__ctl` and `__stats`. |
+| `viewer/api.js` | The client for `/api/*`, with named errors. |
+| `viewer/contract.js` | The schema of the document and of the model module. |
+| `viewer/camera.js` | Two cameras, one state, the named views, the calque mask by angle. |
+| `viewer/calque.js` | The reference plates. Scale and boxes come from the API. |
+| `viewer/picker.js` | Picking in model units, and the panel. |
+| `viewer/stage.js` | Renderer, environment, lights, ground, HUD, loop, stage controls. |
+| `viewer/frame.js` | The six framing distances, derived from the real dimensions. |
+| `viewer/measure.js` | The measurement arithmetic, pure and tested. |
+| `viewer/views.json` | The only view table. |
 
 - `model.js` must stay importable outside a browser. The live scene and the exported `.glb` are then built from the same source.
+- Never add a page or a script under `scenes/`. A scene is data plus a model module; everything that
+  draws belongs to `viewer/`.
 - Trace on the **calque**: the reference views are planes in the scene, sized in metres from `kx` and `ky`. `bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.55`.
 - A calque is calibrated on the **subject box**, never on the cropped file: the crop keeps a margin, and scaling on it makes every measurement 0.3 % short.
 - Measure in **model units**, not in pixels: `ctl.ts measure --on` picks on the calque and reports millimetres of Z and Y directly. Zoom until `mmPerScreenPx` matches the image's own scale before tracing.

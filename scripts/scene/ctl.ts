@@ -8,14 +8,14 @@
 // Usage, from the repository root (the dev server must run):
 //
 //   bun run scripts/scene/ctl.ts open
-//   bun run scripts/scene/ctl.ts view front-3q
+//   bun run scripts/scene/ctl.ts view rear-3q     (no name: the page default)
 //   bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 //   bun run scripts/scene/ctl.ts ortho --on --height 4.4
 //   bun run scripts/scene/ctl.ts wireframe --on
 //   bun run scripts/scene/ctl.ts isolate Wheel_FL
 //   bun run scripts/scene/ctl.ts isolate --all
 //   bun run scripts/scene/ctl.ts nodes
-//   bun run scripts/scene/ctl.ts shot /tmp/opencode/front-3q.webp
+//   bun run scripts/scene/ctl.ts shot /tmp/opencode/three-quarter.webp --view rear-3q
 //   bun run scripts/scene/ctl.ts reset
 //
 // Every command prints the camera state and the frame statistics, so one call tells you where the
@@ -245,9 +245,13 @@ async function main(): Promise<void> {
   }
 
   switch (command) {
-    case "view":
-      call = `window.__ctl.view(${JSON.stringify(rest[0] ?? "front-3q")})`;
+    case "view": {
+      // No view name means the page's own default, which it derives from the view table. Naming a
+      // view here would put one subject's vocabulary in a generic tool.
+      const name = rest[0] ?? (await evaluate("window.__ctl.defaultView()", session));
+      call = `window.__ctl.view(${JSON.stringify(name)})`;
       break;
+    }
     case "views":
       report = "window.__ctl.views()";
       break;

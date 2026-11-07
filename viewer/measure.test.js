@@ -71,7 +71,7 @@ describe("imageScaleMm", () => {
   });
 
   test("a view without a reference has no scale", () => {
-    expect(imageScaleMm({ views: { "front-3q": {} } }, "front-3q")).toBeNull();
+    expect(imageScaleMm({ views: { "three-quarter": {} } }, "three-quarter")).toBeNull();
     expect(imageScaleMm(null, "left")).toBeNull();
   });
 });

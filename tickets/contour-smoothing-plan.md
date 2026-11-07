@@ -11,7 +11,7 @@ documentation track that goes with it. No step is done.
 | 3 Resampling | planned | |
 | 4 Poly and bezier | planned | |
 | 5 Viewer | planned | |
-| 6 Documentation | planned | |
+| 6 Documentation | planned. Depends on `tickets/workflow-reorg-plan.md` | |
 
 ## 1. Purpose
 
@@ -162,12 +162,34 @@ The bezier fit is greedy and guarded by a maximum deviation:
 3. Stop when the maximum distance from any point of the span to the curve exceeds `--tolerance`.
 4. Emit the cubic for the span before the failure, then restart at its last point.
 
-```bash
---tolerance 0.25    # mm. About a tenth of a pixel. The deviation is measured, then reported.
-```
-
 The tracer prints the measured maximum deviation. A fit that meets the tolerance is a fact, not a
 claim.
+
+### 3.6 The parameters are chosen at the render, not from a number
+
+A pitch of 2 mm and a tolerance of 0.25 mm are plausible, and plausibility is not a decision. No
+one can judge them from a table. The defect is visible, so the choice is visible too.
+
+So step 4 adds a contact sheet. The tool emits the same view at a small grid of choices, and the
+art director chooses from the picture:
+
+```bash
+--sheet left --pitch 1,2,4 --tolerance 0.1,0.25,0.6
+```
+
+```text
+   pitch 1 mm        pitch 2 mm        pitch 4 mm
+ t 0.1  [tile]      [tile]            [tile]
+ t 0.25 [tile]      [tile]            [tile]
+ t 0.6  [tile]      [tile]            [tile]
+```
+
+Each tile is drawn at trace zoom over the reference image, with the deviation printed under it. The
+art director picks one cell. The choice is recorded in the plan, and the defaults become that cell.
+No number is defended before it is seen.
+
+The sheet is one file, a PNG, produced by a script. It is not a test, and it does not pass or fail.
+It is the evidence the choice rests on.
 
 ## 4. Contracts
 
@@ -223,10 +245,28 @@ of open points.
 The request is explicit. The code must stop being the only record of the process. Two files carry
 the record, and each step of this plan updates them in the same commit.
 
-### 5.1 `README.md`: the workflow chapter
+The repository holds three modelling workflows, and one of them is active for a given project. A
+single root document cannot describe all three without becoming a survey that serves none of them.
+So each workflow carries its own pair of documents, next to its own tools:
 
-Replace the current "Modelling a scene in the browser" section with a chapter that a new reader can
-follow without opening a script.
+```text
+workflows/threejs/README.md    the workflow in use: pipeline, tools, artifacts, gates
+workflows/threejs/AGENTS.md    the rules for an agent that works in it
+workflows/blender/README.md    the same, for Blender
+workflows/blender/AGENTS.md
+workflows/vcad/README.md       the same, for vcad. Archived: the project does not use it.
+workflows/vcad/AGENTS.md
+```
+
+The root `README.md` becomes an index. It states the three workflows, which one this project uses,
+the shared inputs under `blueprints/`, and the glossary. It does not describe a tool.
+
+The folder move itself is a separate ticket, `tickets/workflow-reorg-plan.md`. Until it lands, the
+documents of this workflow live in the paths it names as the target.
+
+### 5.1 `workflows/threejs/README.md`: the workflow chapter
+
+A chapter that a new reader follows without opening a script.
 
 | Section | Content |
 | :--- | :--- |
@@ -245,15 +285,15 @@ row states the input, the output, and the command. It covers `scripts/scene/*.py
 `scripts/scene/*.ts`, `scripts/measure/`, `scripts/blueprint-generate/`, and
 `scripts/vcad-render/`.
 
-### 5.2 `AGENTS.md`: the rules
+### 5.2 `workflows/threejs/AGENTS.md`: the rules
 
-`AGENTS.md` stays short. It holds the rules, not the tutorial.
+The file stays short. It holds the rules, not the tutorial.
 
 | Addition | Content |
 | :--- | :--- |
 | The pass, in order | The commands of one modelling pass, in the order that works |
 | The contour rules | Subpixel, float opening, then resample. Never a binary threshold alone |
-| The documentation duty | A change that adds a tool, a flag, a file, or a gate updates `README.md` and `AGENTS.md` in the same commit |
+| The documentation duty | A change that adds a tool, a flag, a file, or a gate updates the workflow's `README.md` and `AGENTS.md` in the same commit |
 | The glossary duty | A new project word gets an entry in `README.md`, alphabetically sorted |
 
 ### 5.3 The documentation duty
@@ -265,6 +305,18 @@ The rule exists because the cost is real. This session read the code three times
 questions the documents should have answered: the contour format, its source resolution, and why
 the plan view's plate did not appear.
 
+### 5.4 Where a sentence belongs
+
+A sentence goes to the document of the workflow it describes. The three questions to ask:
+
+| Question | Document |
+| :--- | :--- |
+| Is this about the page, the API, the trace, or the capture? | `workflows/threejs/` |
+| Is this about Blender, its add-on, or its materials? | `workflows/blender/` |
+| Is this about vcad, BRep, or Loon? | `workflows/vcad/` |
+| Is this about the six views, the crops, or the real dimensions? | the root `README.md`, because every workflow reads them |
+| Is this a word with a special meaning here? | the glossary in the root `README.md` |
+
 ## 6. Migration plan
 
 No step starts before the previous step passes its gate.
@@ -275,9 +327,10 @@ No step starts before the previous step passes its gate.
 | 1 | Subpixel edge | `crossing()` in `trace_hull.py`. `cols` and `rows` become floats. The hull and the contour read them. Gate: the hull size moves by under 2 mm on every axis. |
 | 2 | Float opening | The morphology reads floats without a code change. Verify the 150 mm window still removes the mirrors and keeps the sill. Gate: the cut table is unchanged within 2 mm. |
 | 3 | Resampling | `--pitch`, default 2 mm. `plate_contour` walks the opened intervals at that pitch. Gate: no repeated point, no segment over the pitch by more than 1 percent, and the contour stays inside the hull envelope. |
-| 4 | Poly and bezier | The greedy fit, `--mode`, `--tolerance`, and the measured deviation. Gate: deviation at or under the tolerance on all six views, and `left` under 120 points. |
+| 4a | Poly and bezier | The greedy fit, `--mode`, `--tolerance`, and the measured deviation. Gate: deviation at or under the tolerance on all six views, and `left` under 120 points. |
+| 4b | Contact sheet | `--sheet`, one PNG at trace zoom over a pitch and tolerance grid. The art director chooses the cell. Gate: the chosen cell is recorded, and the defaults become that cell. |
 | 5 | Viewer | `path` instead of `points`, both modes, the witness dash preserved. Gate: three layers superpose on `left`, `top`, and `back`, and a witness view draws dashed. |
-| 6 | Documentation | The workflow chapter in `README.md`, the rules in `AGENTS.md`, the glossary entries, and this plan's progress table. Gate: a reader answers "what writes `body-hull.js`" from `README.md` alone. |
+| 6 | Documentation | The workflow chapter in `workflows/threejs/README.md`, the rules in `workflows/threejs/AGENTS.md`, the glossary entries in the root `README.md`, and this plan's progress table. Gate: a reader answers "what writes `body-hull.js`" from the workflow document alone. |
 
 ### 6.1 Gates
 
@@ -289,7 +342,8 @@ No step starts before the previous step passes its gate.
 | Point count | `bezier` on `left` under 120 points, from 2494 today |
 | No staircase | At trace zoom, no right angle in the bezier outline, and no vertical segment between two adjacent samples |
 | Layers | The picture, the contour, and the model superpose on one plane, and each of the three switches alone |
-| Documents | `README.md` names the command and the output of every script in the pipeline |
+| Documents | `workflows/threejs/README.md` names the command and the output of every script in the workflow |
+| Parameter choice | The pitch and the tolerance come from a rendered contact sheet, and the chosen cell is written in this plan |
 
 The IoU values of step 0 are: `left` 0.940, `front` 0.855, `back` 0.915, `top` 0.936, `bottom`
 0.935. The hull is 3521 x 1505 x 1180 mm, with the sill at 215 mm.
@@ -308,7 +362,8 @@ The IoU values of step 0 are: `left` 0.940, `front` 0.855, `back` 0.915, `top` 0
 
 ## 8. Open points
 
-- A mode selector in the page. It is a convenience, and the file already carries the mode.
+- A mode selector in the page. It is a convenience, and the file already carries the mode. After
+  step 4b the chosen pair is a recorded decision, so a selector would serve exploration, not use.
 - A per-view orthographic fit, so each reference fills the frame. It changes the images, and it
   needs its own before and after.
 - A contour for the perspective views. Today they have no plate, so they have no contour.

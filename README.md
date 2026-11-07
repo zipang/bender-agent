@@ -160,6 +160,16 @@ Draft material:
 A draft with a `subject/` folder and a `style/` folder is ready for the draft stage. The others need
 one more decision from the art director before they can start.
 
+## Tickets
+
+Work to be done, in `tickets/`. A ticket is a plan with steps and gates. It is not research, and it
+is not a record of what the project does.
+
+| Ticket | Content |
+| :--- | :--- |
+| [`tickets/contour-smoothing-plan.md`](./tickets/contour-smoothing-plan.md) | The contour staircase, the subpixel edge, the two emit modes, and the contact sheet that chooses their parameters at render. |
+| [`tickets/workflow-reorg-plan.md`](./tickets/workflow-reorg-plan.md) | One folder per modelling workflow, each with its own documents and tools. The path couplings, the target layout, and the gates. |
+
 ## Research
 
 | Document | Content |
@@ -168,7 +178,6 @@ one more decision from the art director before they can start.
 | [`research/threejs-modelling-loop.md`](./research/threejs-modelling-loop.md) | The measured modelling loop in Three.js: serve the source, extrude a measured profile, then capture, overlay and measure in one command. Records the tool choice, the mistakes that cost time, and the rule that prevents each. |
 | [`research/blueprint-preparation-investigation.md`](./research/blueprint-preparation-investigation.md) | Investigation of image-model workflows that create six-view reference packages before 3D modeling. |
 | [`research/viewer-refactor-plan.md`](./research/viewer-refactor-plan.md) | The plan for one reusable viewer page, driven by `?scene=`, loaded from a Bun scene API, with a single shared view table. Lists the coupling, the migration order and the gates. |
-| [`research/contour-smoothing-plan.md`](./research/contour-smoothing-plan.md) | The contour staircase: why the subpixel edge must be fixed before the opening, the poly and bezier emit modes, and the documentation track that keeps `README.md` and `AGENTS.md` current. |
 | [`scripts/blueprint-generate/README.md`](./scripts/blueprint-generate/README.md) | The three-stage generator: draft, clean, and views. Options, folder contract, prompt templates, and model filter. |
 
 ## Modelling a scene in the browser
@@ -235,6 +244,7 @@ bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 ├── assets/img/              # Documentation images
 ├── blueprints/              # Subjects, views, and drafts
 ├── research/                # Method documents and investigation reports
+├── tickets/                 # Work to be done: one plan per ticket
 ├── scenes/                  # One directory per subject: scene.json and model.js
 ├── viewer/                  # The shared viewer page and its modules
 ├── scripts/                 # TypeScript tools (blueprint-generate, scene, vcad-render)
@@ -261,9 +271,11 @@ bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 - **Mass**: One named volume of the object. The model has one primitive per mass at stage L1.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
-- **Scene**: One directory under `scenes/`, holding `scene.json` and `model.js`. The shared viewer at `viewer/` renders it. The browser loads the source directly, without a build step.
+- **Scene**: One directory holding `scene.json` and `model.js`. The shared viewer renders it, and the browser loads the source directly, with no build step. Its folder is the one the running workflow declares.
 - **Silhouette overlay**: A comparison image where red is present in the reference only, blue in the model only, and magenta in both.
 - **Pivot**: The origin of a node. The pivot is the center of rotation for animation.
 - **Skill**: A folder with a `SKILL.md` file. It holds instructions and helper files that an agent loads on demand.
+- **Ticket**: A plan for work to be done, in `tickets/`. It holds numbered steps, a gate per step, and the failure modes the work must keep. A ticket becomes a record when it closes, and it never describes what the project does today. That is the job of a `README.md`.
+- **Workflow**: One way to build an asset, from the same inputs to the same deliverable. This project holds three: Blender, vcad, and Three.js. Only one is active for a project. Each workflow owns its own documents and its own tools, because a reader works in one workflow and does not need the other two.
 - **STE**: Simplified Technical English. This is the writing standard for all documents in this repository.
 - **Z-up / Y-up**: Blender and vcad use Z as the vertical axis. glTF and Three.js use Y as the vertical axis. The glTF exporter converts the axes.

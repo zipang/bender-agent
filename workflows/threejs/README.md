@@ -148,8 +148,10 @@ bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/left.webp --view left
 bun run workflows/threejs/tools/ctl.ts close
 ```
 
-A scene is named two ways, and both resolve against `workflows/threejs/scenes/`: a bare name, and
-the repository path that the API publishes.
+A scene is named three ways, and all of them resolve against `workflows/threejs/scenes/`: a bare
+name, the repository path that the API publishes, and the legacy `scenes/<name>` that an older
+bookmark still carries. The legacy form is kept because the project printed it for months: a folder
+move is a repair, not a breaking change.
 
 | Route | Serves |
 | :--- | :--- |

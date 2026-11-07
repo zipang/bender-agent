@@ -1,0 +1,367 @@
+{
+  "note": "Frozen before the viewer refactor. Numbers are the gate: after the refactor, size, triangles, viewport and frame must match exactly (mm to 0.1), and the sha256 must match on the same machine. Images live in model/baseline/ and are not committed.",
+  "subject": "blueprints/vehicules/r5-tl-1972",
+  "captured": "2026-11-07",
+  "views": {
+    "back": {
+      "sha256": "eac661890774244865effccbf1564d01df95dad47d8c5a81e29c291ff1ad42d7",
+      "bytes": 1902,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 270,
+        "elevation": 0,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "front-3q": {
+      "sha256": "01e8b3d8cd31b449ea1507586cdfc366c40112be63f651a0c2f943031e5f6196",
+      "bytes": 8910,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 60,
+        "elevation": 30,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "front": {
+      "sha256": "2a61250a87f9d55a5de0758e648b12114af6e852aec00b6b9b62539fdef5b348",
+      "bytes": 1808,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 90,
+        "elevation": 0,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "iso": {
+      "sha256": "943b6f68026f05db115e9bcd8eae4e65fab34da26c09b179d6792cf3ed8891ba",
+      "bytes": 9218,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 40,
+        "elevation": 22,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "left": {
+      "sha256": "81fbb1b726704e1725adcf7f113ade0e116223754d78d0e266cd68624bbd50c6",
+      "bytes": 1866,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 0,
+        "elevation": 0,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "rear-3q": {
+      "sha256": "3874dcaf07298f3aceec7bb8efc3fcfaae1b2c602ca0b0906f63a88940cc994e",
+      "bytes": 9282,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 240,
+        "elevation": 30,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "right": {
+      "sha256": "d2d150b78138c034ee92680da1407809d7334408b506a2b24f9354f4a52ba6b3",
+      "bytes": 1860,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 180,
+        "elevation": 0,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    },
+    "top": {
+      "sha256": "bb3f00761309582350db9129c59a2a54383e38b83cfb850f147c0e294b12f206",
+      "bytes": 1828,
+      "size_m": [
+        1.525,
+        1.4,
+        3.521
+      ],
+      "triangles": 12,
+      "meshes": 1,
+      "frame": {
+        "azimuth": 90,
+        "elevation": 89.99,
+        "mmPerPx": 7.625649913344887,
+        "orthoHeight": 4.4,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      },
+      "target_mm": {
+        "height": 1400,
+        "length": 3521,
+        "width": 1525
+      },
+      "deviation_mm": {
+        "height": 0,
+        "length": 0,
+        "sill": 0,
+        "width": 0
+      },
+      "viewport": [
+        1280,
+        577
+      ]
+    }
+  },
+  "silhouette": {
+    "note": "IoU before the refactor, on the uncut placeholder body. Framing becomes derived, so the images will change; the IoU must not.",
+    "left": 0.674,
+    "front": 0.765,
+    "back": 0.77,
+    "tolerance": 0.005
+  },
+  "gates": {
+    "model": [
+      "size",
+      "triangles",
+      "meshes",
+      "deviation",
+      "target"
+    ],
+    "camera": [
+      "azimuth",
+      "elevation",
+      "perspective",
+      "up"
+    ],
+    "exact": "model and camera fields must match exactly on all 8 views",
+    "silhouette": "IoU within 0.005 of the recorded value"
+  }
+}

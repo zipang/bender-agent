@@ -1,19 +1,19 @@
 # Viewer refactor plan
 
-Status: in progress. This document describes the target architecture and the migration order.
+Status: **complete.** All nine steps passed their gates.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
 | 0 Baseline | done | `bf338a2` |
 | 1 View table | done, all eight views byte-identical | `4e39375` |
-| 2 API | done, five endpoints, guards tested | this commit |
-| 3 Client | done, nine views byte-identical, failure path named | this commit |
-| 4 Measure | done, panel reads the API scale, 13 unit tests | this commit |
-| 5 Frame | done, six formulas, IoU within 0.001 | this commit |
-| 6 Stage | done, `scenes/*/scene.js` deleted, nine views pixel-identical | this commit |
-| 7 Tools | done, `--scene`, closed on failure | this commit |
-| 8 Second subject | done, the minivan opens with two files | this commit |
-| 9 | planned | |
+| 2 API | done, five endpoints, guards tested | `3ae57b8` |
+| 3 Client | done, nine views byte-identical, failure path named | `ef6478b` |
+| 4 Measure | done, panel reads the API scale, 13 unit tests | `8ae5814` |
+| 5 Frame | done, six formulas, IoU within 0.001 | `5f0388b` |
+| 6 Stage | done, `scenes/*/scene.js` deleted, nine views pixel-identical | `dd67534` |
+| 7 Tools | done, `--scene`, closed on failure | `e779b8d` |
+| 8 Second subject | done, the minivan opens with two files | `db8c6f7` |
+| 9 Documents | done, `AGENTS.md`, `README.md`, the skill, the agent | this commit |
 
 ## 1. Purpose
 

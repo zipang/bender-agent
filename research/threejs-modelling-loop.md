@@ -74,8 +74,12 @@ transform is where a stale module hides.
 
 ### 2.2 The model is a module, not a scene
 
-`scenes/<subject>/model.js` exports `buildCar()` and `measure()`. It imports `three` and nothing
-else. It touches no DOM, no renderer, no network.
+`scenes/<subject>/model.js` exports `build()` (or `buildBody()`) and `measure()`. It imports `three`
+and nothing else. It touches no DOM, no renderer, no network.
+
+A scene is that module plus a `scene.json` that names its subject. The viewer that draws it is
+shared, at `viewer/`, and is chosen by `?scene=`. A subject owns no page. See
+`research/viewer-refactor-plan.md` for the migration that split the two.
 
 The consequence: the same file builds the live scene and the exported GLB. There is one source of
 truth, and a change cannot apply to one and not the other.

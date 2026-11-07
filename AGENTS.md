@@ -71,7 +71,7 @@ it with the scene of `--scene`, so `bun run scripts/scene/ctl.ts open` and `shot
 - A calque is masked to its own axis, and `shot` hides it unless asked. A silhouette comparison that included the plate would compare the reference to itself.
 - Judge a body on its **binary silhouette**, not on a shaded render. `scripts/scene/compare_silhouette.py` overlays the two masks and prints the deltas in millimetres.
 - Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save. It also serves `/measure/`, the point picker, and `/repo/` for the reference images and their `dimensions.json`.
-- Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing `scene.js` to look from another angle is not a loop.
+- Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing the viewer to look from another angle is not a loop, and the viewer is shared: a modelling pass never edits it.
 - One browser, reused. `ctl.ts` talks to the single session `scene-ctl`; run `ctl.ts close` when the
   pass ends. `shot.ts` opens its own session and closes it in a `finally`, so `check.ts` leaves no
   process behind. A new `--session` name starts a new headless Chrome that outlives the command;

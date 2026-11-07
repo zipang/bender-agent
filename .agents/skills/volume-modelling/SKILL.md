@@ -323,9 +323,13 @@ section. Do this in this order:
 A section table can be right while the volume is wrong, and the art director judges the volume. So
 every pass ends with a look, never with numbers alone.
 
+A scene is two files under `scenes/<subject>/`: `scene.json` and `model.js`. Nothing under
+`scenes/` draws anything -- the viewer is shared, at `viewer/`, and it is chosen by `?scene=`.
+A modelling pass never edits the viewer, and never adds a page to a subject.
+
 ```bash
 bun run scripts/scene/serve.ts --scene scenes/<subject> &     # the dev server
-bun run scripts/scene/ctl.ts open                              # one page, reused
+bun run scripts/scene/ctl.ts open --scene scenes/<subject>     # one page, reused
 bun run scripts/scene/ctl.ts view left
 bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 bun run scripts/scene/ctl.ts ortho --on --height 4.4           # flat view, orthographic
@@ -336,7 +340,10 @@ bun run scripts/scene/ctl.ts shot /tmp/opencode/left.webp      # one frame
 ```
 
 `ctl.ts` prints the camera state and the frame statistics after every command, so one call says
-where the page stands. `shot.ts` still captures the named views in one pass; use it for the record,
+where the page stands. It talks to one browser session, `scene-ctl`, and `ctl.ts close` ends it.
+Each new `--session` name starts a headless Chrome that outlives the command; fourteen of them once
+accumulated during a single refactor. `shot.ts` closes the session it opens, including when the page
+fails to load. `shot.ts` still captures the named views in one pass; use it for the record,
 and `ctl.ts camera` for the angle the argument is actually about.
 
 A flat view is **always** orthographic. A perspective camera against an orthographic reference turns
@@ -344,8 +351,9 @@ a correct roof into a wrong one, and sends you fixing the model instead of the c
 
 ### 2.5 Trace on a calque, the way a Blender user does
 
-The reference views are in the scene as planes: `scene.json` names the subject, and the calque loads
-`cropped/<view>.png` with its two scales from `dimensions.json`.
+The reference views are in the scene as planes. `scene.json` names the subject; the viewer asks
+`/api/scene` for the merged document and gets each crop's URL, `kx_mm`, `ky_mm`, its subject box and
+its offset, already resolved. Nothing in the page builds a path or divides two pixel counts.
 
 ```bash
 bun run scripts/scene/serve.ts --scene scenes/<subject> &
@@ -614,8 +622,8 @@ director judges.
 | `blueprints/<category>/<subject>/<view>/reference.<ext>` | the locked views, read only |
 | `blueprints/<category>/<subject>/notes.md` | the camera note, the hidden parts, the subject notes |
 | `blueprints/<category>/<subject>/dimensions.json` | **written by stage 1**, read by every later stage |
-| `scenes/<subject>/model.js` | the asset: sections, body, accessories |
-| `scenes/<subject>/scene.js` | the viewer: renderer, cameras, lights, script API |
+| `scenes/<subject>/model.js` | the asset: sections, body, accessories. `build()` (or `buildBody()`), `measure`, `target`, `deviation` |
+| `viewer/` | the shared viewer: one page, every scene. `main.js`, `camera.js`, `calque.js`, `picker.js`, `stage.js`, `frame.js`, `measure.js`, `api.js`, `contract.js`, `views.json` |
 | `scripts/scene/crop_reference.py` | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json` |
 | `blueprints/<category>/<subject>/cropped/` | the cropped views, and the derived manifest. Rebuildable at any time |
 | `scripts/scene/view_scale.py` | **stage 1 tool**: the two scales of a view, its drift, its verdict |
@@ -624,7 +632,7 @@ director judges.
 | `scripts/scene/silhouette.ts` | the overlay: red is reference only, blue is model only |
 | `scripts/scene/check.ts` | capture, overlay, measure, and the orientation guard |
 | `scripts/scene/compare_silhouette.py` | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm |
-| `scenes/<subject>/scene.json` | the subject path, so the calque can find `dimensions.json` and the crops |
+| `scenes/<subject>/scene.json` | the subject path and the model module, so the viewer can load both |
 | `blueprints/<category>/<subject>/cropped/manifest.json` | each crop's box, offset, size, and the file it came from |
 | `scripts/measure/index.html` | **stage 1 tool**: the point picker, served at `/measure/` |
 | `scripts/measure/report.py` | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict |
@@ -632,4 +640,4 @@ director judges.
 | `blueprints/<category>/<subject>/measured/` | the annotated copies, one per view |
 | `scripts/scene/ctl.ts` | **render control**: camera, projection, wireframe, isolate, nodes, shot |
 | `scripts/scene/shot.ts` | captures every named view in one pass |
-| `scripts/scene/serve.ts` | the dev server: scene, `/measure/`, `/repo/`, `/measure/save` |
+| `scripts/scene/serve.ts` | the dev server: the shared viewer, the `/api/*` scene API, `/measure/` |

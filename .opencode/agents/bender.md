@@ -450,13 +450,17 @@ Report the answers, state which gate the pass aims at, and say what that gate wi
 
 ### D2. Build the scene skeleton
 
-1. Create `scenes/<subject>/` with `model.js`, `scene.js`, and `index.html`.
-2. `model.js` imports `three` only. It exports `buildCar()` and `measure()`.
-3. `scene.js` owns the renderer, both cameras, the lights, and the script API: `window.__ready`,
-   `window.__setView(name)` and `window.__stats()`.
+1. Create `scenes/<subject>/` with `scene.json` and `model.js`. That is the whole scene.
+2. `scene.json` names the subject directory and the model module:
+   `{ "id": "...", "name": "...", "subject": "blueprints/<category>/<subject>", "model": "./model.js" }`.
+3. `model.js` imports `three` only. It exports `build()` (or `buildBody()`) and `measure()`, plus
+   `target()` and `deviation(object)` when it carries the gate numbers.
 4. Start the server and open the page. Confirm that the HUD shows a triangle count.
 
-Never put geometry in `scene.js`. A model that only exists inside a viewer cannot be exported.
+The viewer is shared and lives in `viewer/`. Never add a page or a script under `scenes/`: a model
+that only exists inside its own copy of a viewer cannot be exported, and a copy drifts. Use the
+script API that `viewer/main.js` already exposes: `window.__ready`, `window.__setView(name)`,
+`window.__stats()` and `window.__ctl`.
 
 ### D3. Stage 1 — give every view its scales
 

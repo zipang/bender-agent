@@ -141,7 +141,7 @@ A generated view is a picture on a white field, and the subject floats somewhere
 tool then has to find it again, and every one of those steps is a place to be wrong.
 
 ```bash
-python3 scripts/scene/crop_reference.py --subject blueprints/<category>/<subject>
+python3 scripts/blueprint/crop_reference.py --subject blueprints/<category>/<subject>
 ```
 
 It writes `cropped/<view>.png`, where the subject touches the frame, plus `cropped/manifest.json`
@@ -168,7 +168,7 @@ cropped box, and use `--span robust` only for a stated reason.
 One file per subject, next to `notes.md`. The script writes it; no hand-editing is needed.
 
 ```bash
-python3 scripts/scene/view_scale.py \
+python3 scripts/blueprint/view_scale.py \
   blueprints/<category>/<subject>/cropped/left.png \
   --view left --length 3.521 --width 1.525 --height 1.400 \
   --source "manufacturer: 3521 x 1525 x 1400 mm" \
@@ -323,20 +323,20 @@ section. Do this in this order:
 A section table can be right while the volume is wrong, and the art director judges the volume. So
 every pass ends with a look, never with numbers alone.
 
-A scene is two files under `scenes/<subject>/`: `scene.json` and `model.js`. Nothing under
-`scenes/` draws anything -- the viewer is shared, at `viewer/`, and it is chosen by `?scene=`.
+A scene is two files under `workflows/threejs/scenes/<subject>/`: `scene.json` and `model.js`. Nothing under
+`scenes/` draws anything -- the viewer is shared, at `workflows/threejs/viewer/`, and it is chosen by `?scene=`.
 A modelling pass never edits the viewer, and never adds a page to a subject.
 
 ```bash
-bun run scripts/scene/serve.ts --scene scenes/<subject> &     # the dev server
-bun run scripts/scene/ctl.ts open --scene scenes/<subject>     # one page, reused
-bun run scripts/scene/ctl.ts view left
-bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
-bun run scripts/scene/ctl.ts ortho --on --height 4.4           # flat view, orthographic
-bun run scripts/scene/ctl.ts wireframe --on                    # topology, not shading
-bun run scripts/scene/ctl.ts isolate Wheel_FL                  # one part, alone
-bun run scripts/scene/ctl.ts nodes                             # every named node
-bun run scripts/scene/ctl.ts shot /tmp/opencode/left.webp      # one frame
+bun run workflows/threejs/tools/serve.ts --scene <subject> &            # the dev server
+bun run workflows/threejs/tools/ctl.ts open --scene <subject>          # one page, reused
+bun run workflows/threejs/tools/ctl.ts view left
+bun run workflows/threejs/tools/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
+bun run workflows/threejs/tools/ctl.ts ortho --on --height 4.4           # flat view, orthographic
+bun run workflows/threejs/tools/ctl.ts wireframe --on                    # topology, not shading
+bun run workflows/threejs/tools/ctl.ts isolate Wheel_FL                  # one part, alone
+bun run workflows/threejs/tools/ctl.ts nodes                             # every named node
+bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/left.webp      # one frame
 ```
 
 `ctl.ts` prints the camera state and the frame statistics after every command, so one call says
@@ -356,11 +356,11 @@ The reference views are in the scene as planes. `scene.json` names the subject; 
 its offset, already resolved. Nothing in the page builds a path or divides two pixel counts.
 
 ```bash
-bun run scripts/scene/serve.ts --scene scenes/<subject> &
-bun run scripts/scene/ctl.ts open --shot
-bun run scripts/scene/ctl.ts view left
-bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.55
-bun run scripts/scene/ctl.ts calque --off
+bun run workflows/threejs/tools/serve.ts --scene <subject> &
+bun run workflows/threejs/tools/ctl.ts open --shot
+bun run workflows/threejs/tools/ctl.ts view left
+bun run workflows/threejs/tools/ctl.ts calque --view left --depth front --opacity 0.55
+bun run workflows/threejs/tools/ctl.ts calque --off
 ```
 
 The plane is sized in **metres**: `kx` on one axis and `ky` on the other, because the generated view
@@ -386,11 +386,11 @@ The plate is in the scene at the model's own scale, so a point picked on it **is
 coordinate. There is no pixels-to-millimetres step left to get wrong.
 
 ```bash
-bun run scripts/scene/ctl.ts ortho --height 1.63        # zoom so the subject fills the frame
-bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.6
-bun run scripts/scene/ctl.ts measure --on               # click the calque
-bun run scripts/scene/ctl.ts measure                     # the points, in mm, per axis
-bun run scripts/scene/ctl.ts measure --clear
+bun run workflows/threejs/tools/ctl.ts ortho --height 1.63        # zoom so the subject fills the frame
+bun run workflows/threejs/tools/ctl.ts calque --view left --depth front --opacity 0.6
+bun run workflows/threejs/tools/ctl.ts measure --on               # click the calque
+bun run workflows/threejs/tools/ctl.ts measure                     # the points, in mm, per axis
+bun run workflows/threejs/tools/ctl.ts measure --clear
 ```
 
 A point on the left calque reports `Z` from the nose and `Y` from the ground, in millimetres, which
@@ -420,9 +420,9 @@ report a perfect score for any model, including an empty scene.
 A shaded render hides an error that a silhouette cannot, so G2 is judged on a binary mask.
 
 ```bash
-bun run scripts/scene/ctl.ts open --shot --url http://127.0.0.1:5180
-bun run scripts/scene/ctl.ts shot /tmp/opencode/left.webp --view left
-python3 scripts/scene/compare_silhouette.py \
+bun run workflows/threejs/tools/ctl.ts open --shot --url http://127.0.0.1:5180
+bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/left.webp --view left
+python3 workflows/threejs/tools/compare_silhouette.py \
   --subject blueprints/<category>/<subject> --view left \
   --render /tmp/opencode/left.webp --out /tmp/opencode/cmp-left.png
 ```
@@ -622,22 +622,22 @@ director judges.
 | `blueprints/<category>/<subject>/<view>/reference.<ext>` | the locked views, read only |
 | `blueprints/<category>/<subject>/notes.md` | the camera note, the hidden parts, the subject notes |
 | `blueprints/<category>/<subject>/dimensions.json` | **written by stage 1**, read by every later stage |
-| `scenes/<subject>/model.js` | the asset: sections, body, accessories. `build()` (or `buildBody()`), `measure`, `target`, `deviation` |
-| `viewer/` | the shared viewer: one page, every scene. `main.js`, `camera.js`, `calque.js`, `picker.js`, `stage.js`, `frame.js`, `measure.js`, `api.js`, `contract.js`, `views.json` |
-| `scripts/scene/crop_reference.py` | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json` |
+| `workflows/threejs/scenes/<subject>/model.js` | the asset: sections, body, accessories. `build()` (or `buildBody()`), `measure`, `target`, `deviation` |
+| `workflows/threejs/viewer/` | the shared viewer: one page, every scene. `main.js`, `camera.js`, `calque.js`, `picker.js`, `stage.js`, `frame.js`, `measure.js`, `api.js`, `contract.js`, `views.json` |
+| `scripts/blueprint/crop_reference.py` | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json` |
 | `blueprints/<category>/<subject>/cropped/` | the cropped views, and the derived manifest. Rebuildable at any time |
-| `scripts/scene/view_scale.py` | **stage 1 tool**: the two scales of a view, its drift, its verdict |
-| `scripts/scene/read_reference.py` | reads a silhouette into profile data |
-| `scripts/scene/measure_view.py` | the same landmarks for both images, in millimetres |
-| `scripts/scene/silhouette.ts` | the overlay: red is reference only, blue is model only |
-| `scripts/scene/check.ts` | capture, overlay, measure, and the orientation guard |
-| `scripts/scene/compare_silhouette.py` | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm |
-| `scenes/<subject>/scene.json` | the subject path and the model module, so the viewer can load both |
+| `scripts/blueprint/view_scale.py` | **stage 1 tool**: the two scales of a view, its drift, its verdict |
+| `scripts/blueprint/read_reference.py` | reads a silhouette into profile data |
+| `scripts/blueprint/measure_view.py` | the same landmarks for both images, in millimetres |
+| `workflows/threejs/tools/silhouette.ts` | the overlay: red is reference only, blue is model only |
+| `workflows/threejs/tools/check.ts` | capture, overlay, measure, and the orientation guard |
+| `workflows/threejs/tools/compare_silhouette.py` | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm |
+| `workflows/threejs/scenes/<subject>/scene.json` | the subject path and the model module, so the viewer can load both |
 | `blueprints/<category>/<subject>/cropped/manifest.json` | each crop's box, offset, size, and the file it came from |
 | `scripts/measure/index.html` | **stage 1 tool**: the point picker, served at `/measure/` |
 | `scripts/measure/report.py` | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict |
 | `blueprints/<category>/<subject>/measurements.json` | **written by the picker**, read by the report |
 | `blueprints/<category>/<subject>/measured/` | the annotated copies, one per view |
-| `scripts/scene/ctl.ts` | **render control**: camera, projection, wireframe, isolate, nodes, shot |
-| `scripts/scene/shot.ts` | captures every named view in one pass |
-| `scripts/scene/serve.ts` | the dev server: the shared viewer, the `/api/*` scene API, `/measure/` |
+| `workflows/threejs/tools/ctl.ts` | **render control**: camera, projection, wireframe, isolate, nodes, shot |
+| `workflows/threejs/tools/shot.ts` | captures every named view in one pass |
+| `workflows/threejs/tools/serve.ts` | the dev server: the shared viewer, the `/api/*` scene API, `/measure/` |

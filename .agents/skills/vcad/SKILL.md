@@ -225,7 +225,7 @@ renders.** No stage is reported to the art director from numbers alone.
 
 ```bash
 cd /path/to/repo
-bun run scripts/vcad-render/export.ts \
+bun run workflows/vcad/tools/export.ts \
   --document <document_id> \
   --out blueprints/<category>/<subject>/model/<asset>-L<n> \
   --views front-3q,rear-3q,front,left,back,right,top

@@ -11,6 +11,8 @@ the body. Use the `volume-modelling` skill for the order of work, which proves t
 view before the body is built, and builds the accessories one at a time after it.
 
 Date: 2026-11-06. Scope: hard-surface assets modelled from a locked multi-view blueprint.
+Paths are as they were on that date. The workflow now lives in `workflows/threejs/`, and
+`workflows/threejs/README.md` holds the current layout.
 
 ---
 

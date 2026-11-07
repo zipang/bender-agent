@@ -1,103 +1,42 @@
 # AGENTS.md
 
-Rules for agents that work in this repository.
+Rules for agents that work in this repository. This file holds only what applies to **every**
+workflow. The rules of one workflow are in its own folder:
+
+| Workflow | Rules |
+| :--- | :--- |
+| Three.js, active | [`workflows/threejs/AGENTS.md`](./workflows/threejs/AGENTS.md) |
+| Blender, inactive | [`workflows/blender/AGENTS.md`](./workflows/blender/AGENTS.md) |
+| vcad, archived | [`workflows/vcad/AGENTS.md`](./workflows/vcad/AGENTS.md) |
 
 ## Purpose
 
-This repository tests 3D asset workflows for web animation: **vcad** for parametric CAD and **Blender** for polygon modeling. The target runtime is **Three.js** with `.glb` files.
-
-The pipeline has three stages. The first gathers and combines the references. The second prepares the views. The third builds the model.
+This repository builds 3D assets for web animation from reference images. Three workflows exist, and
+one is active at a time. They share the inputs in `blueprints/` and the tools that prepare them.
 
 ```text
-blueprints/drafts/  ->  draft reference  ->  six views  ->  progressive-volume-modeling  ->  .glb
+blueprints/drafts/  ->  draft reference  ->  six views  ->  dimensions.json  ->  the asset
 ```
-
-Stage 0, the draft, happens in `blueprints/drafts/<draft>/`. The art director collects two kinds of reference image there: subject images, which say what to model, and style images, which say how to render it. One generation combines them into a single reference image on a uniform white field. That image is promoted to `reference.<ext>` of a subject folder, and the view stage starts from it.
 
 ## Language rules
 
 - Write all documents in **Simplified Technical English (STE)**.
-- This rule applies to `README.md`, `AGENTS.md`, `SKILL.md` files, and agent definitions.
+- This rule applies to every `README.md`, every `AGENTS.md`, every `SKILL.md`, and the agent
+  definitions.
 - Use American spelling.
 - Keep chat answers in the language of the user. The default for this project is French.
 - Load the `technical-writing` skill before you write or review long prose.
 
-## Repository map
+## Placement rules
 
-```text
-.agents/skills/          # Local skills. Add new 3D skills here.
-.opencode/agents/        # Agent definitions.
-assets/img/              # Images for the documentation.
-blueprints/              # Subjects and their generated views.
-blueprints/drafts/       # Raw material. Not ready for generation.
-research/                # Method documents and investigation reports.
-scenes/                  # Three.js scenes. One directory per subject.
-scripts/                 # TypeScript tools.
-opencode.jsonc           # Project configuration and MCP servers.
-```
-
-## Scene rules
-
-A scene is one directory under `scenes/<subject>/`. It holds two files, and no build step:
-
-| File | Role |
-| :--- | :--- |
-| `scene.json` | The subject directory, the model module, the display name. |
-| `model.js` | The asset. Exports `build()` (or `buildBody()`) and the gate numbers. Imports `three` and nothing else: no DOM, no renderer, no network. |
-
-The viewer is shared: one page at `/viewer/`, driven by `?scene=scenes/<subject>`. `/` redirects to
-it with the scene of `--scene`, so `bun run scripts/scene/ctl.ts open` and `shot.ts` still work.
-
-| File | Role |
-| :--- | :--- |
-| `viewer/index.html` | The only page, and the import map. |
-| `viewer/main.js` | Reads `?scene=`, loads the document, imports the model, wires the parts, exposes `__ctl` and `__stats`. |
-| `viewer/api.js` | The client for `/api/*`, with named errors. |
-| `viewer/contract.js` | The schema of the document and of the model module. |
-| `viewer/camera.js` | Two cameras, one state, the named views, the calque mask by angle. |
-| `viewer/calque.js` | The reference plates. Scale and boxes come from the API. |
-| `viewer/picker.js` | Picking in model units, and the panel. |
-| `viewer/stage.js` | Renderer, environment, lights, ground, HUD, loop, stage controls. |
-| `viewer/frame.js` | The six framing distances, derived from the real dimensions. |
-| `viewer/measure.js` | The measurement arithmetic, pure and tested. |
-| `viewer/views.json` | The only view table. |
-
-- `model.js` must stay importable outside a browser. The live scene and the exported `.glb` are then built from the same source.
-- Never add a page or a script under `scenes/`. A scene is data plus a model module; everything that
-  draws belongs to `viewer/`.
-- Trace on the **calque**: the reference views are planes in the scene, sized in metres from `kx` and `ky`. `bun run scripts/scene/ctl.ts calque --view left --depth front --opacity 0.55`.
-- A calque is calibrated on the **subject box**, never on the cropped file: the crop keeps a margin, and scaling on it makes every measurement 0.3 % short.
-- Measure in **model units**, not in pixels: `ctl.ts measure --on` picks on the calque and reports millimetres of Z and Y directly. Zoom until `mmPerScreenPx` matches the image's own scale before tracing.
-- A calque is masked to its own axis, and `shot` hides it unless asked. A silhouette comparison that included the plate would compare the reference to itself.
-- Judge a body on its **binary silhouette**, not on a shaded render. `scripts/scene/compare_silhouette.py` overlays the two masks and prints the deltas in millimetres.
-- Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save. It also serves `/measure/`, the point picker, and `/repo/` for the reference images and their `dimensions.json`.
-- Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing the viewer to look from another angle is not a loop, and the viewer is shared: a modelling pass never edits it.
-- One browser, reused. `ctl.ts` talks to the single session `scene-ctl`; run `ctl.ts close` when the
-  pass ends. `shot.ts` opens its own session and closes it in a `finally`, so `check.ts` leaves no
-  process behind. A new `--session` name starts a new headless Chrome that outlives the command;
-  fourteen sessions and 238 processes accumulated that way during one refactor.
-- Every modelling pass ends with `bun run scripts/scene/check.ts`. It captures, overlays, measures, and checks the orientation.
-- Never compare a render to a reference without checking that both show the same flank. A mirrored silhouette still looks plausible.
-- Flat views use an orthographic camera. A perspective camera can never line up with an orthographic reference.
-- Keep the authoring source of a scene committed. Keep its renders and its `.glb` local.
-
-## Modelling rules
-
-- Every modelling run follows the `volume-modelling` skill: three stages, three gates. No stage
-  starts before the previous gate passes, and no gate is softened to make it pass.
-- Stage 1 writes `blueprints/<category>/<subject>/dimensions.json`. The real dimensions are an
-  input: a specification sheet, a measurement, or a decision of the art director. Never read them
-  from the views that the model will be checked against.
-- Stage 2 builds the body only. No accessory, no placeholder, no reference box.
-- Stage 2 cuts **no hole**. Wheel arches, window openings and lamp recesses belong to stage 3, when
-  the part that fills them has been measured. A hole changes the silhouette, and G2 measures the
-  silhouette.
-- Stage 3 adds one accessory per pass: measured, modelled apart, validated alone, then oriented
-  and translated onto the body as its own named node.
-- Never merge an accessory into the body mesh.
-- Not every locked view has the same authority. `left`, `right`, `front`, `back` and `top` are
-  required. `bottom` is optional: the subject usually stands on it, and an image model invents one.
-  An optional view informs, it does not decide, and it does not enter a gate.
+- A workflow owns everything it runs. Its tools and its documents live in its own folder.
+- The root owns everything more than one workflow reads: `blueprints/`, and the code that prepares a
+  reference.
+- A new top-level directory needs a reason that names the workflows that read it.
+- Update the root `README.md` when you add a skill, a server, a workflow, or a top-level directory.
+- A new project word gets an entry in the root `README.md` glossary, in alphabetical order.
+- A change that adds a tool, a flag, a file, or a gate updates the documents of its workflow in the
+  same commit.
 
 ## Blueprint rules
 
@@ -108,8 +47,8 @@ it with the scene of `--scene`, so `bun run scripts/scene/ctl.ts open` and `shot
   reference image, on a uniform white field.
 - A subject folder holds `reference.<ext>`, the chosen identity image. The art director writes it.
 - The promotion of a draft candidate to `reference.<ext>` is the art director's decision.
-- A subject folder holds `source.<ext>` only after a cleaning pass runs. The cleaning pass copies
-  the reference to `source.<ext>` before it replaces it. Never modify `source.<ext>`.
+- A subject folder holds `source.<ext>` only after a cleaning pass runs. The cleaning pass copies the
+  reference to `source.<ext>` before it replaces it. Never modify `source.<ext>`.
 - Generation reads `reference.<ext>` only. It never reads `source.<ext>`.
 - The generator writes draft candidates to the draft root, cleaning candidates to the subject root,
   and view candidates to `blueprints/<category>/<subject>/<view>/`.
@@ -117,18 +56,44 @@ it with the scene of `--scene`, so `bun run scripts/scene/ctl.ts open` and `shot
 - No agent and no model validates an image automatically.
 - Never delete a generated candidate. Keep the rejected files in their folder.
 - Never move a candidate to an archive folder. There is no `_superseded/`, `old/`, or `archive/`.
-- A new generation adds candidates with the next free counter. The folder grows; it never shrinks.
-- The counter runs per model and per folder, so `--04` follows `--03` and no name is reused.
+- A new generation adds candidates with the next free counter. The folder grows. It never shrinks.
+  The counter runs per model and per folder, so `--04` follows `--03` and no name is reused.
+
+## Dimensions and gates
+
+- The real dimensions are an **input**: a specification sheet, a measurement, or a decision of the
+  art director. **Never read them from the views that the model will be checked against.** The check
+  becomes circular, every error is normalized away, and every gate passes.
+- Every modelling run follows the `volume-modelling` skill: three stages, three gates. No stage starts
+  before the previous gate passes, and no gate is softened to make it pass.
+- Not every locked view has the same authority. `left`, `right`, `front`, `back` and `top` are
+  required. `bottom` is optional: the subject usually stands on it, and an image model invents one.
+  An optional view informs, it does not decide, and it does not enter a gate.
+- A gate measured on one view is half-measured. Write `not measured` for the others, and treat the
+  gate as failed.
 
 ## 3D conventions
 
-- Choose the design unit from the deliverable. Use 1 unit = 1 m for game assets. Use 1 unit = 1 mm for fabrication and 3D printing. Read section 3.5 of `research/progressive-volume-modeling.md`.
-- Blender and vcad use **Z-up**. glTF and Three.js use **Y-up**. Keep `export_yup=True` in the glTF exporter.
-- Put the root origin at the center of the base of the model. The model then sits on the ground at `Y = 0`.
-- Put each pivot on its axis of rotation. Examples: door hinge, wheel center, antenna base.
-- Apply all transforms before export. Scale must be `1, 1, 1`. Rest rotation must be `0, 0, 0`.
+- Choose the design unit from the deliverable. Use 1 unit = 1 m for a game asset. Use 1 unit = 1 mm
+  for fabrication and 3D printing. Read section 3.5 of `research/progressive-volume-modeling.md`.
+- Blender and vcad use **Z-up**. glTF and Three.js use **Y-up**. Keep `export_yup=True` in the glTF
+  exporter.
+- Put the root origin at the centre of the base of the model, so it sits on the ground at `Y = 0`.
+- Put each pivot on its axis of rotation: a door hinge, a wheel centre, an antenna base.
+- Apply all transforms before the export. Scale is `1, 1, 1` and the rest rotation is `0, 0, 0`.
 - Name every animatable node with a stable name: `Head`, `Torso_Door`, `Wheel_FL`.
-- Use only `Principled BSDF` materials. The glTF exporter maps them to `MeshStandardMaterial` in Three.js.
+- Use only `Principled BSDF` materials. The glTF exporter maps them to `MeshStandardMaterial`.
+
+## Validation rules
+
+- **Blueprints:** a view is ready only when its folder contains a `reference.<ext>` chosen by the art
+  director.
+- **Images:** a distance is read from a tool, never estimated by eye. It converts per axis, `dx` with
+  `kx` and `dy` with `ky`.
+- **Web:** call `bunx @gltf-transform/cli inspect <file>.glb` after each optimization. Check the file
+  size and the triangle count.
+- **Blender and vcad:** the rules are in the workflow folder. Both require a look at the geometry
+  after each change, and an inspection before the export.
 
 ## MCP servers
 
@@ -138,22 +103,16 @@ Check the servers before you start a 3D task:
 opencode mcp list
 ```
 
-- `vcad` uses `bunx @vcad/mcp`. It needs no other application.
-- `blender` uses `uvx mcp-for-blender`. It needs Blender with the **MCP for Blender** add-on, and the add-on server must run on port `9876`.
-- If the Blender tools return `Could not connect to Blender`, ask the user to click **Start MCP Server** in the Blender sidebar.
-
-## Validation rules
-
-- **Blueprints:** a view is ready only when the folder contains a `reference.<ext>` file chosen by the art director.
-- **vcad:** call `inspect_cad` before each export. Check the volume, the bounding box, and the triangle count.
-- **Blender:** call `get_scene_info` before you change a scene. Call `look` after each geometry change. Check the model from the front, the side, and a three-quarter view.
-- **Web:** call `bunx @gltf-transform/cli inspect <file>.glb` after each optimization. Check the file size and the triangle count.
-- **Distances:** a distance is read from `scripts/measure/`, never estimated by eye. It converts per axis, `dx` with `kx` and `dy` with `ky`, and the annotated copy is checked before the number is used.
+- `vcad` uses `bunx @vcad/mcp`, and needs no other application.
+- `blender` uses `uvx mcp-for-blender`. It needs Blender with the **MCP for Blender** add-on, and the
+  add-on server must run on port `9876`. When a tool returns `Could not connect to Blender`, ask the
+  user to click **Start MCP Server** in the Blender sidebar.
 
 ## File rules
 
 - Keep each model in its own directory.
-- Keep the authoring source next to the export. Examples: the Loon source, the `bpy` script, or the `.blend` file.
-- Do not commit large binary files without approval from the user.
+- Keep the authoring source next to the export: the Loon source, the `bpy` script, the `.blend` file,
+  or `model.js`.
+- Do not commit large binary files without the approval of the user.
 - Do not commit generated blueprint candidates. `.gitignore` excludes them.
-- Update `README.md` when you add a skill, a server, or a top-level directory.
+- Keep the authoring source of a scene committed. Keep its renders and its `.glb` local.

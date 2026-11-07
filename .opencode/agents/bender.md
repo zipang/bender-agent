@@ -355,7 +355,7 @@ A stage is not finished when the geometry exists. It is finished when the art di
 it. Every stage writes the `.glb` **and** one WebP per named view, with one command:
 
 ```bash
-bun run scripts/vcad-render/export.ts \
+bun run workflows/vcad/tools/export.ts \
   --document <document_id> \
   --out blueprints/<category>/<subject>/model/<asset>-S<stage> \
   --views front-3q,rear-3q,front,left,back,right,top
@@ -450,21 +450,21 @@ Report the answers, state which gate the pass aims at, and say what that gate wi
 
 ### D2. Build the scene skeleton
 
-1. Create `scenes/<subject>/` with `scene.json` and `model.js`. That is the whole scene.
+1. Create `workflows/threejs/scenes/<subject>/` with `scene.json` and `model.js`. That is the whole scene.
 2. `scene.json` names the subject directory and the model module:
    `{ "id": "...", "name": "...", "subject": "blueprints/<category>/<subject>", "model": "./model.js" }`.
 3. `model.js` imports `three` only. It exports `build()` (or `buildBody()`) and `measure()`, plus
    `target()` and `deviation(object)` when it carries the gate numbers.
 4. Start the server and open the page. Confirm that the HUD shows a triangle count.
 
-The viewer is shared and lives in `viewer/`. Never add a page or a script under `scenes/`: a model
+The viewer is shared and lives in `workflows/threejs/viewer/`. Never add a page or a script under `scenes/`: a model
 that only exists inside its own copy of a viewer cannot be exported, and a copy drifts. Use the
 script API that `viewer/main.js` already exposes: `window.__ready`, `window.__setView(name)`,
 `window.__stats()` and `window.__ctl`.
 
 ### D3. Stage 1 — give every view its scales
 
-1. Run `scripts/scene/view_scale.py` on each locked view, with the real dimensions and their
+1. Run `scripts/blueprint/view_scale.py` on each locked view, with the real dimensions and their
    source, and `--write` to merge the entry into `dimensions.json`.
 2. It returns `kx` and `ky` for that view, the anisotropy `ky/kx`, and one of three verdicts:
    `pass` (under 5%), `corrected` (5 to 25%), `reject` (over 25%).
@@ -498,7 +498,7 @@ Gate G2 passes when the body silhouette matches the reference in every locked vi
 or 3% of the largest dimension, whichever is smaller.
 
 ```bash
-bun run scripts/scene/check.ts --subject blueprints/<category>/<subject> --prefix <asset>-S2
+bun run workflows/threejs/tools/check.ts --subject blueprints/<category>/<subject> --prefix <asset>-S2
 ```
 
 Report one overlay and one station table per view, the bounding box on the three axes, and the
@@ -588,6 +588,6 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
 - Report the file paths that you create or change.
 - Report the measured values: bounding box, triangle count, and file size.
 - **Report a render for every view of the stage.** A stage without pictures cannot be judged. Use
-  `scripts/vcad-render/export.ts`, never numbers alone.
+  `workflows/vcad/tools/export.ts`, never numbers alone.
 - Describe each render in one line, and say that this is a description, not a verdict.
 - State the remaining manual steps, if any. Example: start the MCP add-on server in Blender.

@@ -11,7 +11,7 @@ documentation track that goes with it. No step is done.
 | 3 Resampling | planned | |
 | 4 Poly and bezier | planned | |
 | 5 Viewer | planned | |
-| 6 Documentation | planned. Depends on `tickets/workflow-reorg-plan.md` | |
+| 6 Documentation | planned. The reorg landed, so this step adds the contour rows to an existing chapter | |
 
 ## 1. Purpose
 
@@ -281,9 +281,13 @@ A chapter that a new reader follows without opening a script.
 | Failure modes | One row per fault that already happened, its cause, and the rule |
 
 The tool inventory is the part that answers "what does this repository do" without a search. Each
-row states the input, the output, and the command. It covers `scripts/scene/*.py`,
-`scripts/scene/*.ts`, `scripts/measure/`, `scripts/blueprint-generate/`, and
-`scripts/vcad-render/`.
+row states the input, the output, and the command. It covers `workflows/threejs/tools/`,
+`scripts/blueprint/`, `scripts/measure/`, and `scripts/blueprint-generate/`.
+
+Step 6 is smaller than this plan first wrote it, because `tickets/workflow-reorg-plan.md` landed
+first and wrote `workflows/threejs/README.md` with its tool inventory and its artifact map. What is
+left for this step is the contour: the new flags, the two emit modes, the measured deviation, and
+the contact sheet. Read the existing chapter, then add the contour rows to it. Do not rewrite it.
 
 ### 5.2 `workflows/threejs/AGENTS.md`: the rules
 
@@ -330,7 +334,7 @@ No step starts before the previous step passes its gate.
 | 4a | Poly and bezier | The greedy fit, `--mode`, `--tolerance`, and the measured deviation. Gate: deviation at or under the tolerance on all six views, and `left` under 120 points. |
 | 4b | Contact sheet | `--sheet`, one PNG at trace zoom over a pitch and tolerance grid. The art director chooses the cell. Gate: the chosen cell is recorded, and the defaults become that cell. |
 | 5 | Viewer | `path` instead of `points`, both modes, the witness dash preserved. Gate: three layers superpose on `left`, `top`, and `back`, and a witness view draws dashed. |
-| 6 | Documentation | The workflow chapter in `workflows/threejs/README.md`, the rules in `workflows/threejs/AGENTS.md`, the glossary entries in the root `README.md`, and this plan's progress table. Gate: a reader answers "what writes `body-hull.js`" from the workflow document alone. |
+| 6 | Documentation | Add the contour rows to `workflows/threejs/README.md` (the tool inventory, the artifact map, the failure modes), the contour rules to `workflows/threejs/AGENTS.md`, the glossary entries to the root `README.md`, and this plan's progress table. Gate: a reader answers "which flag sets the pitch, and what proved its value" from the workflow document alone. |
 
 ### 6.1 Gates
 

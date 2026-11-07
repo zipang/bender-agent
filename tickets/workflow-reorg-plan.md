@@ -10,8 +10,8 @@ three modelling workflows its own documentation and its own tools. No step is do
 | 2 Three.js move | done | c786ffe |
 | 3 Path repair | done | 87ba954 |
 | 4 URL and API | done | 87ba954 |
-| 5 Blender and vcad docs | planned | |
-| 6 Root index | planned | |
+| 5 Blender and vcad docs | done | e8f1bdb |
+| 6 Root index | done | |
 
 ## 1. Purpose
 
@@ -189,8 +189,8 @@ every step, so a failure is visible at once.
 | 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. **Done.** Thirty-four pure renames, 0 insertions, 0 deletions. |
 | 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. **Done.** `tools/paths.ts` holds the root once. Nine views identical, five IoU identical, `bun run check` runs end to end. |
 | 4 | URL and API | Add the `/scene/` route, keep `/viewer/`, update the scene id and the client message. Gate: a scene module with a relative import loads, `baseline.json` stays unserved, and the API document reports the new paths. **Done**, and shipped inside the same commit as step 3: a route and its guard cannot be separated from the ids that feed it. `/scene/` became the real path, for the reason in section 4.2. |
-| 5 | Blender and vcad docs | Write the two pairs of documents. vcad states that the project does not use it, and points at the reason. Gate: each document answers what the workflow does and where its tools are. |
-| 6 | Root index | The root `README.md` becomes an index: three workflows, which one is active, the shared inputs, the glossary. The root `AGENTS.md` keeps only the rules that hold for every workflow. Gate: no command line in the root document points at a moved path. |
+| 5 | Blender and vcad docs | Write the two pairs of documents. vcad states that the project does not use it, and points at the reason. Gate: each document answers what the workflow does and where its tools are. **Done.** |
+| 6 | Root index | The root `README.md` becomes an index: three workflows, which one is active, the shared inputs, the glossary. The root `AGENTS.md` keeps only the rules that hold for every workflow. Gate: no command line in the root document points at a moved path. **Done.** `workflows/threejs/README.md` holds the workflow chapter: the pipeline, the tool inventory, the artifact map, and the failure modes. |
 
 ### 5.1 Gates
 
@@ -225,7 +225,24 @@ every step, so a failure is visible at once.
 | Two workflows share a tool | the tool was placed by convenience | a tool that one workflow runs lives in that workflow |
 | A capture fails with `window.__setView is not a function` | the pass wrote a render into the watched subject, and the page reloaded mid-capture | an output directory never reloads its own reader: `model/` is not watched |
 
-## 7. Open points
+## 7. What the move proved
+
+An agent reads more than a `README.md`. The repair that the gate required covered three more
+documents, and each one would have sent a reader to a path that does not exist:
+
+| Document | What it is |
+| :--- | :--- |
+| `.opencode/agents/bender.md` | The agent definition: the workflow it describes, with its commands |
+| `.agents/skills/volume-modelling/SKILL.md` | The method, with the commands of one modelling pass |
+| `.agents/skills/vcad/SKILL.md` | The vcad tools, with the export command |
+
+So the documentation duty of a move is wider than one file. A path that a document quotes is a
+promise, and the promise is kept in every document that makes it.
+
+The two research documents keep their old paths on purpose. They record a state at a date, and a
+note at the top says so. Rewriting their paths would make a record claim to describe today.
+
+## 8. Open points
 
 - A workflow selector in the page. It needs the server to know more than one workflow, which is a
   feature, not a move.

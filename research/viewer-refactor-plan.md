@@ -1,6 +1,8 @@
 # Viewer refactor plan
 
-Status: **complete.** All nine steps passed their gates.
+Status: **complete.** All nine steps passed their gates. The paths below are the ones the
+refactor used at the time. The workflow now lives in `workflows/threejs/`, and
+`workflows/threejs/README.md` holds the current layout.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |

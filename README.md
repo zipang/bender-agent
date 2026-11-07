@@ -172,19 +172,36 @@ one more decision from the art director before they can start.
 
 ## Modelling a scene in the browser
 
-A scene is one directory under `scenes/`. `model.js` is the asset and the only source of truth: it
-imports `three` and nothing else, so the live scene and the exported `.glb` are built from the same
-file. `scene.js` owns the renderer, the cameras and the lights. There is no build step.
+A scene is one directory under `scenes/`, and it holds two files. `scene.json` names the subject and
+the model module. `model.js` is the asset and the only source of truth: it imports `three` and
+nothing else, so the live scene and the exported `.glb` are built from the same file. There is no
+build step, and nothing under `scenes/` draws anything.
+
+The viewer is shared. One page at `viewer/` serves every scene; it is chosen by `?scene=`, and `/`
+redirects to it with the scene the server was started with.
 
 ```bash
 bun run serve                    # serve scenes/r5-tl-1972 on port 5180, reload on save
 bun run scripts/scene/check.ts   # capture, overlay, measure, and check the orientation
 ```
 
+| Viewer module | Role |
+| :--- | :--- |
+| `viewer/main.js` | Reads `?scene=`, loads the document, imports the model, exposes `__ctl` and `__stats`. |
+| `viewer/api.js` | The client for `/api/*`, with a named error per failure. |
+| `viewer/contract.js` | The schema of the scene document and of the model module. |
+| `viewer/camera.js` | Two cameras, one state, the named views, and the calque mask by angle. |
+| `viewer/calque.js` | The reference plates, sized and placed from the API document. |
+| `viewer/picker.js` | Picking in model units, and the measurement panel. |
+| `viewer/stage.js` | Renderer, environment, lights, ground, HUD, and the animation loop. |
+| `viewer/frame.js` | The six framing distances, derived from the real dimensions. |
+| `viewer/measure.js` | The measurement arithmetic: pure, and tested with `bun test`. |
+| `viewer/views.json` | The only view table. The page and every offline tool read it. |
+
 | Script | Role |
 | :--- | :--- |
-| `scripts/scene/serve.ts` | Static server for the scene and the `three` package, plus a reload channel over server-sent events, the `/measure/` picker, and `/repo/` for reference images. |
-| `scripts/scene/ctl.ts` | Drive the live page: camera angle, projection, wireframe, node isolation, background, and one-shot captures. |
+| `scripts/scene/serve.ts` | Static server for the viewer and the `three` package, plus the scene API, a reload channel over server-sent events, and the `/measure/` picker. |
+| `scripts/scene/ctl.ts` | Drive the live page: camera angle, projection, wireframe, node isolation, background, and one-shot captures. One browser session, reused; `ctl.ts close` ends it. |
 | `scripts/scene/shot.ts` | Capture every named view to WebP through `agent-browser`. |
 | `scripts/scene/silhouette.ts` | Overlay the render on the reference: red is reference only, blue is model only, magenta is both. |
 | `scripts/scene/measure_view.py` | Reduce both images to a silhouette and print the same landmarks in millimetres, with deltas. |
@@ -217,7 +234,8 @@ bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 ├── assets/img/              # Documentation images
 ├── blueprints/              # Subjects, views, and drafts
 ├── research/                # Method documents and investigation reports
-├── scenes/                  # Three.js scenes. One directory per subject, model.js is the asset
+├── scenes/                  # One directory per subject: scene.json and model.js
+├── viewer/                  # The shared viewer page and its modules
 ├── scripts/                 # TypeScript tools (blueprint-generate, scene, vcad-render)
 ├── opencode.jsonc           # OpenCode project configuration and MCP servers
 ├── AGENTS.md                # Rules for agents that work in this repository
@@ -242,7 +260,7 @@ bun run scripts/scene/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 - **Mass**: One named volume of the object. The model has one primitive per mass at stage L1.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
-- **Scene**: One directory under `scenes/`. `model.js` builds the asset and `scene.js` renders it. The browser loads the source directly, without a build step.
+- **Scene**: One directory under `scenes/`, holding `scene.json` and `model.js`. The shared viewer at `viewer/` renders it. The browser loads the source directly, without a build step.
 - **Silhouette overlay**: A comparison image where red is present in the reference only, blue in the model only, and magenta in both.
 - **Pivot**: The origin of a node. The pivot is the center of rotation for animation.
 - **Skill**: A folder with a `SKILL.md` file. It holds instructions and helper files that an agent loads on demand.

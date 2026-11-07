@@ -12,7 +12,8 @@ Status: in progress. This document describes the target architecture and the mig
 | 5 Frame | done, six formulas, IoU within 0.001 | this commit |
 | 6 Stage | done, `scenes/*/scene.js` deleted, nine views pixel-identical | this commit |
 | 7 Tools | done, `--scene`, closed on failure | this commit |
-| 8 to 9 | planned | |
+| 8 Second subject | done, the minivan opens with two files | this commit |
+| 9 | planned | |
 
 ## 1. Purpose
 

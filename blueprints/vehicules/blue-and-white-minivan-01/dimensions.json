@@ -1,0 +1,30 @@
+{
+  "subject": "blue-and-white-minivan-01",
+  "unit": "m",
+  "axes": {
+    "x": "width",
+    "y": "height",
+    "z": "length"
+  },
+  "real": {
+    "length": {
+      "value": 5.3,
+      "source": "art director, L5.3 x H2.0 x l1.9"
+    },
+    "width": {
+      "value": 1.9,
+      "source": "art director, L5.3 x H2.0 x l1.9"
+    },
+    "height": {
+      "value": 2.0,
+      "source": "art director, L5.3 x H2.0 x l1.9"
+    }
+  },
+  "views": {},
+  "scales": null,
+  "g1": null,
+  "notes": [
+    "Stage 1 has not run: no view has a calibrated scale yet, so every view's gate is 'unknown'.",
+    "Cropping has run, so the API can derive kx and ky from subject_box and the real dimensions."
+  ]
+}

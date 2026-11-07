@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildBody, measure, target, deviation } from "./model.js";
+import { loadScene, realMetres, referenceScale, showFailure } from "/viewer/api.js";
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get("shot") === "1";
@@ -193,29 +194,16 @@ plates.renderOrder = -1;
 scene.add(plates);
 
 const calque = {
-  meta: null,     // dimensions.json and cropped/manifest.json, loaded once
+  document: null, // the one scene document from /api/scene
   view: null,     // the view whose plate is shown, or null
   opacity: 1,
   depth: "behind",
   loaded: new Map(),
 };
 
-async function calqueLoad(url) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`calque: ${response.status} on ${url}`);
-  return response.json();
-}
-
-async function calqueMeta() {
-  if (calque.meta) return calque.meta;
-  const config = await fetch("./scene.json").then((r) => r.json());
-  const subject = config.subject;
-  const [dimensions, manifest] = await Promise.all([
-    calqueLoad(`/repo/${subject}/dimensions.json`),
-    calqueLoad(`/repo/${subject}/cropped/manifest.json`),
-  ]);
-  calque.meta = { subject, dimensions, manifest };
-  return calque.meta;
+async function calqueDocument() {
+  if (!calque.document) calque.document = await loadScene();
+  return calque.document;
 }
 
 // The screen basis of a named view, without a camera: `right` is what the frame's +x maps to in
@@ -236,49 +224,22 @@ function viewBasis(view) {
 }
 
 async function buildPlate(view) {
-  const { subject, dimensions, manifest } = await calqueMeta();
-  const entry = manifest.views[view];
-  if (!entry) throw new Error(`calque: no cropped reference for "${view}" -- run crop_reference.py`);
+  const sceneDocument = await calqueDocument();
+  const reference = sceneDocument.views[view]?.reference;
+  if (!reference) throw new Error(`calque: no cropped reference for "${view}" -- run crop_reference.py`);
 
-  const real = dimensions.real;
-  // Which real dimension the image spans on each axis. The VIEW says which model axes it spans
-  // (`axes: "zy"`); the SUBJECT says what those axes are called (`roles: { z: "length" }`). A car
-  // declares length where a character declares depth, and no table here has to know the difference.
-  //
-  // The default keeps an old dimensions.json readable; it is the vehicle mapping.
-  const roles = dimensions.axes ?? { x: "width", y: "height", z: "length" };
-  const [axisH, axisV] = VIEWS[view].axes.split("");
-  const realH = (real[roles[axisH]] ?? real.width).value;
-  const realV = (real[roles[axisV]] ?? real.height).value;
-
-  // The scale is built on the SUBJECT, never on the cropped file. The crop keeps a margin, and
-  // mapping the whole file to the real length makes the subject shorter than the real subject by
-  // twice that margin: 4 px, 11 mm on the left view, carried by every point traced afterwards.
-  const [sx0, sy0, sx1, sy1] = entry.subject_box;
+  // The scale comes from the server. It built it on the SUBJECT box, and it warned if the result
+  // disagreed with the calibration stage 1 wrote. Building it here a second time is exactly how
+  // the 0.3 percent error happened: the crop keeps a margin, and mapping the whole file to the
+  // real length made the subject four pixels short, on every measurement after that.
+  const { kx, ky } = referenceScale(reference);
+  const [imgW, imgH] = reference.size_px;
+  const [sx0, sy0, sx1, sy1] = reference.subject_box;
   const spanH = sx1 - sx0 + 1;
   const spanV = sy1 - sy0 + 1;
-  const [offsetX, offsetY] = entry.offset;
-  const kx = realH / spanH;            // metres per image pixel, horizontally
-  const ky = realV / spanV;            // and vertically, a different number
-  const [imgW, imgH] = entry.size_px;
+  const [offsetX, offsetY] = reference.offset;
 
-  // The calque is checked against the scales stage 1 wrote. If they disagree, the crop and the
-  // calibration were made from different boxes, and every trace would carry the difference.
-  const declared = dimensions.views[view]?.scale_mm_per_px;
-  if (declared) {
-    // dimensions.json was written from the same subject box, so these must now agree to rounding.
-    // A tolerance of 0.2 % is the rounding of two independent divisions, nothing more.
-    const dx = Math.abs(kx * 1000 / declared.horizontal - 1) * 100;
-    const dy = Math.abs(ky * 1000 / declared.vertical - 1) * 100;
-    if (dx > 0.2 || dy > 0.2) {
-      console.warn(
-        `calque ${view}: scale differs from dimensions.json by ${dx.toFixed(2)} % / ` +
-        `${dy.toFixed(2)} %. The crop and the calibration disagree; re-run view_scale.py.`,
-      );
-    }
-  }
-
-  const texture = await new THREE.TextureLoader().loadAsync(`/repo/${entry.file}`);
+  const texture = await new THREE.TextureLoader().loadAsync(reference.url);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
 
@@ -305,10 +266,10 @@ async function buildPlate(view) {
   mesh.renderOrder = calque.depth === "behind" ? -1 : 10;
 
   const basis = viewBasis(view);
-  // real.height is an object -- { value, source } -- because every real dimension carries where it
-  // came from. Reading it as a number yields NaN, and a NaN position makes the plane undrawable
-  // while every other field still looks correct.
-  const realHeight = (real[roles.y] ?? real.height).value;
+  // The API reports millimetres as numbers, so there is no { value, source } object left to read
+  // as a string. That unwrap produced NaN twice, and a NaN position draws nothing while every
+  // other field of the plate still looks correct.
+  const realHeight = realMetres(sceneDocument, sceneDocument.roles.y);
   const centre = new THREE.Vector3(0, realHeight / 2, 0);
   // A plan view is a plane at the ground, not a wall through the middle of the subject.
   if (view === "top" || view === "bottom") centre.set(0, 0, 0);
@@ -989,6 +950,14 @@ window.__ctl = {
   wait: () => nextFrame(),
 };
 
-placeCamera(currentView);
-syncButtons();
+// The document is loaded before the first frame. A scene that cannot load must fail here, with the
+// reason on screen, and not on the first click that asks for a calque.
+try {
+  calque.document = await loadScene();
+  placeCamera(currentView);
+  syncButtons();
+} catch (error) {
+  showFailure(error);
+  throw error;
+}
 

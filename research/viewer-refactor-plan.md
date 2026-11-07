@@ -7,7 +7,8 @@ Status: in progress. This document describes the target architecture and the mig
 | 0 Baseline | done | `bf338a2` |
 | 1 View table | done, all eight views byte-identical | `4e39375` |
 | 2 API | done, five endpoints, guards tested | this commit |
-| 3 to 9 | planned | |
+| 3 Client | done, nine views byte-identical, failure path named | this commit |
+| 4 to 9 | planned | |
 
 ## 1. Purpose
 

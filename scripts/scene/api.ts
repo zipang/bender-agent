@@ -221,8 +221,10 @@ async function sceneDocument(context: ApiContext, requested: string): Promise<Re
           size_px: crop.size_px,
           subject_box: crop.subject_box,
           offset: crop.offset,
-          kx_mm: kx === null ? null : Number(kx.toFixed(4)),
-          ky_mm: ky === null ? null : Number(ky.toFixed(4)),
+          // Not rounded. A scale rounded to four decimals moves a 3521 mm span by 0.02 mm, which
+          // is invisible to the eye and visible to a byte comparison of two renders.
+          kx_mm: kx,
+          ky_mm: ky,
           gate: dimensions.views?.[name]?.gate ?? "unknown",
         };
       }

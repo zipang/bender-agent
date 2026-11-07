@@ -8,8 +8,8 @@ three modelling workflows its own documentation and its own tools. No step is do
 | 0 Inventory | done | 2977f58 |
 | 1 Workflow folders | planned | |
 | 2 Three.js move | done | c786ffe |
-| 3 Path repair | done | |
-| 4 URL and API | planned | |
+| 3 Path repair | done | 87ba954 |
+| 4 URL and API | done | 87ba954 |
 | 5 Blender and vcad docs | planned | |
 | 6 Root index | planned | |
 
@@ -188,7 +188,7 @@ every step, so a failure is visible at once.
 | 1 | Workflow folders | Create `workflows/threejs`, `workflows/blender`, `workflows/vcad` with an empty `README.md` and `AGENTS.md` each. Gate: nothing else changes, and the server still runs. |
 | 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. **Done.** Thirty-four pure renames, 0 insertions, 0 deletions. |
 | 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. **Done.** `tools/paths.ts` holds the root once. Nine views identical, five IoU identical, `bun run check` runs end to end. |
-| 4 | URL and API | Add the `/scene/` route, keep `/viewer/`, update the scene id and the client message. Gate: a scene module with a relative import loads, `baseline.json` stays unserved, and the API document reports the new paths. |
+| 4 | URL and API | Add the `/scene/` route, keep `/viewer/`, update the scene id and the client message. Gate: a scene module with a relative import loads, `baseline.json` stays unserved, and the API document reports the new paths. **Done**, and shipped inside the same commit as step 3: a route and its guard cannot be separated from the ids that feed it. `/scene/` became the real path, for the reason in section 4.2. |
 | 5 | Blender and vcad docs | Write the two pairs of documents. vcad states that the project does not use it, and points at the reason. Gate: each document answers what the workflow does and where its tools are. |
 | 6 | Root index | The root `README.md` becomes an index: three workflows, which one is active, the shared inputs, the glossary. The root `AGENTS.md` keeps only the rules that hold for every workflow. Gate: no command line in the root document points at a moved path. |
 

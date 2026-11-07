@@ -20,6 +20,12 @@
 //
 // Every command prints the camera state and the frame statistics, so one call tells you where the
 // page stands.
+//
+// ONE browser, reused. Every command talks to the same session (`scene-ctl` by default), because
+// each new session name starts a new headless Chrome that outlives the command. Passing a fresh
+// `--session` per test is how fourteen browsers and 238 processes accumulated during one refactor.
+// `ctl.ts close` ends the session; do it when the pass is over. Use `--session` only to run two
+// passes side by side, and close both.
 
 import { resolve } from "node:path";
 
@@ -120,7 +126,14 @@ async function main(): Promise<void> {
     const url = `${options.url.replace(/\/$/, "")}/${query}`;
     await ab(["open", url, "--session", session]);
     await waitForReady(session);
-    console.log(`open  ${url}`);
+    console.log(`open  ${url}  (session ${session})`);
+    return;
+  }
+
+  if (command === "close") {
+    // A session is a live browser, not a file. Nothing else will stop it for you.
+    await ab(["close", "--session", session]);
+    console.log(`close  session ${session}`);
     return;
   }
 

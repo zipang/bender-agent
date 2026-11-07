@@ -119,26 +119,37 @@ async function main(): Promise<void> {
   const written: string[] = [];
   let stats: Record<string, unknown> | null = null;
 
-  for (const view of options.views) {
-    await evalJson(`window.__setView(${JSON.stringify(view)}).then(() => true)`, s);
-    const pngPath = `${scratch}/${view}.png`;
-    await ab(["screenshot", "canvas", pngPath, "--session", s]);
-    const png = await Bun.file(pngPath).bytes();
-    const webp = await new Bun.Image(png).webp({ quality: options.quality }).bytes();
-    const path = `${options.out}/${options.prefix}-${view}.webp`;
-    await Bun.write(path, webp);
-    console.log(`render  ${path}  ${webp.byteLength} bytes  (${view}, ${png.byteLength} png)`);
-    written.push(path);
-    if (!stats) stats = (await evalJson("window.__stats()", s)) as Record<string, unknown>;
-  }
+  try {
+    for (const view of options.views) {
+      await evalJson(`window.__setView(${JSON.stringify(view)}).then(() => true)`, s);
+      const pngPath = `${scratch}/${view}.png`;
+      await ab(["screenshot", "canvas", pngPath, "--session", s]);
+      const png = await Bun.file(pngPath).bytes();
+      const webp = await new Bun.Image(png).webp({ quality: options.quality }).bytes();
+      const path = `${options.out}/${options.prefix}-${view}.webp`;
+      await Bun.write(path, webp);
+      console.log(`render  ${path}  ${webp.byteLength} bytes  (${view}, ${png.byteLength} png)`);
+      written.push(path);
+      if (!stats) stats = (await evalJson("window.__stats()", s)) as Record<string, unknown>;
+    }
 
-  if (stats) {
-    console.log("");
-    console.log(`size     ${(stats.size as number[]).map((v) => v.toFixed(3)).join(" × ")} m`);
-    console.log(`bounds   ${JSON.stringify(stats.min)} .. ${JSON.stringify(stats.max)}`);
-    console.log(`tris     ${stats.triangles}   meshes ${stats.meshes}   draws ${stats.calls}`);
+    if (stats) {
+      console.log("");
+      console.log(`size     ${(stats.size as number[]).map((v) => v.toFixed(3)).join(" × ")} m`);
+      console.log(`bounds   ${JSON.stringify(stats.min)} .. ${JSON.stringify(stats.max)}`);
+      console.log(`tris     ${stats.triangles}   meshes ${stats.meshes}   draws ${stats.calls}`);
+    }
+    console.log(`${written.length} file(s) written`);
+  } finally {
+    // This script owns the session: it opened the page, so it closes the browser. The dev loop
+    // calls it many times per pass, and a browser left per call is how a machine ends up with two
+    // hundred processes. A close failure must not hide the files that were already written.
+    try {
+      await ab(["close", "--session", s]);
+    } catch (error) {
+      console.warn(`warning: could not close session ${s}: ${String(error).slice(0, 160)}`);
+    }
   }
-  console.log(`${written.length} file(s) written`);
 }
 
 await main();

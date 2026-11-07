@@ -54,6 +54,10 @@ A scene is one directory under `scenes/<subject>/`. It holds three files, and no
 - Judge a body on its **binary silhouette**, not on a shaded render. `scripts/scene/compare_silhouette.py` overlays the two masks and prints the deltas in millimetres.
 - Serve with `bun run scripts/scene/serve.ts --scene scenes/<subject>`. It serves the scene and the `three` package, and pushes a reload on save. It also serves `/measure/`, the point picker, and `/repo/` for the reference images and their `dimensions.json`.
 - Drive the live page with `bun run scripts/scene/ctl.ts`: camera angle, projection, wireframe, node isolation, background, and one-shot captures. Editing `scene.js` to look from another angle is not a loop.
+- One browser, reused. `ctl.ts` talks to the single session `scene-ctl`; run `ctl.ts close` when the
+  pass ends. `shot.ts` opens its own session and closes it in a `finally`, so `check.ts` leaves no
+  process behind. A new `--session` name starts a new headless Chrome that outlives the command;
+  fourteen sessions and 238 processes accumulated that way during one refactor.
 - Every modelling pass ends with `bun run scripts/scene/check.ts`. It captures, overlays, measures, and checks the orientation.
 - Never compare a render to a reference without checking that both show the same flank. A mirrored silhouette still looks plausible.
 - Flat views use an orthographic camera. A perspective camera can never line up with an orthographic reference.

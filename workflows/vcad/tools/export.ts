@@ -11,7 +11,7 @@
 //
 // Usage, from the repository root:
 //
-//   bun run scripts/vcad-render/export.ts \
+//   bun run workflows/vcad/tools/export.ts \
 //     --document doc_4_1brZqzecRqL8VIur \
 //     --out blueprints/vehicules/r5-tl-1972/model/r5-L1-v2 \
 //     --views iso,front,left,back,right,top

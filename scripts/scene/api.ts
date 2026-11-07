@@ -297,8 +297,14 @@ async function model(root: string, sceneParam: string | null): Promise<Response>
   const file = Bun.file(path);
   if (!(await file.exists())) return reply({ ok: false, problems: [`missing model: ${modulePath}`] }, 404);
 
-  return new Response(file, {
-    headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store" },
+  // A redirect, not the bytes. The module may import its own neighbours -- `./body-hull.js` holds
+  // the traced sections -- and a relative specifier resolves against the module's final URL. Served
+  // from `/api/model`, every such import would look for `/api/body-hull.js` and fail with nothing
+  // on screen: the import rejects before any of the page's own error handling runs.
+  const target = `/${scene.dirRel}/${modulePath.replace(/^\.\//, "")}`;
+  return new Response(null, {
+    status: 302,
+    headers: { location: target, "cache-control": "no-store" },
   });
 }
 

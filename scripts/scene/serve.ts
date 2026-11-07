@@ -158,6 +158,17 @@ async function main(): Promise<void> {
         // by absolute path because the scene directory is not the root of the tree.
         const rest = url.pathname.slice("/viewer/".length);
         path = join(options.root, "viewer", rest === "" ? "index.html" : rest);
+      } else if (url.pathname.startsWith("/scenes/")) {
+        // A scene's own modules, at their real path, so `import "./body-hull.js"` resolves. Only
+        // JavaScript is served here: the scene directory also holds `baseline.json`, and a route
+        // that hands out every file under `scenes/` would serve it as if it were a module.
+        if (!url.pathname.endsWith(".js")) {
+          return new Response("only .js modules are served under /scenes/", { status: 403 });
+        }
+        path = join(options.root, decodeURIComponent(url.pathname));
+        if (!isInside(join(options.root, "scenes"), path)) {
+          return new Response("forbidden", { status: 403 });
+        }
       } else if (url.pathname.startsWith("/repo/")) {
         path = join(options.root, decodeURIComponent(url.pathname.slice("/repo/".length)));
       } else {

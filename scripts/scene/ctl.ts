@@ -29,7 +29,7 @@
 
 import { resolve } from "node:path";
 
-type Options = { url: string; session: string; argv: string[] };
+type Options = { url: string; session: string; scene: string | null; argv: string[] };
 
 function readOptions(argv: string[]): Options {
   const value = (name: string): string | null => {
@@ -40,7 +40,7 @@ function readOptions(argv: string[]): Options {
   // `--azimuth` belongs to `camera` and must not be eaten by the outer parser.
   const rest: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === "--url" || argv[i] === "--session") {
+    if (argv[i] === "--url" || argv[i] === "--session" || argv[i] === "--scene") {
       i += 1;
       continue;
     }
@@ -49,6 +49,7 @@ function readOptions(argv: string[]): Options {
   return {
     url: value("url") ?? "http://127.0.0.1:5180/",
     session: value("session") ?? "scene-ctl",
+    scene: value("scene"),
     argv: rest,
   };
 }
@@ -122,8 +123,13 @@ async function main(): Promise<void> {
   if (command === "open") {
     // --shot loads the capture page: white field, no ground, no grid, no HUD. A silhouette
     // comparison needs that, because a ground plane is a large light shape that reads as subject.
-    const query = rest.includes("--shot") ? "?shot=1" : "";
-    const url = `${options.url.replace(/\/$/, "")}/${query}`;
+    // `?scene=` is how the shared viewer picks its scene. Without it the server falls back to its
+    // own `--scene`, which is what a single-scene dev loop wants.
+    const query = new URLSearchParams();
+    if (rest.includes("--shot")) query.set("shot", "1");
+    if (options.scene) query.set("scene", options.scene);
+    const suffix = query.size > 0 ? `?${query.toString()}` : "";
+    const url = `${options.url.replace(/\/$/, "")}/${suffix}`;
     await ab(["open", url, "--session", session]);
     await waitForReady(session);
     console.log(`open  ${url}  (session ${session})`);

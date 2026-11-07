@@ -11,7 +11,8 @@ Status: in progress. This document describes the target architecture and the mig
 | 4 Measure | done, panel reads the API scale, 13 unit tests | this commit |
 | 5 Frame | done, six formulas, IoU within 0.001 | this commit |
 | 6 Stage | done, `scenes/*/scene.js` deleted, nine views pixel-identical | this commit |
-| 7 to 9 | planned | |
+| 7 Tools | done, `--scene`, closed on failure | this commit |
+| 8 to 9 | planned | |
 
 ## 1. Purpose
 

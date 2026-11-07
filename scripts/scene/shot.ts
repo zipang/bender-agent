@@ -8,12 +8,14 @@
 //
 //   bun run scripts/scene/shot.ts \
 //     --out blueprints/vehicules/r5-tl-1972/model \
-//     --prefix r5-L3
+//     --prefix r5-L3 \
+//     --scene scenes/r5-tl-1972
 //
 // It writes <out>/<prefix>-<view>.webp and prints the measured bounds and triangle count.
 //
-// The scene is not a parameter: the script talks to a page, and the page already is the scene.
-// Point it elsewhere with --url when the server runs on another port.
+// The page is shared, so the scene is a parameter: the script opens /?scene=<dir>, which the server
+// redirects to the viewer. Without --scene, the server's own --scene is used, which is what the
+// single-scene dev loop wants. Point it elsewhere with --url when the server runs on another port.
 
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -26,6 +28,7 @@ const VIEWS: string[] = Object.keys(VIEWS_TABLE.views);
 
 type Options = {
   url: string;
+  scene: string | null;
   out: string;
   prefix: string;
   views: string[];
@@ -56,6 +59,7 @@ function readOptions(argv: string[]): Options {
 
   return {
     url: value("url") ?? "http://127.0.0.1:5180/",
+    scene: value("scene"),
     out: resolve(value("out")!),
     prefix,
     views,
@@ -97,7 +101,12 @@ async function waitFor(script: string, session: string, label: string, tries = 4
     if (value === true) return;
     await Bun.sleep(150);
   }
-  throw new Error(`timed out waiting for ${label}`);
+  // A page that failed to load never becomes ready, and "timed out" alone sends the reader looking
+  // at the timing. The viewer records its reason in `window.__error`; quote it.
+  const reason = await evalJson("window.__error ?? null", session).catch(() => null);
+  throw new Error(
+    `timed out waiting for ${label}` + (reason ? `\n  the page reports: ${reason}` : ""),
+  );
 }
 
 async function main(): Promise<void> {
@@ -107,19 +116,25 @@ async function main(): Promise<void> {
   await rm(scratch, { recursive: true, force: true });
   await mkdir(scratch, { recursive: true });
 
-  const url = `${options.url.replace(/\/$/, "")}/?shot=1`;
+  // The scene travels in the query, because the page is shared. The server redirect keeps it, so the
+  // root URL stays the entry point and no script has to know the viewer's path.
+  const query = new URLSearchParams({ shot: "1" });
+  if (options.scene) query.set("scene", options.scene);
+  const url = `${options.url.replace(/\/$/, "")}/?${query.toString()}`;
   const s = options.session;
-
-  // One page, reused for every view: the scene builds once.
-  await ab(["open", url, "--session", s]);
-  // Device scale 1 keeps the screenshot at the CSS size, which the references match.
-  await ab(["set", "viewport", String(options.width), String(options.height), "1", "--session", s]);
-  await waitFor("window.__ready === true", s, "the first frame");
 
   const written: string[] = [];
   let stats: Record<string, unknown> | null = null;
 
+  // The browser is closed from here on, including the case where the page never loads. A scene that
+  // fails to load is the most likely failure, so the guard must start before the first request.
   try {
+    // One page, reused for every view: the scene builds once.
+    await ab(["open", url, "--session", s]);
+    // Device scale 1 keeps the screenshot at the CSS size, which the references match.
+    await ab(["set", "viewport", String(options.width), String(options.height), "1", "--session", s]);
+    await waitFor("window.__ready === true", s, "the first frame");
+
     for (const view of options.views) {
       await evalJson(`window.__setView(${JSON.stringify(view)}).then(() => true)`, s);
       const pngPath = `${scratch}/${view}.png`;

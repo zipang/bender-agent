@@ -16,11 +16,12 @@
 //
 // Exit code 1 when the model is outside the tolerance, so a loop can gate on it.
 
-import { mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { mkdir, readdir } from "node:fs/promises";
+import { join, relative, resolve } from "node:path";
 
 type Options = {
   subject: string;
+  scene: string | null;
   prefix: string;
   views: string[];
   out: string;
@@ -40,6 +41,7 @@ function readOptions(argv: string[]): Options {
   if (!prefix) throw new Error("--prefix <name> is required, for example r5-L3");
   return {
     subject: resolve(subject),
+    scene: value("scene"),
     prefix,
     views: (value("views") ?? "left,right,front,back,top").split(",").map((v) => v.trim()).filter(Boolean),
     out: resolve(value("out") ?? `${subject}/model`),
@@ -47,6 +49,28 @@ function readOptions(argv: string[]): Options {
     skipShot: argv.includes("--no-shot"),
     port: Number(value("port") ?? 5180),
   };
+}
+
+/** The scene directory whose scene.json names this subject. */
+async function findScene(root: string, subject: string): Promise<string | null> {
+  const wanted = relative(root, subject);
+  let names: string[] = [];
+  try {
+    names = await readdir(join(root, "scenes"), { withFileTypes: true }).then((list) =>
+      list.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+    );
+  } catch {
+    return null;
+  }
+  for (const name of names.sort()) {
+    const file = Bun.file(join(root, "scenes", name, "scene.json"));
+    if (!(await file.exists())) continue;
+    const manifest = await file.json().catch(() => null);
+    if (manifest?.subject && relative(root, resolve(root, manifest.subject)) === wanted) {
+      return `scenes/${name}`;
+    }
+  }
+  return null;
 }
 
 async function run(cmd: string[], label: string): Promise<string> {
@@ -113,18 +137,29 @@ async function main(): Promise<void> {
 
   // 1. Capture. One page, every view, WebP on disk.
   if (!options.skipShot) {
+    // The page is shared, so the capture names the scene. `--scene` wins; otherwise the scene whose
+    // `scene.json` claims this subject. A subject without a scene is an error, not a silent
+    // capture of whichever scene the server happened to start with.
+    const scene = options.scene ?? (await findScene(root, options.subject));
+    if (!scene) {
+      throw new Error(
+        `no scene under scenes/ has subject "${relative(root, options.subject)}". ` +
+          `Add one, or pass --scene.`,
+      );
+    }
     // The capture list comes from the shared view table. A view is captured when the caller asked
     // for it, or when it is a perspective view: those are the ones that judge a mass, so a pass
     // always wants them, and no list here has to be kept in step with the page.
     const table = await Bun.file(join(root, "viewer/views.json")).json();
-    const scene = Object.entries(table.views as Record<string, { perspective?: boolean }>)
+    const capture = Object.entries(table.views as Record<string, { perspective?: boolean }>)
       .filter(([name, view]) => options.views.includes(name) || view.perspective)
       .map(([name]) => name);
     await run([
       "bun", "run", `${root}/scripts/scene/shot.ts`,
       "--out", options.out,
       "--prefix", options.prefix,
-      "--views", scene.join(","),
+      "--views", capture.join(","),
+      "--scene", scene,
       "--url", `http://127.0.0.1:${options.port}/`,
     ], "capture");
   }

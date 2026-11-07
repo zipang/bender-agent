@@ -137,10 +137,14 @@ async function main(): Promise<void> {
       } else if (url.pathname.startsWith("/measure/")) {
         path = join(options.root, "scripts/measure", url.pathname.slice("/measure/".length));
       } else if (url.pathname === "/") {
-        // One page serves every scene. The redirect keeps `?shot=1` and `?view=...` that a capture
-        // appends to `/`, so ctl.ts and shot.ts still open the root URL and get the right scene.
+        // One page serves every scene. The redirect keeps `?shot=1`, `?view=...` and an explicit
+        // `?scene=` that a caller passed, so ctl.ts and shot.ts open the root URL and get the scene
+        // they named. Without a name, the server's own `--scene` is the default.
+        //
+        // `set` here would clobber a caller's choice, and a capture would silently record the
+        // server's scene instead of the one it was told to record.
         const target = new URLSearchParams(url.searchParams);
-        target.set("scene", relative(options.root, options.scene));
+        if (!target.has("scene")) target.set("scene", relative(options.root, options.scene));
         return new Response(null, {
           status: 302,
           headers: { location: `/viewer/?${target.toString()}` },

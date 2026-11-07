@@ -37,6 +37,15 @@ function reply(body: unknown, status = 200): Response {
   });
 }
 
+/** A scene name, a repository path, or the legacy `scenes/<name>`, in one place. */
+function resolveScene(requested: string): string {
+  const legacy = `scenes/`;
+  if (requested.startsWith(legacy) && !requested.startsWith(toRepoPath(SCENES))) {
+    return join(SCENES, requested.slice(legacy.length));
+  }
+  return requested.includes("/") ? resolve(ROOT, requested) : join(SCENES, requested);
+}
+
 async function readJson<T = Json>(path: string): Promise<T | null> {
   const file = Bun.file(path);
   if (!(await file.exists())) return null;
@@ -75,16 +84,25 @@ async function loadScene(
   root: string,
   requested: string,
 ): Promise<{ scene?: Scene; problems: string[]; status?: number }> {
-  // Two forms are accepted, because two callers exist. A human types a bare directory name --
-  // `?scene=r5-tl-1972` -- and a tool passes the path it read from this API, which is relative to
-  // the repository root: `?scene=workflows/threejs/scenes/r5-tl-1972`. A bare name resolves against
-  // the workflow's own scenes folder, and that is the only folder a scene can live in.
-  const dirAbs = requested.includes("/")
-    ? resolve(ROOT, requested)
-    : join(SCENES, requested);
+  // Three forms are accepted, and each one has a caller:
+  //
+  //   r5-tl-1972                              a human typing a name
+  //   workflows/threejs/scenes/r5-tl-1972      a tool passing back a path this API published
+  //   scenes/r5-tl-1972                       a bookmark, from when this project published it
+  //
+  // The third is a legacy form and it is kept on purpose. A bookmark is not a typo, and a URL that
+  // the project itself printed for months must not become an error because a folder moved. The fix
+  // for the move is done everywhere else; this one line is cheaper than the confusion.
+  const dirAbs = resolveScene(requested);
 
   if (!isInside(SCENES, dirAbs)) {
-    return { problems: [`scene resolves outside ${toRepoPath(SCENES)}/: ${requested}`], status: 403 };
+    return {
+      problems: [
+        `scene resolves outside ${toRepoPath(SCENES)}/: ${requested}. ` +
+          `Name it as ${toRepoPath(SCENES)}/<name>, or as a bare <name>.`,
+      ],
+      status: 403,
+    };
   }
 
   const manifest = await readJson(join(dirAbs, "scene.json"));

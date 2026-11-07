@@ -50,9 +50,14 @@ function readOptions(argv: string[]): Options {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("--port must be an integer between 1 and 65535");
   }
-  // A bare name, or a path from the repository root. The two forms are what the API publishes and
-  // what a human types, and nothing else: a third spelling is a third thing to keep in step.
-  const scene = requested.includes("/") ? resolve(ROOT, requested) : join(SCENES, requested);
+  // The same three forms the API accepts, because the two must never disagree: a bare name, the
+  // path this project publishes, and the legacy `scenes/<name>` that an old command line still has.
+  const legacy = "scenes/";
+  const scene = requested.startsWith(legacy)
+    ? join(SCENES, requested.slice(legacy.length))
+    : requested.includes("/")
+      ? resolve(ROOT, requested)
+      : join(SCENES, requested);
   if (!isInside(SCENES, scene)) {
     throw new Error(`--scene must name a directory under ${relative(ROOT, SCENES)}`);
   }

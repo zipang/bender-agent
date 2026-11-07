@@ -432,7 +432,9 @@
           points: Object.fromEntries(order.map((name) => [name, points[name]])),
           measurements,
         };
-        const response = await fetch("/measure/save", {
+        // One write route, one guard. The old /measure/save is gone with the static route it lived
+        // beside; the API validates the subject and refuses a path outside blueprints/.
+        const response = await fetch("/api/measure", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ subject, document: document_ }),

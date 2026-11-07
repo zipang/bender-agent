@@ -1,7 +1,13 @@
 # Viewer refactor plan
 
-Status: planned. This document describes the target architecture and the migration order. It does
-not describe work that is already done, except where a step names the baseline file.
+Status: in progress. This document describes the target architecture and the migration order.
+
+| Step | State | Commit |
+| :--- | :--- | :--- |
+| 0 Baseline | done | `bf338a2` |
+| 1 View table | done, all eight views byte-identical | `4e39375` |
+| 2 API | done, five endpoints, guards tested | this commit |
+| 3 to 9 | planned | |
 
 ## 1. Purpose
 

@@ -15,12 +15,14 @@
 //   /vendor/three/addons/*   node_modules/three/examples/jsm/*   (import map target)
 //   /__reload                server-sent events, one message per file change
 //   /measure/                the point picker, for measuring reference images
-//   /measure/save            POST the picked points, written to the subject folder
+//   /api/*                   the scene API: scene document, assets, model, measurements
+//   /viewer/*                shared viewer assets, including views.json
 //   /repo/*                  any file under the repository root (reference images)
 //   /*                       any file under the scene directory
 
-import { watch } from "node:fs";
+import { watch, type FSWatcher } from "node:fs";
 import { resolve, join, relative, sep } from "node:path";
+import { handleApi } from "./api";
 
 type Options = { scene: string; port: number; root: string };
 
@@ -79,6 +81,24 @@ async function main(): Promise<void> {
   watch(join(options.root, "viewer"), { recursive: true }, (_event, filename) =>
     reload(filename ? `viewer/${filename}` : null));
 
+  // The third directory is the subject of the scene that is open. The server learns it from the
+  // API, because the scene is chosen by the browser in the URL and the server never parses that.
+  // Without this watch, editing cropped/left.png or dimensions.json leaves a stale page, which is
+  // the one case where a reload is genuinely required.
+  let subjectWatcher: FSWatcher | null = null;
+  let subjectDir: string | null = null;
+  function watchSubject(absolute: string): void {
+    if (absolute === subjectDir) return;
+    subjectWatcher?.close();
+    subjectDir = absolute;
+    try {
+      subjectWatcher = watch(absolute, { recursive: true }, (_event, filename) =>
+        reload(filename ? `subject/${filename}` : null));
+    } catch {
+      subjectWatcher = null; // the subject may be only partly promoted
+    }
+  }
+
   const server = Bun.serve({
     port: options.port,
     development: true,
@@ -86,6 +106,11 @@ async function main(): Promise<void> {
     async fetch(request) {
       const url = new URL(request.url);
       let path: string;
+
+      // The scene API answers first: it is the only supported way for the viewer to load data.
+      // A null return means the request is not for /api/, and the static routes below take it.
+      const api = await handleApi(request, { root: options.root, onSubject: watchSubject });
+      if (api) return api;
 
       if (url.pathname === "/__reload") {
         const stream = new ReadableStream<Uint8Array>({
@@ -106,24 +131,6 @@ async function main(): Promise<void> {
         });
       }
 
-      // The save route must be tested before the /measure/ prefix, or the prefix serves it as a
-      // static file and answers 404.
-      if (url.pathname === "/measure/save" && request.method === "POST") {
-        // The picker cannot write files. It posts the document here, and the server puts it in the
-        // subject folder under the name the strategy expects.
-        const body = (await request.json()) as { subject?: string; document?: unknown };
-        if (!body.subject || !body.document) {
-          return new Response("expected { subject, document }", { status: 400 });
-        }
-        const target = join(options.root, body.subject, "measurements.json");
-        if (!isInside(join(options.root, "blueprints"), target)) {
-          return new Response("forbidden: subject must live under blueprints/", { status: 403 });
-        }
-        await Bun.write(target, JSON.stringify(body.document, null, 2) + "\n");
-        return new Response(JSON.stringify({ written: relative(options.root, target) }), {
-          headers: { "content-type": "application/json" },
-        });
-      }
       if (url.pathname === "/measure" || url.pathname === "/measure/") {
         path = join(options.root, "scripts/measure/index.html");
       } else if (url.pathname.startsWith("/measure/")) {

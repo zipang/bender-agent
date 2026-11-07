@@ -195,7 +195,7 @@ every step, so a failure is visible at once.
 | # | Step | Content |
 | :--- | :--- | :--- |
 | 0 | Inventory | Record the scene list, the view table hash, and one capture per named view as the baseline. Gate: the baseline renders and the IoU is recorded. **Done.** `tickets/reorg-baseline.json` holds the nine sha256, the model numbers, the five IoU values, the five API answers, and the four guards. |
-| 1 | Workflow folders | Create `workflows/threejs`, `workflows/blender`, `workflows/vcad` with an empty `README.md` and `AGENTS.md` each. Gate: nothing else changes, and the server still runs. |
+| 1 | Workflow folders | Create `workflows/threejs`, `workflows/blender`, `workflows/vcad` with an empty `README.md` and `AGENTS.md` each. Gate: nothing else changes, and the server still runs. **Done.** The documents were placeholders that named step 5, so an empty heading could not pass for a finished document. |
 | 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. **Done.** Thirty-four pure renames, 0 insertions, 0 deletions. |
 | 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. **Done.** `tools/paths.ts` holds the root once. Nine views identical, five IoU identical, `bun run check` runs end to end. |
 | 4 | URL and API | Add the `/scene/` route, keep `/viewer/`, update the scene id and the client message. Gate: a scene module with a relative import loads, `baseline.json` stays unserved, and the API document reports the new paths. **Done**, and shipped inside the same commit as step 3: a route and its guard cannot be separated from the ids that feed it. `/scene/` became the real path, for the reason in section 4.2. |
@@ -206,13 +206,13 @@ every step, so a failure is visible at once.
 
 | Gate | Check |
 | :--- | :--- |
-| Scene identity | `size`, `triangles`, `target`, `deviation` unchanged after the move |
-| Capture | Nine views byte-identical to the step-0 baseline |
-| Silhouette | IoU identical to the step-0 values |
-| API | `/api/scene`, `/api/asset`, `/api/model`, `/api/scenes`, `POST /api/measure` all answer |
-| Guards | A scene outside the workflow folder is 403, a missing one is 404, and a traversal is 403 |
-| Documents | No document quotes a command that does not run |
-| No stray folder | The root holds no workflow-specific folder after step 2 |
+| Scene identity | `size`, `triangles`, `target`, `deviation` unchanged after the move. **Measured:** 3521 x 1505 x 1180 mm and 51,300 triangles on all nine views, with `deviation` at length 0, height -5, width -20, sill 215. |
+| Capture | Nine views byte-identical to the step-0 baseline. **Measured** on the last pass: 9 of 9 sha256 equal. |
+| Silhouette | IoU identical to the step-0 values. **Measured:** left 0.940, front 0.855, back 0.915, top 0.936, bottom 0.935. |
+| API | `/api/scene`, `/api/asset`, `/api/model`, `/api/scenes`, `POST /api/measure` all answer. **Measured with a scratch subject**, `blueprints/objects/_probe`, then removed: the endpoint writes into the subject it names, and probing it with the R5 overwrote `measurements.json` during step 0. |
+| Guards | **What shipped:** a name that matches no scene is 404. A path is refused with 400 *before* it is resolved, so `scenes/<name>`, `workflows/...` and `../..` all answer 400 with a message that names the accepted form. A non-module file under a scene folder is 403. **What was planned** was 403 for the outside and the traversal; both are moot once a path is not a name, and 400 is the honest code for a malformed request. The baseline recorded the pre-move 403, and section 4.1 says why the form changed. |
+| Documents | No document quotes a command that does not run. **Measured** by extracting every `bun run <path>.ts` and `python3 <path>.py` from the documents and testing each path. Two cases are not paths and were read by hand: a command that follows a `cd`, and a command inside the workflow that resolves against `scripts/blueprint-generate/`. |
+| No stray folder | The root holds no workflow-specific folder after step 2. **Measured:** `scenes/`, `viewer/`, `scripts/scene/` and `scripts/vcad-render/` are all absent from the root. |
 
 ### 5.2 What the move must not do
 
@@ -253,6 +253,9 @@ The two research documents keep their old paths on purpose. They record a state 
 note at the top says so. Rewriting their paths would make a record claim to describe today.
 
 ## 8. Open points
+
+These are **out of scope** for this ticket, and each one was left out on purpose. The ticket closes
+with them open, and none of them is a gate.
 
 - A workflow selector in the page. It needs the server to know more than one workflow, which is a
   feature, not a move.

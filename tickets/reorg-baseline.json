@@ -1,0 +1,333 @@
+{
+  "note": "Frozen at revision 2977f58, before the workflow reorganisation. The nine captures are the gate: after each step of the move they must be byte-identical on the same machine, from the same command. The images stay in /tmp/opencode/reorg-baseline/ and are not committed.",
+  "revision": "2977f58",
+  "command": "bun run scripts/scene/ctl.ts open --shot --scene scenes/r5-tl-1972 --url http://127.0.0.1:5180/ ; ctl.ts shot <file> --view <name> x9 ; ctl.ts close",
+  "view_table": {
+    "path": "viewer/views.json",
+    "sha256": "ae930c31c9da35b9e52038bda826bd7acfcfe1a31b62c3c9e248be380f8ba2a1"
+  },
+  "scene": {
+    "id": "r5-tl-1972",
+    "dir": "scenes/r5-tl-1972",
+    "subject": "blueprints/vehicules/r5-tl-1972"
+  },
+  "views": {
+    "back": {
+      "sha256": "5a36cb77029e910f99655c16713d49f1f0929c15f45f0bf3c22a75df0d80e04e",
+      "bytes": 4714,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "back",
+      "frame": {
+        "azimuth": 270,
+        "elevation": 0,
+        "mmPerPx": 7.627816291161179,
+        "orthoHeight": 4.40125,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "bottom": {
+      "sha256": "b6780cf807ab71d5ed55bb026dee55b6f8c82aa3fe9d306c408d124bb1ea6b6b",
+      "bytes": 5348,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "bottom",
+      "frame": {
+        "azimuth": 90,
+        "elevation": -89.99,
+        "mmPerPx": 7.627816291161179,
+        "orthoHeight": 4.40125,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "front-3q": {
+      "sha256": "4fd02188ea4bc96b8674f6f18cb06474dbbc18975a9876257b7f7d2b905510d1",
+      "bytes": 9724,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "front-3q",
+      "frame": {
+        "azimuth": 60,
+        "elevation": 30,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "front": {
+      "sha256": "53c143e07f1d46503168fbdcb70e2c7a2891c3b2500329e7638419f9dd4d1f43",
+      "bytes": 4924,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "front",
+      "frame": {
+        "azimuth": 90,
+        "elevation": 0,
+        "mmPerPx": 7.627816291161179,
+        "orthoHeight": 4.40125,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "iso": {
+      "sha256": "4307260da8d6c0d94633e05e942faef7399d75229ffa877210bd6b15ee91335a",
+      "bytes": 11502,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "iso",
+      "frame": {
+        "azimuth": 40,
+        "elevation": 22,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "left": {
+      "sha256": "a5889c6c795eb6c96bbf6ff2dde31f74331e6df6256e484742d377c299759ea4",
+      "bytes": 6190,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "left",
+      "frame": {
+        "azimuth": 0,
+        "elevation": 0,
+        "mmPerPx": 7.627816291161179,
+        "orthoHeight": 4.40125,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "rear-3q": {
+      "sha256": "090151d0d84108839c1421ef1ce75368a9a7abd6538ba9ec6e41fcfcf94d36e1",
+      "bytes": 10888,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "rear-3q",
+      "frame": {
+        "azimuth": 240,
+        "elevation": 30,
+        "mmPerPx": null,
+        "orthoHeight": null,
+        "perspective": true,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "right": {
+      "sha256": "9b1335a53b67becc5cd8a47f46fff0edb8af3861034abdccdcd7cd66d8fbba63",
+      "bytes": 6348,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "right",
+      "frame": {
+        "azimuth": 180,
+        "elevation": 0,
+        "mmPerPx": 7.627816291161179,
+        "orthoHeight": 4.40125,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    },
+    "top": {
+      "sha256": "2da2664ab385cd85269c779548012d6db034bbe0be341a956289b05165741699",
+      "bytes": 6338,
+      "size_mm": [
+        1505,
+        1180,
+        3521
+      ],
+      "triangles": 51300,
+      "meshes": 1,
+      "view": "top",
+      "frame": {
+        "azimuth": 90,
+        "elevation": 89.99,
+        "mmPerPx": 7.627816291161179,
+        "orthoHeight": 4.40125,
+        "perspective": false,
+        "target": [
+          0,
+          0.7,
+          0
+        ],
+        "viewport": [
+          1280,
+          577
+        ]
+      }
+    }
+  },
+  "silhouette": {
+    "note": "compare_silhouette.py, binary mask IoU against the reference plate",
+    "iou": {
+      "left": 0.94,
+      "front": 0.855,
+      "back": 0.915,
+      "top": 0.936,
+      "bottom": 0.935
+    },
+    "tolerance": 0.005
+  },
+  "api": {
+    "note": "The five endpoints the move must keep answering. Recorded as status and the fields that name a path.",
+    "scene": {
+      "status": 200,
+      "scene.dir": "scenes/r5-tl-1972",
+      "model": "/api/model?scene=scenes%2Fr5-tl-1972"
+    },
+    "scenes": {
+      "status": 200,
+      "ids": [
+        "blue-and-white-minivan-01",
+        "r5-tl-1972"
+      ]
+    },
+    "asset": {
+      "status": 400,
+      "requires": [
+        "scene",
+        "view"
+      ]
+    },
+    "model": {
+      "status": 302,
+      "redirect": "/scenes/r5-tl-1972/model.js"
+    },
+    "measure": {
+      "status": 200,
+      "writes": "blueprints/<category>/<subject>/measurements.json"
+    }
+  },
+  "guards": {
+    "note": "Measured before the move. The move must not change one of them.",
+    "traversal": {
+      "request": "/api/scene?scene=scenes%2F..%2F..%2Fetc",
+      "status": 403
+    },
+    "missing": {
+      "request": "/api/scene?scene=scenes%2Fnope",
+      "status": 404
+    },
+    "outside": {
+      "request": "/api/scene?scene=blueprints%2Fvehicules%2Fr5-tl-1972",
+      "status": 404,
+      "note": "404 today because the folder holds no scene.json. It must stay refused."
+    },
+    "scene_module": {
+      "request": "/scenes/r5-tl-1972/model.js",
+      "status": 200
+    },
+    "scene_non_js": {
+      "request": "/scenes/r5-tl-1972/baseline.json",
+      "status": 403
+    }
+  }
+}

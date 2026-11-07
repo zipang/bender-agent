@@ -5,7 +5,7 @@ three modelling workflows its own documentation and its own tools. No step is do
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
-| 0 Inventory | planned | |
+| 0 Inventory | done | 2977f58 |
 | 1 Workflow folders | planned | |
 | 2 Three.js move | planned | |
 | 3 Path repair | planned | |
@@ -178,7 +178,7 @@ every step, so a failure is visible at once.
 
 | # | Step | Content |
 | :--- | :--- | :--- |
-| 0 | Inventory | Record the scene list, the view table hash, and one capture per named view as the baseline. Gate: the baseline renders and the IoU is recorded. |
+| 0 | Inventory | Record the scene list, the view table hash, and one capture per named view as the baseline. Gate: the baseline renders and the IoU is recorded. **Done.** `tickets/reorg-baseline.json` holds the nine sha256, the model numbers, the five IoU values, the five API answers, and the four guards. |
 | 1 | Workflow folders | Create `workflows/threejs`, `workflows/blender`, `workflows/vcad` with an empty `README.md` and `AGENTS.md` each. Gate: nothing else changes, and the server still runs. |
 | 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. |
 | 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. |

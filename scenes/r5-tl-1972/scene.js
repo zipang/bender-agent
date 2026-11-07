@@ -14,6 +14,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildBody, measure, target, deviation } from "./model.js";
 import { loadScene, realMetres, referenceScale, showFailure } from "/viewer/api.js";
+import {
+  axesOf, betweenPoints, imageScaleMm, mmPerScreenPx as screenMmPerPx, panelLines, readPoint,
+} from "/viewer/measure.js";
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get("shot") === "1";
@@ -302,7 +305,10 @@ async function showPlate(view) {
   // Detach, never dispose. The cached mesh is reused on every later call, so releasing its GPU
   // buffers here leaves a plate that loads, parenting cleanly, and draws nothing at all.
   for (const child of [...plates.children]) plates.remove(child);
-  if (!view) return null;
+  if (!view) {
+    pcbRender(); // no plate: the panel must stop quoting the last view's scale
+    return null;
+  }
 
   let mesh = calque.loaded.get(view);
   if (!mesh) {
@@ -313,6 +319,10 @@ async function showPlate(view) {
   mesh.material.depthWrite = calque.depth === "behind";
   mesh.material.depthTest = calque.depth === "behind";
   plates.add(mesh);
+  // The panel quotes the reference scale of the plate that is showing. A plate swap without a
+  // refresh leaves the previous view's number on screen, which reads as "this view's scale" and
+  // is exactly the kind of stale constant the module was written to remove.
+  pcbRender();
   return mesh;
 }
 
@@ -350,8 +360,10 @@ function syncPlate() {
 //
 // The honest limit is not the unit, it is the SCREEN. A click resolves to one screen pixel, and the
 // subject covers as many screen pixels as the current zoom gives it. So the panel always prints the
-// current millimetres per screen pixel: trace at a zoom where that number is close to the image's
-// own scale (2.8 mm/px on the left view), or the tool will be coarser than the picture it shows.
+// current millimetres per screen pixel, next to the reference image's own scale, which it reads
+// from the API document. Trace at a zoom where the two agree, or the tool is coarser than the
+// picture it shows. The image's scale used to be the constant 2.8 in this comment: correct for one
+// view of one subject, wrong everywhere else.
 
 const measurement = {
   active: false,
@@ -365,14 +377,16 @@ function viewOfPlate() {
   return plates.children[0]?.userData.view ?? null;
 }
 
-// Millimetres of world per screen pixel, at the depth the camera is aimed at. For an orthographic
-// camera this is exact everywhere; for a perspective one it is the value at the target.
+// Millimetres of world per screen pixel. The arithmetic is in `viewer/measure.js`, so it can be
+// checked without a browser; this wrapper only gathers the camera state it needs.
 function mmPerScreenPx() {
-  const height = renderer.domElement.height;
-  if (!state.perspective) return (state.orthoHeight * 1000) / height;
-  const distance = state.distance;
-  const worldHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(state.fov) / 2);
-  return (worldHeight * 1000) / height;
+  return screenMmPerPx({
+    perspective: state.perspective,
+    orthoHeight: state.orthoHeight,
+    distance: state.distance,
+    fov: state.fov,
+    height: renderer.domElement.height,
+  });
 }
 
 // Pick at a normalised device coordinate -- (-1,-1) is the bottom left, (1,1) the top right -- so a
@@ -405,17 +419,12 @@ function pickAt(nx, ny, source) {
 }
 
 function measureRecord(point) {
-  const axes = point.view ? VIEWS[point.view].axes.split("") : ["x", "y"];
-  const [a, b] = axes;
-  const value = (p, axis) => ({ x: p[0], y: p[1], z: p[2] })[axis] * 1000;
+  const axes = axesOf(point.view ? VIEWS[point.view] : null);
   return {
     ...point,
     mmPerPx: Number(mmPerScreenPx().toFixed(3)),
     axes,
-    read: {
-      [a]: Number(value(point.world, a).toFixed(1)),
-      [b]: Number(value(point.world, b).toFixed(1)),
-    },
+    read: readPoint(point.world, axes),
   };
 }
 
@@ -433,16 +442,10 @@ function measureBetween(i, j) {
   const a = measurement.points[i];
   const b = measurement.points[j];
   if (!a || !b) return null;
-  const d = [b.world[0] - a.world[0], b.world[1] - a.world[1], b.world[2] - a.world[2]];
-  const axes = a.axes ?? ["x", "y"];
   return {
     from: i,
     to: j,
-    axes,
-    delta_mm: Object.fromEntries(axes.map((axis, k) => [
-      axis, Number((d[["x", "y", "z"].indexOf(axis)] * 1000).toFixed(1)),
-    ])),
-    length_mm: Number((Math.hypot(...d) * 1000).toFixed(1)),
+    ...betweenPoints(a.world, b.world, a.axes ?? ["x", "y"]),
   };
 }
 
@@ -467,21 +470,20 @@ function pcbRender() {
     return;
   }
   pcb.style.display = "block";
-  const lines = [
-    `measure  ${measurement.active ? "click to place a point, shift-click to pick the model" : "idle"}`,
-    `precision ${mmPerScreenPx().toFixed(2)} mm per screen px  (the image itself is 2.8 on left)`,
-  ];
-  measurement.points.forEach((p, i) => {
-    const [a, b] = p.axes;
-    lines.push(`  ${String(i + 1).padStart(2)}  ${a.toUpperCase()} ${String(p.read[a]).padStart(7)} mm   ` +
-               `${b.toUpperCase()} ${String(p.read[b]).padStart(7)} mm   ${p.source}`);
-  });
-  if (measurement.points.length >= 2) {
-    const last = measureBetween(measurement.points.length - 2, measurement.points.length - 1);
-    const parts = Object.entries(last.delta_mm).map(([k, v]) => `d${k.toUpperCase()} ${v >= 0 ? "+" : ""}${v}`);
-    lines.push(`  delta  ${parts.join("   ")}   length ${last.length_mm} mm`);
-  }
-  pcb.textContent = lines.join("\n");
+  // The reference scale is read from the open document for the plate that is showing. When no
+  // plate is shown, the panel says so instead of quoting a number that belongs to another view.
+  const plateView = viewOfPlate();
+  const between = measurement.points.length >= 2
+    ? measureBetween(measurement.points.length - 2, measurement.points.length - 1)
+    : null;
+  pcb.textContent = panelLines({
+    active: measurement.active,
+    mmPerPx: mmPerScreenPx(),
+    imageKx: plateView ? imageScaleMm(calque.document, plateView) : null,
+    imageView: plateView,
+    points: measurement.points,
+    between,
+  }).join("\n");
 }
 
 function measureOn() {

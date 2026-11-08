@@ -5,7 +5,7 @@ Status: in progress. Step 0 is done, and steps 1 to 7 are planned.
 | Step | State | Commit |
 | :--- | :--- | :--- |
 | 0 Baseline | done | `tickets/baseline-contour.json` |
-| 1 Subpixel edge | planned | |
+| 1 Subpixel edge | attempted, reverted. See §6.3 | — |
 | 2 Float opening | planned | |
 | 3 Path | planned | |
 | 4 Contact sheet | planned | |
@@ -430,12 +430,49 @@ No step starts before the previous step passes its gate.
 | Silhouette | IoU on `left`, `front`, `back`, `top`, `bottom` within 0.005 of the step 0 values |
 | Path | Deviation at or under the tolerance, on all six views, printed by the tool |
 | Point count | `bezier` on `left` under 120 segments, from 2494 points today |
+| Edge identity | A step that locates an edge more precisely must return the same edge. The contour bounding box on every view stays within one pixel of the previous step, and a shift beyond that is a change of definition, not a refinement |
 | No staircase | On a shaded three-quarter view, the meeting line of the two profiles is a straight run, with no tread of one lattice cell. This is read on the render, not on the contour |
 | Lattice | The station count is below the baseline of 177, and the tool prints it |
 | Triangle count | Below 50 percent of the 51,300 baseline. A count that does not fall means the tolerance is doing nothing, and the step has failed |
 | Layers | The picture, the contour, and the model superpose on one plane, and each of the three switches alone |
 | Documents | `workflows/threejs/README.md` names the command and the output of every script in the workflow |
 | Parameter choice | The pitch and the tolerance come from a rendered contact sheet that shows the surface, and the chosen cell is written in this plan |
+
+### 6.3 Step 1, attempted and reverted
+
+Step 1 was implemented as designed: `crossing()` interpolates the profile, and the level is half of
+the local plateau. The gate failed, and the failure was instructive.
+
+**What was measured.** The byte cut sat at coverage 0.035, which is the first pixel with any ink.
+Half the local plateau landed about 2 pixels further in, and up to 5.5 pixels on `top`. The hull lost
+40 mm of length and 40 mm of width. Raising the floor of the level brought the length back to
+3521 mm, and the outline then looked correct on `left` and `front`.
+
+**Why it was still wrong, and this is the part that matters.** A profile through the flank of `top`
+reads:
+
+```text
+coverage   0.00  0.02  0.11  0.40  0.39  0.38  0.38  0.38  0.56  0.94  0.94 ...
+                         ^                   ^                    ^
+                    the old cut      the band, 5 px wide      the paint
+```
+
+The generated art has a soft band about 5 pixels wide at coverage 0.4 between the field and the
+paint at 0.94. Half the plateau is 0.47, the band never reaches it, and the walk jumps over the whole
+band to land on the paint. The outline then cuts into the body.
+
+So the defect was not the threshold value. It was that the step **changed the definition of the
+edge** while it claimed only to locate it more precisely. Two changes in one pass, and the second one
+was invisible until it was measured on the surface.
+
+**The rule that comes out of it.** Step 1 must keep the edge that the byte cut found, and only
+locate it between two pixels. The level stays at the value that already reproduced the drawn outline,
+and the interpolation refines that crossing. A step that improves the position of an edge must not
+also redefine which edge it is.
+
+**What is reverted.** `crossing()` and its caller are gone. `body-hull.js` is byte-identical to the
+step 0 baseline, and the five captures are identical to it. The ticket keeps this section because the
+mistake is cheap to repeat, and the profile above is what detects it.
 
 ### 6.2 The step 0 baseline, measured
 
@@ -466,6 +503,7 @@ implementation, not a promise about the shape.
 | A witness that disagrees everywhere | the witness used the raw mask | the witness gets the same mask and the same opening |
 | A bezier that misses the trace | the fit was trusted, not measured | print the maximum deviation and gate on it |
 | A staircase that comes back | the hull re-sampled the photograph | the hull reads the path, and the station count is printed |
+| A smoother edge that cuts into the body | the threshold changed which edge it found | a refinement keeps the edge and moves it between two pixels. Measure the profile before choosing a level |
 | A plate that draws nothing | the plate sat under the ground disc | a plan view is placed by height, not by depth |
 | A document that describes an older tool | the doc was written once | the same commit updates the documents |
 

@@ -60,6 +60,13 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
   claim about the algorithm.
 - Choose a tolerance on a rendered contact sheet, never from a table.
 - A step that moves an edge must not also redefine **which** edge it is.
+- Judge a contour against the volume it produces, not against itself. The `volume` layer rebuilds
+  the intersection of the three paths, so a simplification is measured on the surface it changes.
+- A used view agrees with its own contour by construction. **The witness views are the
+  measurement.** Never report a contour result from `left`, `back` and `top` alone.
+- One function places a view: `viewer/plate.js`. The plate and the extruded prism read it, so the
+  picture and the volume cannot drift by the crop margin.
+- One function flattens a path: `viewer/path.js`. A second flattening is a second outline.
 
 ## Evidence rules
 

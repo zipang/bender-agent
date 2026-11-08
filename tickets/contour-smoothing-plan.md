@@ -11,7 +11,7 @@ open defect.
 | 2 Float opening | not done. The 1-D opening stays for the hull: a 2-D disc costs 80 mm of length | — |
 | 3 Path | **done.** See §6.5 | this commit |
 | 4 Contact sheet | **done.** See §6.5, `/tmp/opencode/sheet-tolerance.png` | this commit |
-| 5 Hull from the path | not done. The hull still reads the photograph | — |
+| 5 Hull from the path | partly. The page builds the volume from the paths; the offline hull still reads the photograph. See §6.7 | this commit |
 | 6 Viewer | **done.** `calque --mode poly|bezier` | this commit |
 | 7 Documentation | **done.** `workflows/threejs/README.md` §5.1, `AGENTS.md` "Contour rules" | this commit |
 
@@ -616,6 +616,46 @@ vocabulary of stage 3: an accessory is a named part, so it can be a named contou
 
 None of the three is chosen. The measurement that picks between them is the same for each: the body
 contour, the accessory contour and the picture, compared per view.
+
+### 6.7 The volume now follows the contours
+
+**Why this had to come before any accessory work.** Step 5 of this plan makes the hull read the
+path, and that is the step that removes the staircase from the surface. But a contour tuned at a
+render cannot be judged while the surface it describes is built from a different artifact: the
+simplified line would be drawn over a body that never saw it.
+
+So the page builds the volume from the three paths, and the offline hull stays untouched beside it.
+
+| Piece | File | What it does |
+| :--- | :--- | :--- |
+| `plateFrame()` | `viewer/plate.js` | where a view's picture sits in the model, in metres. One function, two consumers |
+| `flattenPath()` / `shapeFromRing()` | `viewer/path.js` | one reading of a path. One flattening, one outline |
+| `buildContourVolume()` | `viewer/volume.js` | extrude each path along its normal, intersect the three prisms |
+| `contourMode()` / `volume()` | `viewer/main.js` | switch the reading, then rebuild |
+
+`three-bvh-csg` does the boolean, served from `node_modules` through `/vendor/three-bvh-csg/`.
+
+**Measured.** Three prisms, 24 422 triangles after the intersection, bounding box
+1525 x 1402 x 3521 mm, rebuilt in about 2 s.
+
+| View | Used | IoU |
+| :--- | :--- | ---: |
+| `left` | yes | 0.993 |
+| `back` | yes | 0.981 |
+| `top` | yes | 0.993 |
+| `right` | witness | 0.977 |
+| `front` | witness | 0.918 |
+| `bottom` | witness | 0.979 |
+
+The used views agree by construction, so they measure the extrusion code and not the subject. The
+witness views measure the subject. `front` is the weakest: the model sits outside the reference
+along both shoulders. That is a real disagreement between the three drawings, and it is the next
+thing to settle.
+
+**A bug found by this step, and worth keeping.** `ctl.ts shot` wrote a sidecar that measured `root`
+whatever layer the capture showed. A volume-only capture then claimed the body's height, and every
+silhouette comparison was off by the wheels: IoU 0.14 instead of 0.99. The sidecar now measures
+what was drawn, so the numbers beside a picture describe the pixels in it.
 
 ## 7. Failure modes to keep
 

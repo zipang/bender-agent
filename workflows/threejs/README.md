@@ -195,9 +195,56 @@ and the refusal names the form. One name appears in a URL, in a command line, in
 The client never assembles a path. One API document returns the subject, the dimensions, the crops
 and the view table already merged and in millimetres, and each failure has a name.
 
-The page carries three layers, each with its own switch: the model, the contour, and the calque.
-A calque is the reference plate, sized in metres from `kx` and `ky`. A plan view is placed by
-height, not by depth, because the ground disc hides a plate placed under it.
+The page carries four layers, each with its own switch: the model, the contour volume, the
+contour, and the calque. A calque is the reference plate, sized in metres from `kx` and `ky`. A plan
+view is placed by height, not by depth, because the ground disc hides a plate placed under it.
+
+| Layer | What it is | Built by |
+| :--- | :--- | :--- |
+| model | `SECTIONS`, the offline reduction of the photograph | `trace_hull.py`, then `model.js` |
+| volume | the intersection of the three drawn contours | `viewer/volume.js`, in the page |
+| contour | the traced path, `poly` or `bezier` | `calque.js`, from `CONTOURS` |
+| calque | the reference plate | `calque.js`, from the cropped picture |
+
+### 7.1 The contour volume
+
+The two volumes are not duplicates, and the difference between them is the reason both exist.
+
+The offline volume reduces the **photograph** to pixel intervals on a 20 mm lattice. The contour
+volume reduces the **drawn paths** by extruding each one along its view normal and intersecting the
+three prisms. Change a path, and the second volume changes; the first does not.
+
+That is what makes a contour adjustable. A simplified line over a surface that never saw it is an
+opinion about a drawing; a simplified line over a surface rebuilt from it is a measurement of the
+shape. The page builds the volume on load, and again whenever the reading changes.
+
+```bash
+bun run workflows/threejs/tools/ctl.ts volume            # rebuild, show, print the numbers
+bun run workflows/threejs/tools/ctl.ts volume --off      # hide, keep the geometry
+bun run workflows/threejs/tools/ctl.ts volume --no-rebuild
+bun run workflows/threejs/tools/ctl.ts layers --model 0 --calque 0 --contour 1 --volume 1
+```
+
+The rebuild takes about 2 s for three prisms of 25 000 triangles. The boolean kernel is
+`three-bvh-csg`, served from `node_modules` through `/vendor/three-bvh-csg/`.
+
+Measured on `r5-tl-1972`, from the three contours at `--tolerance 3 mm` and `--mode bezier`:
+24 422 triangles, bounding box 1525 x 1402 x 3521 mm. The silhouette against the reference, as two
+binary masks:
+
+| View | Used by the volume | IoU |
+| :--- | :--- | ---: |
+| `left` | yes | 0.993 |
+| `back` | yes | 0.981 |
+| `top` | yes | 0.993 |
+| `right` | no, witness | 0.977 |
+| `front` | no, witness | 0.918 |
+| `bottom` | no, witness | 0.979 |
+
+A used view agrees by construction: the prism is the line. **The witness views are the measurement**,
+and `front` is the weakest one, with the model outside the reference along both shoulders. That is a
+real disagreement between the three drawings, and it is the first thing to settle before a contour
+is simplified further.
 
 ## 8. The tools
 
@@ -207,7 +254,7 @@ Every row states what the tool reads, what it writes, and how it is called.
 | :--- | :--- | :--- | :--- |
 | `tools/serve.ts` | the scene folder, the viewer, `node_modules/three` | nothing | `bun run serve` |
 | `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` | reached through `serve.ts` |
-| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>` |
+| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `eval`, `stats` |
 | `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
 | `tools/check.ts` | the captures, the references | one report, and the overlays | `bun run check` |
 | `tools/silhouette.ts` | a render, a reference | an overlay PNG: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |

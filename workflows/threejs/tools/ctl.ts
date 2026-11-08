@@ -240,6 +240,14 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "volume") {
+    await waitForReady(session);
+    const payload = JSON.stringify({ rebuild: !rest.includes("--no-rebuild"), show: !rest.includes("--off") });
+    const info = await evaluate(`window.__ctl.volume(${payload})`, session);
+    console.log(JSON.stringify(info, null, 2));
+    return;
+  }
+
   if (command === "calque") {
     await waitForReady(session);
     if (rest.includes("--off")) {
@@ -332,6 +340,20 @@ async function main(): Promise<void> {
       const value = Number(rest[0]);
       if (Number.isNaN(value)) throw new Error("exposure needs a number");
       call = `window.__ctl.exposure({ value: ${value} })`;
+      break;
+    }
+    // Four layers, each on or off by name. A layer that is not named keeps its state, so
+    // `layers --model 0 --volume 1` is a complete instruction and not a reset.
+    case "layers": {
+      const args: string[] = [];
+      for (const name of ["model", "volume", "contour", "calque"]) {
+        // `--model 0` and `--no-model` are the same instruction. The second form exists because
+        // every other command already uses it, and a flag that changes grammar command by command
+        // is a trap for the next reader.
+        const value = option(rest, name) !== null ? !["0", "false", "off"].includes(String(option(rest, name))) : flag(rest, name);
+        if (value !== null) args.push(`${name}: ${value}`);
+      }
+      call = `window.__ctl.layers({ ${args.join(", ")} })`;
       break;
     }
     case "nodes":

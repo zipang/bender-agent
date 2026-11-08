@@ -18,8 +18,9 @@
 // divides two pixel counts, and never carries a number that belongs to one subject.
 
 import * as THREE from "three";
-import { realMetres, referenceScale } from "./api.js";
-import { viewBasis } from "./camera.js";
+import { realMetres } from "./api.js";
+import { plateFrame } from "./plate.js";
+import { flattenPath } from "./path.js";
 
 /**
  * @param {object} options
@@ -67,29 +68,25 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
   };
 
   async function buildPlate(view) {
+    const topOfSubject = realMetres(sceneDocument, sceneDocument.roles.y);
     const reference = sceneDocument.views?.[view]?.reference;
     if (!reference) {
       throw new Error(`calque: no cropped reference for "${view}" -- run crop_reference.py`);
     }
 
-    // The scale comes from the server. It built it on the SUBJECT box, and it warned if the result
-    // disagreed with the calibration stage 1 wrote. Building it here a second time is exactly how
-    // the 0.3 percent error happened: the crop keeps a margin, and mapping the whole file to the
-    // real length made the subject a few pixels short, on every measurement after that.
-    const { kx, ky } = referenceScale(reference);
-    const [imgW, imgH] = reference.size_px;
-    const [sx0, sy0, sx1, sy1] = reference.subject_box;
-    const spanH = sx1 - sx0 + 1;
-    const spanV = sy1 - sy0 + 1;
-    const [offsetX, offsetY] = reference.offset;
+    // The scale and the placement come from ONE function, shared with the volume that extrudes the
+    // same contour. The server built the scale on the SUBJECT box and warned if it disagreed with
+    // the calibration stage 1 wrote. Computing it here a second time is exactly how the 0.3 percent
+    // error happened: the crop keeps a margin, and mapping the whole file to the real length made
+    // the subject a few pixels short, on every measurement after that.
+    const frame = plateFrame({ document: sceneDocument, views, view });
+    const { kx, ky, width, height, basis, origin } = frame;
 
     const texture = await new THREE.TextureLoader().loadAsync(reference.url);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
 
     // Sizes and offset are in metres, so the plane lives in the model's own coordinates.
-    const width = imgW * kx;
-    const height = imgH * ky;
     const geometry = new THREE.PlaneGeometry(width, height);
 
     const material = new THREE.MeshBasicMaterial({
@@ -109,26 +106,12 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     // over the reference and the tracing aid disappears exactly when it is needed.
     mesh.renderOrder = calque.depth === "behind" ? -1 : 10;
 
-    const basis = viewBasis(views, view);
     // The API reports millimetres as numbers, so there is no { value, source } object left to read
     // as a string. That unwrap produced NaN twice, and a NaN position draws nothing while every
     // other field of the plate still looks correct.
-    const realHeight = realMetres(sceneDocument, sceneDocument.roles.y);
-    const centre = new THREE.Vector3(0, realHeight / 2, 0);
-    // A plan view is a plane at the ground, not a wall through the middle of the subject.
-    if (view === "top" || view === "bottom") centre.set(0, 0, 0);
-
-    // Subject box centre inside the cropped image, as an offset in screen coordinates.
-    const dx = (offsetX + spanH / 2 - imgW / 2) * kx;
-    const dy = -(offsetY + spanV / 2 - imgH / 2) * ky;
-
     const orientation = new THREE.Matrix4().makeBasis(basis.right, basis.up, basis.dir);
     mesh.quaternion.setFromRotationMatrix(orientation);
-
-    mesh.position
-      .copy(centre)
-      .addScaledVector(basis.right, dx)
-      .addScaledVector(basis.up, dy);
+    mesh.position.copy(origin);
 
     // The depth of the plate, and why a plan view cannot use the same rule as an elevation.
     //
@@ -140,7 +123,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     if (view === "top" || view === "bottom") {
       mesh.position.y = calque.depth === "behind"
         ? 0.002                      // just above the ground: the body hides it where they overlap
-        : realHeight + 0.5;          // above the roof, for tracing on the plate
+        : topOfSubject + 0.5;        // above the roof, for tracing on the plate
     } else {
       const depth = calque.depth === "behind" ? -5 : 0.02;
       mesh.position.addScaledVector(basis.dir, depth);
@@ -149,7 +132,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     mesh.userData.metrics = {
       kx_mm: kx * 1000, ky_mm: ky * 1000,
       plane_m: [width, height],
-      subject_box_mm: [spanH * kx * 1000, spanV * ky * 1000],
+      subject_box_mm: [frame.subjectW * kx * 1000, frame.subjectH * ky * 1000],
     };
     return mesh;
   }
@@ -192,44 +175,6 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     line.userData.witness = witness;
     line.renderOrder = 30;
     return line;
-  }
-
-  /**
-   * A path from `body-hull.js` flattened into a flat `[u, v, ...]` position ring.
-   *
-   * `divisions` is how many samples a curve segment contributes. `1` keeps only the segment's end,
-   * which turns every curve back into the straight line between the points it was fitted through:
-   * that is the angular reading. A larger number samples the curve: the smooth one. Both come from
-   * the same control points, so neither can drift from the trace the other describes.
-   */
-  function flattenPath(path, divisions) {
-    const start = path.start;
-    if (!Array.isArray(start) || start.length < 2) return null;
-    const out = [start[0], start[1]];
-    let cursor = [start[0], start[1]];
-    for (const segment of path.segments) {
-      if (!Array.isArray(segment) || segment.length < 3) continue;
-      const kind = segment[0];
-      if (kind === "L") {
-        cursor = [segment[1], segment[2]];
-        out.push(cursor[0], cursor[1]);
-      } else if (kind === "C" && segment.length >= 7) {
-        const c1 = [segment[1], segment[2]];
-        const c2 = [segment[3], segment[4]];
-        const end = [segment[5], segment[6]];
-        const steps = Math.max(1, Math.round(divisions));
-        for (let i = 1; i <= steps; i += 1) {
-          const t = i / steps;
-          const s = 1 - t;
-          out.push(
-            s * s * s * cursor[0] + 3 * s * s * t * c1[0] + 3 * s * t * t * c2[0] + t * t * t * end[0],
-            s * s * s * cursor[1] + 3 * s * s * t * c1[1] + 3 * s * t * t * c2[1] + t * t * t * end[1],
-          );
-        }
-        cursor = end;
-      }
-    }
-    return out;
   }
 
   /**

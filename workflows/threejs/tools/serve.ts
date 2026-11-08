@@ -193,6 +193,12 @@ async function main(): Promise<void> {
         path = join(threeRoot, "build", url.pathname.slice("/vendor/three/build/".length));
       } else if (url.pathname.startsWith("/vendor/three/addons/")) {
         path = join(threeRoot, "examples/jsm", url.pathname.slice("/vendor/three/addons/".length));
+      } else if (url.pathname.startsWith("/vendor/three-bvh-csg/")) {
+        // The boolean kernel the live volume needs, and the BVH it is built on. Both are served from
+        // their package root, so the page and a script import the same bytes.
+        path = join(ROOT, "node_modules/three-bvh-csg", url.pathname.slice("/vendor/three-bvh-csg/".length));
+      } else if (url.pathname.startsWith("/vendor/three-mesh-bvh/")) {
+        path = join(ROOT, "node_modules/three-mesh-bvh", url.pathname.slice("/vendor/three-mesh-bvh/".length));
       } else if (url.pathname.startsWith("/viewer/")) {
         // The shared viewer assets. `views.json` and the page live here, and the page fetches them
         // by absolute path because the scene directory is not the root of the tree.

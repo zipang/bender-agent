@@ -18,6 +18,7 @@ import { createCalque } from "./calque.js";
 import { createPicker } from "./picker.js";
 import { createStage } from "./stage.js";
 import { checkDocument, checkModel, describe as describeContract } from "./contract.js";
+import { buildContourVolume } from "./volume.js";
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get("shot") === "1";
@@ -82,7 +83,7 @@ const rigRef = { current: null };
 const stage = createStage({
   frame,
   shot: SHOT,
-  report: () => measureModel(root),
+  report: () => measureDrawn(),
   rigRef,
 });
 stage.setRoot(root);
@@ -150,6 +151,82 @@ function syncButtons() {
   }
 }
 
+// ------------------------------------------------------------------ the contour volume
+
+// The body, rebuilt in the page from the three contours and nothing else.
+//
+// The offline tracer reduces the PHOTOGRAPH to a volume, on its own lattice, and the contour is a
+// second artifact beside it. That order cannot answer the only question a contour raises: does
+// simplifying this line change the surface? Here the volume IS the intersection of the three drawn
+// paths, so moving a line moves the solid. Both are kept, and both can be shown, because a
+// disagreement between them is a measurement.
+//
+// It is built once, on load, and rebuilt only when the reading changes. Nothing else in the page
+// mutates a path, so a rebuild on every frame would be work with no input.
+const volumeGroup = new THREE.Group();
+volumeGroup.name = "ContourVolume";
+volumeGroup.visible = false;
+stage.scene.add(volumeGroup);
+
+const volumeMaterial = new THREE.MeshStandardMaterial({
+  name: "contour-volume",
+  color: 0x9fb0c0,
+  roughness: 0.55,
+  metalness: 0.0,
+  transparent: true,
+  opacity: 0.9,
+  side: THREE.DoubleSide,
+});
+
+let volumeInfo = { built: false, read: [], skipped: [], triangles: 0, size_mm: null };
+
+function rebuildVolume() {
+  for (const child of [...volumeGroup.children]) {
+    volumeGroup.remove(child);
+    child.geometry?.dispose?.();
+  }
+  const mode = calque.info().contour.mode;
+  // The volume reads the path the way the page draws it: one division per segment is the angular
+  // reading, and it must give the angular volume, or the two layers would show two shapes.
+  const divisions = mode === "poly" ? 1 : 8;
+  let result = null;
+  try {
+    result = buildContourVolume({
+      document: document_,
+      views,
+      contours: modelModule.CONTOURS ?? null,
+      used: modelModule.TRACE?.views_used ?? [],
+      divisions,
+    });
+  } catch (error) {
+    showFailure(error);
+    volumeInfo = { built: false, read: [], skipped: [], triangles: 0, size_mm: null, error: String(error?.message ?? error) };
+    return volumeInfo;
+  }
+  if (!result) {
+    volumeInfo = { built: false, read: [], skipped: [], triangles: 0, size_mm: null };
+    return volumeInfo;
+  }
+  const mesh = new THREE.Mesh(result.geometry, volumeMaterial);
+  mesh.name = "ContourVolumeBody";
+  volumeGroup.add(mesh);
+
+  const box = new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute("position"));
+  const size = box.getSize(new THREE.Vector3());
+  const triangles = (result.geometry.index?.count ?? result.geometry.getAttribute("position").count) / 3;
+  volumeInfo = {
+    built: true,
+    mode,
+    divisions,
+    read: result.read,
+    skipped: result.skipped,
+    triangles: Math.round(triangles),
+    size_mm: [size.x, size.y, size.z].map((v) => Number((v * 1000).toFixed(1))),
+  };
+  showLayerState();
+  return volumeInfo;
+}
+
 // ------------------------------------------------------------------ layer switches
 
 // Two eyes, top right: the model and the reference plate. A modelling pass needs to look at the
@@ -158,18 +235,21 @@ function syncButtons() {
 // a capture that toggles them sees exactly what the eye sees.
 const layers = {
   model: document.getElementById("layer-model"),
+  volume: document.getElementById("layer-volume"),
   contour: document.getElementById("layer-contour"),
   calque: document.getElementById("layer-calque"),
 };
 
 function showLayerState() {
   if (layers.model) layers.model.setAttribute("aria-pressed", String(root.visible));
+  if (layers.volume) layers.volume.setAttribute("aria-pressed", String(volumeGroup.visible));
   if (layers.contour) layers.contour.setAttribute("aria-pressed", String(calque.info().contour.enabled));
   if (layers.calque) layers.calque.setAttribute("aria-pressed", String(calque.info().enabled));
 }
 
 function setLayer(name, visible) {
   if (name === "model") root.visible = Boolean(visible);
+  else if (name === "volume") volumeGroup.visible = Boolean(visible);
   else if (name === "contour") calque.setContourEnabled(visible);
   else if (name === "calque") calque.setEnabled(visible);
   showLayerState();
@@ -178,6 +258,9 @@ function setLayer(name, visible) {
 
 if (layers.model) {
   layers.model.addEventListener("click", () => setLayer("model", !root.visible));
+}
+if (layers.volume) {
+  layers.volume.addEventListener("click", () => setLayer("volume", !volumeGroup.visible));
 }
 if (layers.contour) {
   layers.contour.addEventListener("click", () => setLayer("contour", !calque.info().contour.enabled));
@@ -249,9 +332,44 @@ function orthoFrame() {
   };
 }
 
+// What was actually drawn. The sidecar beside a capture has to describe the pixels in that
+// capture, and a layer that is switched off contributed none of them: measuring `root` alone made a
+// volume-only capture claim the body's height and put every later comparison off by the wheels.
+function measureDrawn() {
+  const picked = [];
+  if (root.visible) picked.push(root);
+  if (volumeGroup.visible) picked.push(volumeGroup);
+  if (picked.length === 0) return measureModel(root);
+
+  // Two boxes expanded in place, never a clone of the scene graph: a clone doubles the geometry on
+  // every capture and measures a copy instead of the thing on screen.
+  const box = new THREE.Box3();
+  let triangles = 0;
+  let meshes = 0;
+  for (const object of picked) {
+    box.union(new THREE.Box3().setFromObject(object));
+    const measured = measureModel(object);
+    triangles += measured.triangles;
+    meshes += measured.meshes;
+  }
+  return {
+    min: box.min.toArray().map((v) => Number(v.toFixed(3))),
+    max: box.max.toArray().map((v) => Number(v.toFixed(3))),
+    size: box.getSize(new THREE.Vector3()).toArray().map((v) => Number(v.toFixed(3))),
+    triangles,
+    meshes,
+  };
+}
+
 function stats() {
   return {
-    ...measureModel(root),
+    ...measureDrawn(),
+    layers: {
+      model: root.visible,
+      volume: volumeGroup.visible,
+      contour: calque.info().contour.enabled,
+      calque: calque.info().enabled,
+    },
     frame: orthoFrame(),
     // What the body is checked against, and where it stands. Millimetres, because that is the unit
     // of the gates: G2 allows 100 mm or 3 % of the largest dimension, whichever is smaller.
@@ -327,17 +445,31 @@ window.__ctl = {
   contourMode: async (mode) => {
     calque.setContourMode(mode);
     await calque.showPlate(calque.shownView() ?? null);
+    if (volumeInfo.built) rebuildVolume();
     return stage.nextFrame().then(() => calque.info().contour);
+  },
+  // The volume the three contours describe, and the numbers it reached. `rebuild` redoes the
+  // intersection, which is the only way to see a change in the paths.
+  volume: async (options = {}) => {
+    if (options.rebuild || !volumeInfo.built) rebuildVolume();
+    if (typeof options.show === "boolean") await setLayer("volume", options.show);
+    await stage.nextFrame();
+    return volumeInfo;
   },
   // The two eyes, from the shell: `__ctl.layers({ model: false })` is a plate-only frame, and
   // `__ctl.layers({ calque: false })` is a bare model. Both resolve on the next drawn frame, so a
   // screenshot taken after them shows the state that was asked for.
   layers: async (options = {}) => {
     if (typeof options.model === "boolean") await setLayer("model", options.model);
+    if (typeof options.volume === "boolean") {
+      if (options.volume && !volumeInfo.built) rebuildVolume();
+      await setLayer("volume", options.volume);
+    }
     if (typeof options.contour === "boolean") await setLayer("contour", options.contour);
     if (typeof options.calque === "boolean") await setLayer("calque", options.calque);
     return {
       model: root.visible,
+      volume: volumeGroup.visible,
       contour: calque.info().contour.enabled,
       calque: calque.info().enabled,
     };

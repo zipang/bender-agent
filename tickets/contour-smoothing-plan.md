@@ -6,6 +6,7 @@ Status: in progress. Step 0 is done, and steps 1 to 7 are planned.
 | :--- | :--- | :--- |
 | 0 Baseline | done | `tickets/baseline-contour.json` |
 | 1 Subpixel edge | attempted, reverted. See §6.3 | — |
+| 1a Boundary walk | done. See §6.4 |
 | 2 Float opening | planned | |
 | 3 Path | planned | |
 | 4 Contact sheet | planned | |
@@ -50,12 +51,16 @@ export const CONTOURS = {
 };
 ```
 
-The array is a closed ring. One pass writes the top edge from left to right, then the bottom edge
-back. The viewer turns the ring into a `LineLoop`, or into `LineSegments` when the view is a
-witness.
+The array is a closed ring. It is the boundary of the traced region, walked along the pixel
+corners, so the polygon and the region agree on every side of the body. The viewer turns the ring
+into a `LineLoop`, or into `LineSegments` when the view is a witness.
 
-Point counts today: `left` 2494, `right` 2442, `front` 1970, `back` 1396, `bottom` 1018,
-`top` 736.
+The ring used to walk the mask one IMAGE COLUMN at a time: `lo[px]`, then `hi[px]` on the way back.
+Such a ring cannot express an edge that runs along the rows, so the flanks of `top` bulged 1 to 6
+pixels outside the body. Step 1a replaced it. See §6.4.
+
+Point counts today: `left` 1408, `right` 1416, `front` 766, `back` 588, `bottom` 462,
+`top` 368.
 
 ### 2.2 The source resolution
 
@@ -191,6 +196,19 @@ is cheaper to do before the fit than after it.
 
 `erode`, `dilate` and `open_intervals` already work on float arrays. They only receive integers
 today. The change is in the caller, not in the morphology.
+
+The opening is also ONE-DIMENSIONAL today: it erodes the `lo` and `hi` profiles of a view, column
+by column, and dilates them back. That removes an accessory in the profile sense, and it leaves the
+region *column-convex*: every column is filled from its first subject pixel to its last, so a
+concave flank is filled in. On `top`, the left flank reads column 14 from row 190 to row 410 while
+the body edge runs from 15 to 19. This is the reason the drawn contour sits outside the body, and
+no drawing that reads such a region can be closer than its region.
+
+Step 2 therefore moves the opening to the MASK, in two dimensions, with a disc of radius
+`smooth_mm`. A disc preserves a straight edge exactly: an erosion moves the edge inward by `r`
+along the normal and the dilation moves it back. A square does not, and it was measured 2 to 3
+pixels inside the body. The `lo`/`hi` arrays are then read from the opened mask, so the trace and
+the drawing describe the same region.
 
 One ordering rule becomes load-bearing. A NaN sample must not erase its neighbours, and the code
 already skips NaN in both directions. This stays.
@@ -473,6 +491,43 @@ also redefine which edge it is.
 **What is reverted.** `crossing()` and its caller are gone. `body-hull.js` is byte-identical to the
 step 0 baseline, and the five captures are identical to it. The ticket keeps this section because the
 mistake is cheap to repeat, and the profile above is what detects it.
+
+### 6.4 Step 1a, the boundary walk
+
+**The defect it fixes.** The ring was emitted one image column at a time: `lo[px]`, then `hi[px]` on
+the way back. A column pair cannot express an edge that runs along the rows, and the flanks of
+`top` are mostly such an edge. The ring degraded into a run of column end caps and the polygon drawn
+from it sat 1 to 6 pixels outside the body along both flanks. The wing mirrors, small and nearly
+horizontal, were reproduced correctly, which is why the fault looked arbitrary rather than
+systematic.
+
+**The change.** `boundary_loops()` walks the CELL EDGES of the mask instead. A subject pixel emits
+one unit edge wherever its neighbour is background, and the edges chain head to tail. A vertical
+flank becomes a run of vertical edges, which is what it is. Collinear corners are dropped, so a
+straight flank costs one segment instead of one per pixel. There is no threshold and no colour in
+this walk: only the shape of the mask, so a dark subject on a pale field and the reverse behave the
+same.
+
+**The source of the region.** `region_from_columns()` rebuilds the pixel set whose column intervals
+are the ones `View` already opened. The contour must describe the region the trace actually chose.
+Walking the raw silhouette instead reached the tyres again and moved the bottom of `front` by 124
+pixels, which is a change of subject disguised as a change of drawing.
+
+**Gates.**
+
+| Gate | Result |
+| :--- | :--- |
+| `SECTIONS` byte-identical to step 0 | yes |
+| `TRACE` byte-identical to step 0 | yes |
+| Edge identity, bounding-box delta on the six views | worst 0.52 px, under 1 px |
+| Ring versus the traced region, IoU | 1.0000 on all six views, gap 0 px |
+| Ring versus the picture, IoU `top` | 0.9908 → 0.9912 |
+
+**What it does not fix, and this is the important part.** The drawn ring now reproduces its region
+exactly, and the region is still wrong at the flanks. `region_from_columns` is column-convex: every
+column is filled from its first subject pixel to its last. On `top`, the left flank of the region
+reads column 14 from row 190 to row 410 while the body edge runs from 15 to 19. The walk made the
+drawing honest; it did not move the edge. §3.3 names the cause and step 2 is the fix.
 
 ### 6.2 The step 0 baseline, measured
 

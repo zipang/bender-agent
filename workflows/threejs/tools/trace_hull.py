@@ -443,44 +443,184 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_fr
     }, views
 
 
+def boundary_loops(mask):
+    """Every closed boundary of a boolean mask, as corner polygons in pixel units.
+
+    The old outline walked the mask one IMAGE COLUMN at a time: `lo[px]`, then `hi[px]` on the way
+    back. That cannot express an edge that runs along the rows, and the plan view is mostly such an
+    edge -- its flanks are near vertical. The ring then degrades into a run of column end caps, and
+    the polygon drawn from it bulges 1 to 6 pixels outside the body along both flanks. The mirror,
+    small and nearly horizontal, was reproduced correctly, which is why the fault looked arbitrary.
+
+    This walks the CELL EDGES instead. A subject pixel contributes one unit edge wherever its
+    neighbour is background, and the edges are chained head to tail. A vertical flank becomes a run
+    of vertical edges, which is exactly what it is. Rasterising the polygon back on the same grid
+    then returns the mask pixel for pixel: the outline is no longer an approximation of its own
+    source.
+
+    No threshold, no colour, no per-axis pass: only the shape of the mask. A dark subject on a pale
+    field and the reverse give the same walk.
+
+    Corners are in pixel units, with a pixel of index `x` spanning corners `x` to `x + 1`. The
+    loops run clockwise on screen. Collinear runs are collapsed, so a straight flank costs one
+    segment and not one per pixel.
+    """
+    height, width = mask.shape
+    padded = np.zeros((height + 2, width + 2), dtype=bool)
+    padded[1:-1, 1:-1] = mask
+    body = padded[1:-1, 1:-1]
+    up = padded[:-2, 1:-1]
+    down = padded[2:, 1:-1]
+    left = padded[1:-1, :-2]
+    right = padded[1:-1, 2:]
+
+    starts = []
+    outs = []
+    # One directed edge per exposed side, subject kept on the same hand everywhere, so the edge set
+    # already chains: every corner has as many incoming as outgoing edges.
+    ys, xs = np.nonzero(body & ~up)
+    starts.append(np.stack([xs, ys], axis=1))
+    outs.append(np.stack([xs + 1, ys], axis=1))
+    ys, xs = np.nonzero(body & ~right)
+    starts.append(np.stack([xs + 1, ys], axis=1))
+    outs.append(np.stack([xs + 1, ys + 1], axis=1))
+    ys, xs = np.nonzero(body & ~down)
+    starts.append(np.stack([xs + 1, ys + 1], axis=1))
+    outs.append(np.stack([xs, ys + 1], axis=1))
+    ys, xs = np.nonzero(body & ~left)
+    starts.append(np.stack([xs, ys + 1], axis=1))
+    outs.append(np.stack([xs, ys], axis=1))
+
+    start = np.concatenate(starts)
+    end = np.concatenate(outs)
+    if start.size == 0:
+        return []
+
+    # Corner -> the ends of every edge that leaves it. A diagonal pinch gives two, and the walk then
+    # turns clockwise: that keeps two lobes that touch at one corner as two loops, which is what the
+    # mask shows.
+    leaving = {}
+    for (ax, ay), (bx, by) in zip(start.tolist(), end.tolist()):
+        leaving.setdefault((ax, ay), []).append((bx, by))
+
+    def rank(candidate, direction):
+        dx, dy = candidate[0] - direction[0], candidate[1] - direction[1]
+        # Clockwise on screen is (-dy, dx); then straight, then counter-clockwise, then back.
+        order = {(-direction[1], direction[0]): 0, (direction[0], direction[1]): 1,
+                 (direction[1], -direction[0]): 2, (-direction[0], -direction[1]): 3}
+        return order.get((dx, dy), 4)
+
+    loops = []
+    remaining = sum(len(v) for v in leaving.values())
+    while remaining:
+        first = next(key for key, value in leaving.items() if value)
+        chain = [first]
+        current = first
+        previous_direction = None
+        while True:
+            choices = leaving.get(current)
+            if not choices:
+                break
+            if len(choices) == 1:
+                nxt = choices.pop()
+            else:
+                nxt = min(choices, key=lambda c: rank(c, previous_direction or (1, 0)))
+                choices.remove(nxt)
+            remaining -= 1
+            previous_direction = (nxt[0] - current[0], nxt[1] - current[1])
+            current = nxt
+            if current == first:
+                break
+            chain.append(current)
+        if len(chain) >= 4:
+            loops.append(chain)
+
+    return [simplify_collinear(loop) for loop in loops]
+
+
+def simplify_collinear(loop):
+    """Drop a corner whose two segments have the same direction: it carries no shape."""
+    kept = []
+    count = len(loop)
+    for index in range(count):
+        before = loop[index - 1]
+        here = loop[index]
+        after = loop[(index + 1) % count]
+        d1 = (here[0] - before[0], here[1] - before[1])
+        d2 = (after[0] - here[0], after[1] - here[1])
+        if d1 != d2:
+            kept.append(here)
+    return kept
+
+
+def region_from_columns(cols):
+    """The pixel set whose column intervals are `cols`, as a boolean image.
+
+    The contour has to describe the SAME region the trace already chose. That region is not the raw
+    silhouette: `View` opens the column intervals at `--smooth`, which is what removes the wheels,
+    the mirrors and every thin protrusion the body does not own. Walking the raw mask instead would
+    reach the tyres again and move the bottom of `front` by a hundred pixels -- a change of subject
+    disguised as a change of drawing.
+    """
+    lo, hi = cols
+    height = int(np.nanmax(hi[np.isfinite(hi)])) + 1 if np.isfinite(hi).any() else 0
+    region = np.zeros((max(height, 1), lo.size), dtype=bool)
+    for x in range(lo.size):
+        if not np.isfinite(lo[x]) or not np.isfinite(hi[x]):
+            continue
+        region[int(lo[x]):int(hi[x]) + 1, x] = True
+    return region
+
+
 def plate_contour(view):
-    """The outline the hull was built from, in the plate's own metres.
+    """The outline of one view, in the plate's own metres.
 
     The plate is a plane of `imgW * kx` by `imgH * ky` centred on the image, so a pixel maps to
     local coordinates without touching the subject box or the crop offset: the plate mesh already
     carries those. The contour is emitted in that frame on purpose -- a second mapping from model
     axes would be a second chance to place it a few millimetres off the picture it came from.
 
-    The result is a closed ring: the top edge left to right, then the bottom edge back. It is as
-    coarse as the mask. It is drawn over the reference picture so the trace can be judged where it
-    came from -- and this array is NOT what the hull reads. The hull re-samples the photograph on
-    its own lattice, at `--step`. A pixel staircase here and a 20 mm staircase on the surface are
-    two separate facts, and a plan that conflates them fixes neither.
+    The ring is the boundary of the traced region, walked along the pixel corners, so the polygon
+    and the picture agree on every side of the body, including an edge that runs along the rows.
+
+    It is drawn over the reference picture so the trace can be judged where it came from -- and this
+    array is NOT what the hull reads. The hull re-samples the photograph on its own lattice, at
+    `--step`. A pixel staircase here and a 20 mm staircase on the surface are two separate facts,
+    and a plan that conflates them fixes neither.
 
     Coordinates alternate `u, v, u, v, ...` in metres; a flat array halves the file and the reader
     pairs them back.
     """
     height, width = view.mask.shape
-    lo, hi = view.cols
-    live = np.flatnonzero(~np.isnan(lo))
-    if live.size < 2:
+    loops = boundary_loops(region_from_columns(view.cols))
+    if not loops:
         return []
-    x0, x1 = int(live[0]), int(live[-1])
+    # The outer boundary is the one that encloses the most area. A separate island -- a mirror
+    # detached from the shell, a part cut away -- is not part of one ring, and the viewer draws one
+    # line per view, so the outer loop is the one it can carry.
+    outer = max(loops, key=lambda loop: abs(_area(loop)))
 
-    def local(px, py):
-        # Pixel CENTRES: index 0 is the centre of the first pixel, half a pixel inside the edge.
-        return round((px + 0.5 - width / 2) * view.kx, 4), round(-((py + 0.5) - height / 2) * view.ky, 4)
+    def local(cx, cy):
+        # Pixel CORNERS, not centres: corner `c` sits at `c - width / 2` plate units, so a pixel of
+        # index 0 spans its two corners and its centre reads half a pixel inside, as before.
+        return (round((cx - width / 2.0) * view.kx, 4),
+                round(-((cy - height / 2.0) * view.ky), 4))
 
     points = []
-    for px in range(x0, x1 + 1):
-        if np.isnan(lo[px]):
-            continue
-        points.extend(local(px, lo[px]))
-    for px in range(x1, x0 - 1, -1):
-        if np.isnan(hi[px]):
-            continue
-        points.extend(local(px, hi[px]))
+    for cx, cy in outer:
+        u, v = local(cx, cy)
+        points.extend([u, v])
     return points
+
+
+def _area(loop):
+    """Signed area of a corner loop, in square pixels. The shoelace sum, halved."""
+    total = 0.0
+    for index in range(len(loop)):
+        x1, y1 = loop[index]
+        x2, y2 = loop[(index + 1) % len(loop)]
+        total += x1 * y2 - x2 * y1
+    return total / 2.0
 
 
 def widest_run(lo, hi):

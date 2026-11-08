@@ -1,32 +1,56 @@
 # Contour smoothing plan
 
-Status: planned. This document describes the staircase defect, the target pipeline, and the
-documentation track that goes with it. No step is done.
+Status: **revised, planned.** No step is done.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
 | 0 Baseline | planned | |
 | 1 Subpixel edge | planned | |
 | 2 Float opening | planned | |
-| 3 Resampling | planned | |
-| 4 Poly and bezier | planned | |
-| 5 Viewer | planned | |
-| 6 Documentation | planned. The reorg landed, so this step adds the contour rows to an existing chapter | |
+| 3 Path | planned | |
+| 4 Contact sheet | planned | |
+| 5 Hull from the path | planned | |
+| 6 Viewer | planned | |
+| 7 Documentation | planned. The reorg landed, so this step adds rows to an existing chapter | |
+
+## 0. Revision note
+
+The first version of this plan blamed the pixel. It said the staircase came from one integer sample
+per column, and it put subpixel accuracy first.
+
+A measurement on 2026-11-08 shows that this diagnosis is wrong, and this revision replaces it. The
+defect is on the surface, and its pitch is 20 mm, not 2.8 mm. The pixel is the finest measurement
+that this project has, and the mesh discards it.
+
+`tickets/escaliers.png` is the evidence: a shaded render of the body, with the staircase circled at
+the line where the roof profile and the side profile meet.
+
+What this revision changes: §2.3 replaces the old cause, §3.5 is new, step 5 is new, and the gates
+now measure the surface. What it keeps: the subpixel edge, the float opening, the path, the contact
+sheet, the viewer change, and every documentation rule.
 
 ## 1. Purpose
 
-The contour that `trace_hull.py` emits is a staircase. It is drawn over the reference picture, so
-the defect is easy to see and easy to mistake for a modelling error. The cause is not the image. It
-is the sampling.
+The body surface carries a staircase along a diagonal line. The line is where two extruded
+silhouettes meet. It is a real feature of the shape, and it must stay. What must go is the way the
+surface draws it: as a run of steps instead of a straight line.
 
-This plan fixes the sampling at its source, gives the contour two emit modes, and adds the
-documentation that makes the whole Three.js workflow readable without opening the scripts.
+This plan therefore does two things in one movement:
+
+1. It turns the traced contour into one simplified path per view, with fewer points, either smooth
+   (bezier) or angular (straight lines), at a resolution the caller chooses.
+2. It makes that path the **only** source of the volume, so the hull samples the path instead of
+   re-sampling the photograph on a fixed 20 mm lattice.
+
+The second point is what makes the first one pay. Today the two are siblings. A simplified contour
+over a 20 mm hull would show a clean line and a stepped surface at the same time, which is the
+worst case for judgment, because the eye cannot tell which one is wrong.
 
 ## 2. Current state, measured
 
 ### 2.1 The format
 
-`scenes/<subject>/body-hull.js` holds one entry per orthogonal view:
+`workflows/threejs/scenes/<subject>/body-hull.js` holds one entry per orthogonal view:
 
 ```js
 export const CONTOURS = {
@@ -57,19 +81,38 @@ image.
 | `front` | 2048 x 1152 | 988 x 885 | none. |
 | `top` | 1376 x 768 | 372 x 708 | none. |
 
-The pixel pitch of the contour is therefore the pitch of the generated image: 2.8236 mm across and
-2.6515 mm down, on `left`. The display scale does not enter the trace.
+The pixel pitch of the contour is the pitch of the generated image: 2.8236 mm across and 2.6515 mm
+down, on `left`.
 
-### 2.3 The three causes of the staircase
+### 2.3 What the staircase is
 
-1. **One integer sample per column.** `plate_contour` reads `view.cols`, which holds
-   `np.flatnonzero` results. These are integers. A column reports one row for its top and one row
-   for its bottom, so every step is one pixel high and one pixel wide. Every corner is a right
-   angle. That is the staircase.
-2. **A binary threshold.** The test is `min(RGB) < 246`. The true edge falls between two pixels,
-   and the threshold snaps it to a pixel boundary.
-3. **Two independent polylines.** The top edge and the bottom edge are separate passes, so each
-   step adds an explicit vertical segment. Two segments meet at each step.
+The hull is built on a fixed lattice. `--step 20` is documented in the tracer as the **column and
+station pitch**, and the measurement confirms it:
+
+| Quantity | Measured |
+| :--- | :--- |
+| Stations along the length | 177, for 3521 mm. Pitch 20.1 mm |
+| Columns across the width | 76, for 1505 mm. Pitch 20.1 mm |
+| Vertices outside that lattice | none |
+| Triangles | 51,300 |
+| Pixel pitch on `left` | 2.82 mm across, 2.65 mm down |
+
+The mesh is therefore 7 to 13 times coarser than the photograph. Nothing at 2.8 mm can appear on
+the surface, and no pixel defect can cause a 20 mm step.
+
+The surface height is `min(face_hi(x), side_hi(z))`. The two silhouettes cross along a diagonal
+crease. At a mid station, 42 of 75 columns carry a distinct pair of heights, so the roof is not
+flat. The roof is cut by that crease.
+
+A 20 mm lattice that crosses a diagonal crease cannot follow it. The surface alternates between the
+two constraints from one lattice cell to the next, and each switch draws as a step. The tread is
+20.1 mm. The riser is the height difference between the two silhouettes at that point.
+
+A second staircase has the same origin. The plan outline is the run of lattice columns, so the
+shoulder edge is quantized to 20.1 mm. The flank ribbon then notches at every station.
+
+**The crease is not the defect.** The defect is that a diagonal is drawn as a staircase. A
+simplified path restores the straight line, and keeps the crease.
 
 ### 2.4 What the image supports
 
@@ -82,18 +125,30 @@ coverage   0.01  0.02  0.05  0.16  0.47  0.60  0.62  0.64  0.63 ...
 
 A 50 percent crossing between two samples gives a subpixel position. The position error falls from
 plus or minus 0.5 pixel to about plus or minus 0.1 pixel, which is plus or minus 0.3 mm on `left`.
-The material for a smooth contour is already in the file.
 
-### 2.5 The defect is in the source, not only on screen
+The material for a diagonal is already in the file. It is the sampling that destroys it.
 
-The hull reads the same integer intervals. A smooth outline drawn over a stepped mesh would show a
-clean curve and a stepped volume at the same time. That is the worst case for judgment, because
-the eye cannot tell which one is wrong.
+### 2.5 The contour does not feed the mesh
 
-The float fix must therefore happen in the intervals, before both consumers read them.
+`model.js` builds the mesh from `SECTIONS`, and exports `CONTOURS` for the reference plate only.
+The two arrays are written by the same tracer, and they are read by two consumers that never meet:
 
-The two staircases are separate: the contour steps by one pixel, about 2.8 mm, and the mesh steps
-by `--step`, which is 20 mm today. The float fix removes the first. `--step` controls the second.
+```text
+photograph -> tracer -> SECTIONS  (20 mm lattice) -> mesh
+photograph -> tracer -> CONTOURS  (1 point per pixel) -> viewer plate
+```
+
+This is the fact that this revision exists for. A simplified contour would change the plate and
+leave the mesh exactly where it is. The two consumers must become one chain.
+
+### 2.6 Two lattices, two owners
+
+The pixel lattice and the hull lattice are separate, and a fix of one does not touch the other.
+
+| Lattice | Pitch | Set by | Visible as |
+| :--- | ---: | :--- | :--- |
+| Pixel | 2.8 mm | the generated image | the outline on the plate |
+| Hull | 20 mm | `--step` | the staircase on the surface |
 
 ## 3. Target design
 
@@ -103,12 +158,14 @@ by `--step`, which is 20 mm today. The float fix removes the first. `--step` con
 image
   -> subpixel edges        float lo[] and hi[] per pixel column, and per pixel row
   -> float opening         the same 150 mm window, now on floats
+  -> closed outline        one ring per view
+  -> simplified path       resampled, then fitted. poly or bezier. deviation measured
   -> two consumers
-       contour: resample at --pitch, then emit poly or bezier
-       hull:    read the same arrays at its own --step grid
+       viewer: draw the path, as it is
+       hull:   sample the path at a chord tolerance, and build the same three-way intersection
 ```
 
-Today the pipeline starts at "integer intervals". It must start one step earlier.
+The path is the artifact that both consumers read. Nothing downstream re-reads the photograph.
 
 ### 3.2 Subpixel edge
 
@@ -128,6 +185,9 @@ Rules:
   returns `NaN`, as an absent column does today.
 - The result is in pixels, as a float. The conversion to metres stays in one place, `View.to_model`.
 
+This step does not remove the staircase. It is what makes a diagonal a diagonal in the path, and it
+is cheaper to do before the fit than after it.
+
 ### 3.3 Float opening
 
 `erode`, `dilate` and `open_intervals` already work on float arrays. They only receive integers
@@ -136,19 +196,19 @@ today. The change is in the caller, not in the morphology.
 One ordering rule becomes load-bearing. A NaN sample must not erase its neighbours, and the code
 already skips NaN in both directions. This stays.
 
-### 3.4 Resampling
+### 3.4 The path: resample, then fit
 
-The contour must not depend on the image resolution. It samples the opened intervals at a pitch the
-caller chooses, in millimetres:
+The contour must not depend on the image resolution, and it must not carry one point per pixel.
 
 ```bash
---pitch 2      # default. 2 mm is under one pixel on every current view.
+--pitch 2        # mm. The resampling interval. Under one pixel on every current view.
+--mode poly      # poly or bezier
+--tolerance 0.25 # mm. Maximum deviation of the fit
 ```
 
 A pitch under the pixel size is honest only because the edge is subpixel. A pitch under 1 mm adds
-points without adding information, and the document must say so.
-
-### 3.5 Two emit modes
+points without adding information, and the document must say so. The pixel is a ceiling, not a
+target.
 
 | Mode | Output | When |
 | :--- | :--- | :--- |
@@ -165,30 +225,64 @@ The bezier fit is greedy and guarded by a maximum deviation:
 The tracer prints the measured maximum deviation. A fit that meets the tolerance is a fact, not a
 claim.
 
+### 3.5 The hull reads the path
+
+The hull keeps its construction. At a station, a section is still the three-way intersection of one
+interval from each view. What changes is where the stations come from.
+
+Today the stations are `linspace` at a fixed pitch, and the columns are `linspace` across the
+width. Both are blind to the shape.
+
+After this step, the stations and the columns are the **vertices of the sampled paths**, plus
+whatever the chord tolerance adds:
+
+- A straight run of the path becomes one long span. It was 20 mm steps, each with its own quad.
+- A curved run keeps its vertices. The lattice is dense where the shape turns and sparse where it
+  does not.
+- A crease is crossed by one straight span instead of a run of steps, because the two silhouettes
+  are now read at the same stations.
+
+Two parameters, and only one of them decides:
+
+| Flag | Default | Meaning |
+| :--- | ---: | :--- |
+| `--deviation` | 0.5 | mm. The chord tolerance. This decides where a span ends and a vertex is placed. |
+| `--step` | 200 | mm. A hard cap on the span length. It keeps a flat panel from becoming one quad. |
+
+The tracer prints the station count before and after. A run that keeps its count means the
+tolerance is doing nothing, and the step has failed.
+
+The crease itself is not smoothed away. It is a C0 line between two surfaces, and it stays. Only its
+representation changes.
+
 ### 3.6 The parameters are chosen at the render, not from a number
 
 A pitch of 2 mm and a tolerance of 0.25 mm are plausible, and plausibility is not a decision. No
 one can judge them from a table. The defect is visible, so the choice is visible too.
 
-So step 4 adds a contact sheet. The tool emits the same view at a small grid of choices, and the
-art director chooses from the picture:
+The staircase is clearest on a three-quarter view, at the meeting line of the two profiles. It is
+almost invisible on an orthogonal view. So a sheet of contour tiles alone cannot decide. Each cell
+shows two pictures side by side:
 
 ```bash
---sheet left --pitch 1,2,4 --tolerance 0.1,0.25,0.6
+--sheet left,front-3q --pitch 1,2,4 --tolerance 0.1,0.25,0.6
 ```
 
 ```text
-   pitch 1 mm        pitch 2 mm        pitch 4 mm
- t 0.1  [tile]      [tile]            [tile]
- t 0.25 [tile]      [tile]            [tile]
- t 0.6  [tile]      [tile]            [tile]
+                contour on the reference        shaded body, 3/4 view
+  pitch 1  t 0.1   [tile]                          [tile]
+  pitch 2  t 0.25  [tile]                          [tile]
+  ...
 ```
 
-Each tile is drawn at trace zoom over the reference image, with the deviation printed under it. The
-art director picks one cell. The choice is recorded in the plan, and the defaults become that cell.
-No number is defended before it is seen.
+The left picture is drawn at trace zoom over the reference image, with the deviation printed under
+it. The right picture is a capture of the body at the same settings, from the view where the
+meeting line shows.
 
-The sheet is one file, a PNG, produced by a script. It is not a test, and it does not pass or fail.
+The art director picks one cell. The choice is recorded in this plan, and the defaults become that
+cell. No number is defended before it is seen.
+
+The sheet is one PNG per row, produced by a script. It is not a test, and it does not pass or fail.
 It is the evidence the choice rests on.
 
 ## 4. Contracts
@@ -218,16 +312,32 @@ left: {
 
 A poly contour is the same structure with `"L"` segments only. One reader serves both modes.
 
-### 4.2 Command line
+### 4.2 `SECTIONS` version 2
+
+The record keeps its shape. It loses its regularity.
+
+- `z` is no longer evenly spaced. It follows the path vertices and the tolerance.
+- `columns` keeps `[index, x, lo, hi]`. The index stays, because two consecutive stations rarely
+  share the same run of columns, and the mesh matches columns by index.
+- `TRACE` gains `deviation_mm`, `max_step_mm`, and the station count before and after.
+
+A reader that assumed an even pitch must say so, or stop assuming it. Nothing else in the mesh
+builder changes.
+
+### 4.3 Command line
 
 | Flag | Default | Meaning |
 | :--- | ---: | :--- |
-| `--pitch` | 2 | millimetres between contour samples |
+| `--pitch` | 2 | millimetres between path samples |
 | `--mode` | `poly` | `poly` or `bezier` |
 | `--tolerance` | 0.25 | millimetres. Maximum deviation of the bezier fit |
-| `--step` | 20 | millimetres between hull sections. Unchanged |
+| `--deviation` | 0.5 | millimetres. Chord tolerance of the hull lattice |
+| `--step` | 200 | millimetres. Hard cap on the span length |
 
-### 4.3 Viewer
+`--step` changes meaning. It was the fixed pitch of the hull. It is now a cap. An old command line
+that passes `--step 20` still runs, and it still means what it said.
+
+### 4.4 Viewer
 
 `viewer/calque.js` builds the outline from `path`:
 
@@ -236,18 +346,13 @@ A poly contour is the same structure with `"L"` segments only. One reader serves
 
 The witness dash cutter stays. It reads the flattened positions, so it serves both modes.
 
-The HUD gains a third state on the contour button? No. One switch, and the mode comes from the
-file. A mode selector in the page is a later convenience, and it belongs to the viewer's own list
-of open points.
+The mode comes from the file. A mode selector in the page is a later convenience, and it belongs to
+the viewer's own list of open points.
 
 ## 5. Documentation track
 
-The request is explicit. The code must stop being the only record of the process. Two files carry
-the record, and each step of this plan updates them in the same commit.
-
-The repository holds three modelling workflows, and one of them is active for a given project. A
-single root document cannot describe all three without becoming a survey that serves none of them.
-So each workflow carries its own pair of documents, next to its own tools:
+The code must stop being the only record of the process. Two files carry the record, and each step
+of this plan updates them in the same commit.
 
 ```text
 workflows/threejs/README.md    the workflow in use: pipeline, tools, artifacts, gates
@@ -258,45 +363,29 @@ workflows/vcad/README.md       the same, for vcad. Archived: the project does no
 workflows/vcad/AGENTS.md
 ```
 
-The root `README.md` becomes an index. It states the three workflows, which one this project uses,
-the shared inputs under `blueprints/`, and the glossary. It does not describe a tool.
+The root `README.md` is an index. It states the three workflows, which one this project uses, the
+shared inputs under `blueprints/`, and the glossary.
 
-The folder move itself is a separate ticket, `tickets/workflow-reorg-plan.md`. Until it lands, the
-documents of this workflow live in the paths it names as the target.
+### 5.1 `workflows/threejs/README.md`: the contour rows
 
-### 5.1 `workflows/threejs/README.md`: the workflow chapter
+`tickets/workflow-reorg-plan.md` landed first and wrote this chapter, with its tool inventory and
+its artifact map. What is left for this step is the contour:
 
-A chapter that a new reader follows without opening a script.
+- the two new flags that decide the shape, and the one that caps it
+- the two emit modes
+- the measured deviation, and where it is printed
+- the contact sheet, and what it is evidence for
+- the row that says the hull now reads the path, and the row that says it used to read the
+  photograph
 
-| Section | Content |
-| :--- | :--- |
-| The pipeline at a glance | The four stages, from a draft to a `.glb`, and which tool does each |
-| Stage 0, draft | The inputs, the command, the artifact, the human decision |
-| Stage 1, blueprint | The six views, the crops, the scales, `dimensions.json`, gate G1 |
-| Stage 2, volume | The contour, the hull, the sections, gate G2 |
-| Stage 3, accessories | The five-step loop per part, gate G3 |
-| The viewer | The page, `?scene=`, the API, the three layers, the capture |
-| Tool inventory | One row per script: what it reads, what it writes, its command |
-| Artifact map | Which file is written by which tool, and who owns it |
-| Failure modes | One row per fault that already happened, its cause, and the rule |
-
-The tool inventory is the part that answers "what does this repository do" without a search. Each
-row states the input, the output, and the command. It covers `workflows/threejs/tools/`,
-`scripts/blueprint/`, `scripts/measure/`, and `scripts/blueprint-generate/`.
-
-Step 6 is smaller than this plan first wrote it, because `tickets/workflow-reorg-plan.md` landed
-first and wrote `workflows/threejs/README.md` with its tool inventory and its artifact map. What is
-left for this step is the contour: the new flags, the two emit modes, the measured deviation, and
-the contact sheet. Read the existing chapter, then add the contour rows to it. Do not rewrite it.
+Read the existing chapter, then add the rows. Do not rewrite it.
 
 ### 5.2 `workflows/threejs/AGENTS.md`: the rules
 
-The file stays short. It holds the rules, not the tutorial.
-
 | Addition | Content |
 | :--- | :--- |
-| The pass, in order | The commands of one modelling pass, in the order that works |
-| The contour rules | Subpixel, float opening, then resample. Never a binary threshold alone |
+| The contour rules | Subpixel, float opening, then a path. Never a binary threshold alone. |
+| The single-source rule | The plate and the hull read the same path. A second sampling of the photograph is a defect. |
 | The documentation duty | A change that adds a tool, a flag, a file, or a gate updates the workflow's `README.md` and `AGENTS.md` in the same commit |
 | The glossary duty | A new project word gets an entry in `README.md`, alphabetically sorted |
 
@@ -306,12 +395,10 @@ A step of this plan is not complete when the code passes its gate. It is complet
 documents describe the new behavior, and the commit carries both.
 
 The rule exists because the cost is real. This session read the code three times to answer
-questions the documents should have answered: the contour format, its source resolution, and why
-the plan view's plate did not appear.
+questions the documents should have answered, and the first version of this plan was written from a
+wrong reading of the same code.
 
 ### 5.4 Where a sentence belongs
-
-A sentence goes to the document of the workflow it describes. The three questions to ask:
 
 | Question | Document |
 | :--- | :--- |
@@ -327,49 +414,57 @@ No step starts before the previous step passes its gate.
 
 | # | Step | Content |
 | :--- | :--- | :--- |
-| 0 | Baseline | Record the six point counts, the hull numbers, and the five IoU values in `body-hull.js` and in a `baseline-contour.json`. |
+| 0 | Baseline | Record the six point counts, the station and column counts, the hull numbers, and the five IoU values in `baseline-contour.json`. |
 | 1 | Subpixel edge | `crossing()` in `trace_hull.py`. `cols` and `rows` become floats. The hull and the contour read them. Gate: the hull size moves by under 2 mm on every axis. |
 | 2 | Float opening | The morphology reads floats without a code change. Verify the 150 mm window still removes the mirrors and keeps the sill. Gate: the cut table is unchanged within 2 mm. |
-| 3 | Resampling | `--pitch`, default 2 mm. `plate_contour` walks the opened intervals at that pitch. Gate: no repeated point, no segment over the pitch by more than 1 percent, and the contour stays inside the hull envelope. |
-| 4a | Poly and bezier | The greedy fit, `--mode`, `--tolerance`, and the measured deviation. Gate: deviation at or under the tolerance on all six views, and `left` under 120 points. |
-| 4b | Contact sheet | `--sheet`, one PNG at trace zoom over a pitch and tolerance grid. The art director chooses the cell. Gate: the chosen cell is recorded, and the defaults become that cell. |
-| 5 | Viewer | `path` instead of `points`, both modes, the witness dash preserved. Gate: three layers superpose on `left`, `top`, and `back`, and a witness view draws dashed. |
-| 6 | Documentation | Add the contour rows to `workflows/threejs/README.md` (the tool inventory, the artifact map, the failure modes), the contour rules to `workflows/threejs/AGENTS.md`, the glossary entries to the root `README.md`, and this plan's progress table. Gate: a reader answers "which flag sets the pitch, and what proved its value" from the workflow document alone. |
+| 3 | Path | `--pitch`, `--mode`, `--tolerance`, the greedy fit, and the measured deviation. `CONTOURS` moves to version 2. Gate: deviation at or under the tolerance on all six views, and `left` under 120 segments. |
+| 4 | Contact sheet | `--sheet`, one PNG per row, with the contour and the shaded 3/4 view side by side. The art director chooses the cell. Gate: the chosen cell is recorded, and the defaults become that cell. |
+| 5 | Hull from the path | The stations and columns come from the sampled path. `--deviation` decides, `--step` caps. Gate: the surface follows the path, the triangle count falls, and no silhouette moves by more than the IoU gate allows. |
+| 6 | Viewer | `path` instead of `points`, both modes, the witness dash preserved. Gate: three layers superpose on `left`, `top`, and `back`, and a witness view draws dashed. |
+| 7 | Documentation | Add the contour rows to `workflows/threejs/README.md`, the contour rules to `workflows/threejs/AGENTS.md`, the glossary entries to the root `README.md`, and this plan's progress table. Gate: a reader answers "which flag sets the pitch, and what proved its value" from the workflow document alone. |
 
 ### 6.1 Gates
 
 | Gate | Check |
 | :--- | :--- |
-| Model identity | `size`, `triangles`, `target`, `deviation` within 2 mm and 1 percent of the baseline of step 0 |
+| Model identity | `size` and `target` within 2 mm of the baseline of step 0 |
 | Silhouette | IoU on `left`, `front`, `back`, `top`, `bottom` within 0.005 of the step 0 values |
-| Contour | Deviation at or under the tolerance, on all six views, printed by the tool |
-| Point count | `bezier` on `left` under 120 points, from 2494 today |
-| No staircase | At trace zoom, no right angle in the bezier outline, and no vertical segment between two adjacent samples |
+| Path | Deviation at or under the tolerance, on all six views, printed by the tool |
+| Point count | `bezier` on `left` under 120 segments, from 2494 points today |
+| No staircase | On a shaded three-quarter view, the meeting line of the two profiles is a straight run, with no tread of one lattice cell. This is read on the render, not on the contour |
+| Lattice | The station count is below the baseline of 177, and the tool prints it |
+| Triangle count | Below 50 percent of the 51,300 baseline. A count that does not fall means the tolerance is doing nothing, and the step has failed |
 | Layers | The picture, the contour, and the model superpose on one plane, and each of the three switches alone |
 | Documents | `workflows/threejs/README.md` names the command and the output of every script in the workflow |
-| Parameter choice | The pitch and the tolerance come from a rendered contact sheet, and the chosen cell is written in this plan |
+| Parameter choice | The pitch and the tolerance come from a rendered contact sheet that shows the surface, and the chosen cell is written in this plan |
 
 The IoU values of step 0 are: `left` 0.940, `front` 0.855, `back` 0.915, `top` 0.936, `bottom`
 0.935. The hull is 3521 x 1505 x 1180 mm, with the sill at 215 mm.
+
+The triangle gate is a designed target, chosen before the measurement. It is a test of the
+implementation, not a promise about the shape.
 
 ## 7. Failure modes to keep
 
 | Symptom | Cause | Rule |
 | :--- | :--- | :--- |
-| A smooth outline over a stepped mesh | only the display was smoothed | fix the intervals, then both consumers inherit it |
+| A clean outline over a stepped surface | the contour and the hull read the photograph apart | one path, two readers |
 | A contour that follows the canvas | the trace ran on a screenshot | read the cropped PNG, never the page |
 | A witness that disagrees everywhere | the witness used the raw mask | the witness gets the same mask and the same opening |
 | A bezier that misses the trace | the fit was trusted, not measured | print the maximum deviation and gate on it |
-| A staircase that comes back on one view | that view had no subpixel edge | every view goes through `crossing()` |
+| A staircase that comes back | the hull re-sampled the photograph | the hull reads the path, and the station count is printed |
+| A staircase blamed on the pixel | the diagnosis was reasoned, not measured | measure the lattice pitch before naming a cause |
 | A plate that draws nothing | the plate sat under the ground disc | a plan view is placed by height, not by depth |
 | A document that describes an older tool | the doc was written once | the same commit updates the documents |
 
 ## 8. Open points
 
-- A mode selector in the page. It is a convenience, and the file already carries the mode. After
-  step 4b the chosen pair is a recorded decision, so a selector would serve exploration, not use.
+- A mode selector in the page. It is a convenience, and the file already carries the mode.
 - A per-view orthographic fit, so each reference fills the frame. It changes the images, and it
   needs its own before and after.
 - A contour for the perspective views. Today they have no plate, so they have no contour.
+- The crease as a real edge loop. The hull could emit the meeting line as its own edge, so the two
+  surfaces are separated by a hard edge rather than by a change of normal inside a quad. This is a
+  shading and topology question, not a sampling one, and it needs its own measurement.
 - The `top` calibration drift of 20.69 percent. It is the next measurement to settle, and it is
   independent of this plan.

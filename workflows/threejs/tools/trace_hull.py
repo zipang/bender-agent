@@ -70,7 +70,7 @@ interval is empty is absent, which is how the nose and the tail taper.
 Usage, from the repository root:
 
     python3 workflows/threejs/tools/trace_hull.py --subject blueprints/vehicules/r5-tl-1972 \
-        --out scenes/r5-tl-1972/body-hull.js --step 20
+        --out workflows/threejs/scenes/r5-tl-1972/body-hull.js --step 20
 
     # keep every accessory: the outer envelope instead of the main volume
     python3 workflows/threejs/tools/trace_hull.py ... --mask silhouette
@@ -452,8 +452,10 @@ def plate_contour(view):
     axes would be a second chance to place it a few millimetres off the picture it came from.
 
     The result is a closed ring: the top edge left to right, then the bottom edge back. It is as
-    coarse as the mask, so it shows the pixel staircase exactly as the hull inherits it. That is
-    the point of drawing it.
+    coarse as the mask. It is drawn over the reference picture so the trace can be judged where it
+    came from -- and this array is NOT what the hull reads. The hull re-samples the photograph on
+    its own lattice, at `--step`. A pixel staircase here and a 20 mm staircase on the surface are
+    two separate facts, and a plan that conflates them fixes neither.
 
     Coordinates alternate `u, v, u, v, ...` in metres; a flat array halves the file and the reader
     pairs them back.
@@ -690,8 +692,10 @@ def main() -> None:
         handle.write(header)
         handle.write(f"export const TRACE = {json.dumps(summary, separators=(',', ':'))};\n\n")
         handle.write("// The outline each view contributed, in plate-local metres (u right, v up,\n")
-        handle.write("// origin at the image centre). Drawn over the reference picture, it shows both\n")
-        handle.write("// what the hull used and the pixel staircase it inherited.\n")
+        handle.write("// origin at the image centre). Drawn over the reference picture, so the trace\n")
+        handle.write("// can be judged where it came from. The hull does NOT read this array: it\n")
+        handle.write("// re-samples the photograph at its own lattice, and that is where the\n")
+        handle.write("// surface staircase comes from.\n")
         handle.write(f"export const CONTOURS = {json.dumps(contours, separators=(',', ':'))};\n\n")
         handle.write("export const SECTIONS = [\n")
         for section in hull["sections"]:

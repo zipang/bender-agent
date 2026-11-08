@@ -234,6 +234,7 @@ as failed.
 | Every measurement is 0.3 percent short | the calque was calibrated on the cropped file, not the subject box | calibrate on the subject box |
 | A plate draws nothing | the plate sat under the ground disc | a plan is placed by height |
 | A contour is a staircase | one integer row per pixel column | the edge is subpixel, and the opening runs on floats |
+| The surface is a staircase | the hull re-samples the photograph on a fixed lattice, so a diagonal crease is cut into steps | the hull reads the simplified path, and its pitch is a chord tolerance, not a constant |
 | An accessory removal eats the shoulder | a taper is a long run of small moves | remove by geometric opening on the intervals, never by colour |
 | A capture fails with an undefined global | the pass wrote a render into the watched subject | `model/` is not watched |
 | A stage reports numbers and no picture | the stage was not finished | a stage ends with one WebP per named view |

@@ -141,6 +141,53 @@ Measured on `r5-tl-1972`, `top` view, `--pitch 20`:
 The value is chosen on a rendered contact sheet, not from this table. The table only shows that the
 flag does what it says.
 
+### 5.2 The contour knots
+
+A traced contour carries one point per pixel of the boundary. That is exact, and it is too many to
+judge: the outline and the surface it extrudes keep the pixel staircase, and no single number
+removes it without also moving the shape.
+
+So the contour is a list of **knots** the art director controls. A knot is a point the outline
+**passes through**. `viewer/knots.js` reads the list, joins the knots one of two ways, and everything
+else reads that join:
+
+| Join | What it does |
+| :--- | :--- |
+| `poly` | straight segments through the knots. The angular reading. |
+| `bezier` | cubics through the knots, with the tangents of a Catmull-Rom spline. The curve reaches every knot and joins smoothly. |
+
+The two joins read the **same** knots, so a switch between them moves the line between two knots and
+never a knot itself.
+
+The knots are the source. `scenes/<subject>/contours.js` holds them, one list per view, and the
+viewer writes that file from its `save` command:
+
+```js
+export const KNOTS = {
+  left: { mode: "bezier", knots: [[u, v], ...] },
+};
+```
+
+A view absent from `KNOTS` keeps its traced path, so the feature is non-destructive. The first edit
+of a view seeds its knots from the traced path's own on-curve vertices, joined by `poly`: straight
+lines through those points reproduce the accepted fit to within its tolerance, where a Catmull-Rom
+through the same points would bulge past it.
+
+The editor, in the viewer's `#knots` panel:
+
+| Action | Result |
+| :--- | :--- |
+| click the line | add a knot on it, at the nearest point of the current outline |
+| click a knot | remove it |
+| drag a knot | move it |
+| `poly` / `bezier` | change the join |
+| `reduce` + mm | Douglas-Peucker on the traced ring at that tolerance: 194 knots become 34 at 25 mm |
+| `reset` | drop the hand-set knots of the view and return to the traced path |
+| `save` | write `contours.js` |
+
+`reduce` always re-derives from the **traced ring**, so two reduces in a row give the same answer as
+one, and a manual knot placed between them is not silently kept as if it were on the trace.
+
 Stage 2 models the body only. No accessory, no placeholder, no reference box, and **no hole**:
 wheel arches, window openings and lamp recesses belong to stage 3, when the part that fills them has
 been measured. A hole changes the silhouette, and G2 measures the silhouette.
@@ -203,7 +250,7 @@ view is placed by height, not by depth, because the ground disc hides a plate pl
 | :--- | :--- | :--- |
 | model | `SECTIONS`, the offline reduction of the photograph | `trace_hull.py`, then `model.js` |
 | volume | the intersection of the three drawn contours | `viewer/volume.js`, in the page |
-| contour | the traced path, `poly` or `bezier` | `calque.js`, from `CONTOURS` |
+| contour | the knots, joined `poly` or `bezier` | `calque.js`, from `KNOTS` else `CONTOURS` |
 | calque | the reference plate | `calque.js`, from the cropped picture |
 
 ### 7.1 The contour volume
@@ -211,12 +258,12 @@ view is placed by height, not by depth, because the ground disc hides a plate pl
 The two volumes are not duplicates, and the difference between them is the reason both exist.
 
 The offline volume reduces the **photograph** to pixel intervals on a 20 mm lattice. The contour
-volume reduces the **drawn paths** by extruding each one along its view normal and intersecting the
-three prisms. Change a path, and the second volume changes; the first does not.
+volume reduces the **knots** by joining them, extruding each join along its view normal, and
+intersecting the three prisms. Change a knot, and the second volume changes; the first does not.
 
 That is what makes a contour adjustable. A simplified line over a surface that never saw it is an
 opinion about a drawing; a simplified line over a surface rebuilt from it is a measurement of the
-shape. The page builds the volume on load, and again whenever the reading changes.
+shape. The page builds the volume on load, and again after every knot edit.
 
 ```bash
 bun run workflows/threejs/tools/ctl.ts volume            # rebuild, show, print the numbers
@@ -225,23 +272,22 @@ bun run workflows/threejs/tools/ctl.ts volume --no-rebuild
 bun run workflows/threejs/tools/ctl.ts layers --model 0 --calque 0 --contour 1 --volume 1
 ```
 
-The rebuild takes about 2 s for three prisms of 25 000 triangles. The boolean kernel is
-`three-bvh-csg`, served from `node_modules` through `/vendor/three-bvh-csg/`.
+The rebuild takes about 2 s for three prisms. The boolean kernel is `three-bvh-csg`, served from
+`node_modules` through `/vendor/three-bvh-csg/`.
 
-Measured on `r5-tl-1972`, from the three contours at `--tolerance 3 mm` and `--mode bezier`:
-24 422 triangles, bounding box 1525 x 1402 x 3521 mm. The silhouette against the reference, as two
-binary masks:
+Measured on `r5-tl-1972`, two states of the same three views:
 
-| View | Used by the volume | IoU |
-| :--- | :--- | ---: |
-| `left` | yes | 0.993 |
-| `back` | yes | 0.981 |
-| `top` | yes | 0.993 |
-| `right` | no, witness | 0.977 |
-| `front` | no, witness | 0.918 |
-| `bottom` | no, witness | 0.979 |
+| State | Triangles | Bbox mm | `left` | `back` | `top` | `right` | `front` |
+| :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: |
+| traced, `--tolerance 3 mm`, `bezier` | 24 422 | 1525 x 1402 x 3521 | 0.993 | 0.981 | 0.993 | 0.977 | 0.918 |
+| knots, reduce 25 mm, `bezier` | 13 381 | 1538 x 1402 x 3530 | 0.970 | 0.963 | 0.967 | 0.965 | 0.880 |
 
-A used view agrees by construction: the prism is the line. **The witness views are the measurement**,
+The second row is the point of the tool: fewer points and a smoother surface, at a measured cost in
+fidelity. `left`, `back` and `top` are the used views; `right` and `front` are witnesses, and `front`
+is the weakest in both states. The tolerance and the join are chosen on a render, not from this
+table.
+
+A used view agrees by construction: the prism is the join. **The witness views are the measurement**,
 and `front` is the weakest one, with the model outside the reference along both shoulders. That is a
 real disagreement between the three drawings, and it is the first thing to settle before a contour
 is simplified further.
@@ -253,7 +299,7 @@ Every row states what the tool reads, what it writes, and how it is called.
 | Tool | Reads | Writes | Command |
 | :--- | :--- | :--- | :--- |
 | `tools/serve.ts` | the scene folder, the viewer, `node_modules/three` | nothing | `bun run serve` |
-| `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` | reached through `serve.ts` |
+| `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` and `POST /api/contours` | reached through `serve.ts` |
 | `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `eval`, `stats` |
 | `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
 | `tools/check.ts` | the captures, the references | one report, and the overlays | `bun run check` |
@@ -283,6 +329,7 @@ not under this folder.
 | `blueprints/<cat>/<sub>/dimensions.json` | `view_scale.py`, then read | committed: it records the decision |
 | `blueprints/<cat>/<sub>/measurements.json` | `report.py`, or `POST /api/measure` | committed |
 | `scenes/<sub>/body-hull.js` | `trace_hull.py` | generated, committed, never hand-edited |
+| `scenes/<sub>/contours.js` | the viewer's `save` command, through `POST /api/contours` | the art director. The contour source: one knot list per view |
 | `scenes/<sub>/model.js` | a person or an agent | the authority for the shape |
 | `scenes/<sub>/accessories.js` | a person or an agent | the stage-3 work list |
 | `blueprints/<cat>/<sub>/model/*.webp` | `shot.ts` and `check.ts` | local, gitignored |

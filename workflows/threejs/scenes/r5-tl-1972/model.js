@@ -18,6 +18,7 @@
 
 import * as THREE from "three";
 import { CONTOURS, SECTIONS, TRACE } from "./body-hull.js";
+import { KNOTS } from "./contours.js";
 
 // The real dimensions: an INPUT. They come from the manufacturer's sheet for a Renault 5 TL (1972)
 // and they are mirrored in `dimensions.json` under `real`. They are never read from the views that
@@ -29,7 +30,7 @@ export const REAL = {
   height: 1.4,
 };
 
-export { CONTOURS, SECTIONS, TRACE };
+export { CONTOURS, SECTIONS, TRACE, KNOTS };
 
 // ---------------------------------------------------------------- materials
 

@@ -68,6 +68,23 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
   picture and the volume cannot drift by the crop margin.
 - One function flattens a path: `viewer/path.js`. A second flattening is a second outline.
 
+## Knot rules
+
+- The contour is a list of **knots**: points the outline passes through. `scenes/<sub>/contours.js`
+  holds them. A knot is not an off-curve handle.
+- The knots are the **source**. `poly` and `bezier` are two joins of the SAME knots, so a switch
+  between them moves the line between two knots and never a knot itself.
+- A view absent from `contours.js` keeps its traced path. The feature is non-destructive: the first
+  edit seeds the knots from the traced path's on-curve vertices.
+- `reduce` re-derives from the **traced ring** every time, never from the current knots. Two reduces
+  in a row must give the same answer as one.
+- The join of a fresh seed is `poly`. Straight lines through the traced vertices reproduce the
+  accepted fit to within its tolerance; a Catmull-Rom through the same points bulges past it.
+- The volume reads the knots. A knot edit rebuilds the volume; a knot **drag** rebuilds the outline
+  only, and the volume on release, because the intersection costs about two seconds.
+- One reader of the file, one writer: `viewer/knots.js` joins; the viewer's `save` command writes
+  through `POST /api/contours`. Never hand-edit `contours.js` and never let a second tool write it.
+
 ## Evidence rules
 
 - A stage ends with the `.glb` and one WebP per named view. Numbers alone cannot be judged.

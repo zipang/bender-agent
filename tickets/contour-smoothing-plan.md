@@ -1,7 +1,7 @@
 # Contour smoothing plan
 
 Status: in progress. Steps 0, 1a, 3, 4, 6 and 7 are done. Step 5 is open, and §6.6 holds the
-open defect.
+open defect. Step 8, the knot editor, is done: see §6.8.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
@@ -14,6 +14,7 @@ open defect.
 | 5 Hull from the path | partly. The page builds the volume from the paths; the offline hull still reads the photograph. See §6.7 | this commit |
 | 6 Viewer | **done.** `calque --mode poly|bezier` | this commit |
 | 7 Documentation | **done.** `workflows/threejs/README.md` §5.1, `AGENTS.md` "Contour rules" | this commit |
+| 8 Knot editor | **done.** The knots are the source; reduce, add, remove, move, join, save. See §6.8 | this commit |
 
 ## 1. Purpose
 
@@ -656,6 +657,46 @@ thing to settle.
 whatever layer the capture showed. A volume-only capture then claimed the body's height, and every
 silhouette comparison was off by the wheels: IoU 0.14 instead of 0.99. The sidecar now measures
 what was drawn, so the numbers beside a picture describe the pixels in it.
+
+### 6.8 The knot editor: the contour as points the art director chooses
+
+**Why.** The volume made the staircase visible on the surface. The staircase comes from the traced
+contour: at `--tolerance 3 mm` on `left` the pixel is 2.82 mm, so Douglas-Peucker keeps almost every
+boundary point (194 of them), and the cubic fit falls back to `L` for most segments (176 of 194). The
+"bezier" contour is therefore a 20 mm polyline over most of the outline, and the prisms carry that
+into the surface.
+
+**What.** The contour is a list of **knots** -- points the outline passes through -- joined one of two
+ways. The knots are the source; the join is a reading.
+
+| Piece | File | What it does |
+| :--- | :--- | :--- |
+| `pathFromKnots()` | `viewer/path.js` | one path from the knots: `poly` lines, or `bezier` cubics with Catmull-Rom tangents |
+| `ringOf()`, `simplifyRing()`, `nearestOnRing()`, `insertKnot()`, `removeKnot()`, `moveKnot()` | `viewer/knots.js` | the traced vertices, the reduce, and the edit operations |
+| `KNOTS` | `scenes/<sub>/contours.js` | one knot list per view, written by the viewer's `save` |
+| `POST /api/contours` | `tools/api.ts` | writes `contours.js` from the page |
+| `#knots` panel | `viewer/index.html` | edit, join, reduce, reset, save |
+
+The editor: click the line to add a knot, click a knot to remove it, drag to move it. A view absent
+from `KNOTS` keeps its traced path, so nothing is destroyed. The first edit seeds the knots from the
+traced path's on-curve vertices, joined by `poly` -- straight lines through those points reproduce the
+accepted fit to within its tolerance.
+
+`reduce` re-derives from the traced ring every time, at a tolerance in millimetres.
+
+**Measured.** The same three views (`left`, `back`, `top`), two states:
+
+| State | Knots (l/b/t) | Triangles | Bbox mm | `left` | `back` | `top` | `right` | `front` |
+| :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: |
+| traced, tol 3 mm, bezier | 194 / 81 / 346 | 24 422 | 1525 x 1402 x 3521 | 0.993 | 0.981 | 0.993 | 0.977 | 0.918 |
+| reduce 25 mm, bezier | 34 / 14 / 26 | 13 381 | 1538 x 1402 x 3530 | 0.970 | 0.963 | 0.967 | 0.965 | 0.880 |
+
+The staircase is gone from the three-quarter render. The cost is 2 to 3 points of IoU on the used
+views and 3.8 on the `front` witness. The tolerance and the join are the art director's to choose on
+a render; this table only shows what the controls do.
+
+**Kept.** The knots and the traced path are separate sources, and a view is read from the traced path
+until it is edited. `reduce` never compounds: it reads the trace, not the last reduce.
 
 ## 7. Failure modes to keep
 

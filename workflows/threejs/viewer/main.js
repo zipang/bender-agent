@@ -19,6 +19,10 @@ import { createPicker } from "./picker.js";
 import { createStage } from "./stage.js";
 import { checkDocument, checkModel, describe as describeContract } from "./contract.js";
 import { buildContourVolume } from "./volume.js";
+import {
+  pathFromKnots, ringOf, simplifyRing, nearestKnot, nearestOnRing,
+  insertKnot, removeKnot, moveKnot,
+} from "./knots.js";
 
 const params = new URLSearchParams(location.search);
 const SHOT = params.get("shot") === "1";
@@ -103,6 +107,73 @@ showLayerState();
 });
 rigRef.current = rig;
 
+// ------------------------------------------------------------------ contour knots
+
+// The contour as a list of knots the art director controls.
+//
+// `modelModule.CONTOURS` is the traced fit, and it stays the DEFAULT: a view nobody edited keeps its
+// traced path, so this is non-destructive. The moment a view is edited, its knots are seeded from
+// the traced path's own on-curve vertices and the effective path is rebuilt from the knots.
+const tracedContours = modelModule.CONTOURS ?? {};
+const savedKnots = modelModule.KNOTS ?? {};
+const knots = {};        // view -> { mode, knots }: the views edited this session
+const discarded = new Set(); // views reset to the traced path, so a stale saved list is not re-read
+
+// The effective knot set of a view: what the art director edited this session, else what the saved
+// file holds, else nothing (the view keeps its traced path).
+function knotSetFor(view) {
+  if (knots[view]) return knots[view];
+  if (discarded.has(view)) return null;
+  const saved = savedKnots[view];
+  if (saved?.knots?.length >= 3) {
+    return { mode: saved.mode === "bezier" ? "bezier" : "poly", knots: saved.knots };
+  }
+  return null;
+}
+
+// The knots of a view, edited or traced. The handles and the editor read this.
+function knotsOf(view) {
+  const set = knotSetFor(view);
+  return set ? set.knots : ringOf(tracedContours[view]?.path);
+}
+
+function modeOf(view) {
+  const set = knotSetFor(view);
+  return set ? set.mode : "poly";
+}
+
+function isEdited(view) {
+  return Boolean(knotSetFor(view));
+}
+
+// Seed the working knots of a view. Called by the first edit, so an untouched view never carries a
+// copy of a list nobody changed.
+function ensureKnots(view) {
+  if (knots[view]) return knots[view];
+  const set = knotSetFor(view);
+  // The join of a fresh seed defaults to `poly`. The knots are the traced path's own on-curve
+  // vertices, and straight lines through them reproduce the accepted fit to within its tolerance; a
+  // Catmull-Rom through the same points would bulge past it. The art director switches to `bezier`
+  // once the knots are chosen.
+  knots[view] = set
+    ? { mode: set.mode, knots: set.knots.map((p) => [p[0], p[1]]) }
+    : { mode: "poly", knots: ringOf(tracedContours[view]?.path) };
+  return knots[view];
+}
+
+// The contours the calque and the volume read: the traced ones, with each edited view rebuilt from
+// its knots. One object, mutated in place, so the two readers always see the current paths.
+const effectiveContours = {};
+function refreshContours() {
+  for (const [view, entry] of Object.entries(tracedContours)) {
+    const set = knotSetFor(view);
+    effectiveContours[view] = set
+      ? { ...entry, path: pathFromKnots(set.knots, set.mode), knots: set.knots, edited: true }
+      : entry;
+  }
+}
+refreshContours();
+
 // ------------------------------------------------------------------ calque and picker
 
 let refreshPanel = () => {};
@@ -111,7 +182,8 @@ const calque = createCalque({
   scene: stage.scene,
   views,
   document: document_,
-  contours: modelModule.CONTOURS ?? null,
+  contours: effectiveContours,
+  knotsOf,
   onChange: () => {
     stage.updateHud(currentView);
     showLayerState();
@@ -130,6 +202,252 @@ const picker = createPicker({
   root,
 });
 refreshPanel = () => picker.render();
+
+// ------------------------------------------------------------------ knot editor
+
+// The editing surface. It lives here because it composes three parts that already exist -- the rig,
+// the calque plate and the knots -- and a module that reached into all three would be the
+// composition root under another name.
+//
+//   click the line      add a knot on it, at the nearest point of the current outline
+//   click a knot        remove it
+//   drag a knot         move it
+//
+// A drag rebuilds the contour line only; the volume is rebuilt on release, because the boolean
+// intersection costs about two seconds and cannot run at pointer speed.
+const knotUI = {
+  panel: document.getElementById("knots"),
+  edit: document.getElementById("knot-edit"),
+  poly: document.getElementById("knot-poly"),
+  bezier: document.getElementById("knot-bezier"),
+  tol: document.getElementById("knot-tol"),
+  reduce: document.getElementById("knot-reduce"),
+  reset: document.getElementById("knot-reset"),
+  save: document.getElementById("knot-save"),
+  info: document.getElementById("knot-info"),
+};
+
+const editor = { active: false, dragging: -1, view: null, moved: false, fresh: false };
+
+function mmPerScreenPx() {
+  return picker.state().mmPerScreenPx || 1;
+}
+
+function platePoint(nx, ny) {
+  const hit = picker.pickAt(nx, ny, "calque");
+  return hit && hit.view ? { view: hit.view, uv: [hit.u, hit.v] } : null;
+}
+
+/** The view being edited: the plate in the scene, or the last one touched. */
+function editorView() {
+  return calque.shownView() ?? editor.view;
+}
+
+function updateKnotInfo() {
+  if (!knotUI.info) return;
+  const view = calque.shownView();
+  if (!view) {
+    knotUI.info.textContent = "—";
+    return;
+  }
+  const list = knotsOf(view);
+  knotUI.info.textContent = `${view}: ${list.length}${isEdited(view) ? "" : " (traced)"}`;
+  updateJoinButtons();
+}
+
+/** The join buttons show the mode of the view on screen, not the last mode that was set. */
+function updateJoinButtons() {
+  const view = calque.shownView();
+  if (!view) return;
+  const mode = modeOf(view);
+  knotUI.poly?.setAttribute("aria-pressed", String(mode === "poly"));
+  knotUI.bezier?.setAttribute("aria-pressed", String(mode === "bezier"));
+}
+
+/** Rebuild the outline and, unless a drag is in progress, the volume. */
+async function applyEdit(view, { volume = true } = {}) {
+  refreshContours();
+  calque.invalidate();
+  await calque.showPlate(calque.shownView() ?? null);
+  if (volume && volumeGroup.visible) rebuildVolume();
+  updateKnotInfo();
+  return stage.nextFrame();
+}
+
+function setJoinMode(mode, view = editorView()) {
+  if (!view) return null;
+  const entry = ensureKnots(view);
+  entry.mode = mode === "bezier" ? "bezier" : "poly";
+  knotUI.poly?.setAttribute("aria-pressed", String(entry.mode === "poly"));
+  knotUI.bezier?.setAttribute("aria-pressed", String(entry.mode === "bezier"));
+  applyEdit(view);
+  return entry.mode;
+}
+
+/**
+ * The reduce: Douglas-Peucker on the TRACED ring, at a tolerance in millimetres. It re-derives the
+ * knots from the trace every time, so two reduces in a row give the same answer as one and a manual
+ * knot that was placed between them is not silently kept as if it were on the trace.
+ */
+function reduceKnots(tolerance_mm, view = editorView()) {
+  if (!view) return null;
+  const entry = ensureKnots(view);
+  const ring = ringOf(tracedContours[view]?.path);
+  const before = entry.knots.length;
+  entry.knots = simplifyRing(ring, Math.max(0, Number(tolerance_mm) || 0) / 1000);
+  applyEdit(view);
+  return { view, before, after: entry.knots.length };
+}
+
+function resetKnots(view = editorView()) {
+  if (!view) return null;
+  delete knots[view];
+  discarded.add(view);
+  applyEdit(view);
+  return view;
+}
+
+async function saveKnots() {
+  // The union of what the file already held and what was edited this session, minus the views that
+  // were reset. Writing `knots` alone would drop every view that was loaded but not touched.
+  const payload = {};
+  for (const [view, entry] of Object.entries(savedKnots)) {
+    if (discarded.has(view) || !(entry?.knots?.length >= 3)) continue;
+    payload[view] = { mode: entry.mode === "bezier" ? "bezier" : "poly", knots: entry.knots };
+  }
+  for (const [view, entry] of Object.entries(knots)) {
+    if (discarded.has(view)) continue;
+    payload[view] = { mode: entry.mode, knots: entry.knots };
+  }
+  const scene = document_.scene?.id;
+  try {
+    const response = await fetch("/api/contours", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ scene, knots: payload }),
+    });
+    const result = await response.json().catch(() => null);
+    if (knotUI.info) knotUI.info.textContent = result?.written ? `saved ${Object.keys(payload).length}` : "save failed";
+    return result;
+  } catch (error) {
+    if (knotUI.info) knotUI.info.textContent = "save failed";
+    return { ok: false, problems: [String(error?.message ?? error)] };
+  }
+}
+
+// --- pointer editing
+
+function editorDown(nx, ny) {
+  const hit = platePoint(nx, ny);
+  if (!hit) return null;
+  const view = hit.view;
+  editor.view = view;
+  const entry = ensureKnots(view);
+  // 10 screen pixels, in the plate's metres. The plate's own scale is what makes a handle grabbable
+  // at the zoom the art director is working at.
+  const threshold = (10 * mmPerScreenPx()) / 1000;
+  const near = nearestKnot(entry.knots, hit.uv);
+  if (near && near.distance <= threshold) {
+    // A press on a knot grabs it. A press and release with no movement removes it -- that is what
+    // makes "click a knot to remove it" and "drag a knot to move it" the same gesture.
+    editor.dragging = near.index;
+    editor.moved = false;
+    editor.fresh = false;
+    return { action: "grab", view, index: near.index };
+  }
+  // An insert must land ON the line. A click in the empty plate that snapped to the nearest ring
+  // point would add a knot far from where the art director pointed, and a second click at the same
+  // place would add the same knot again.
+  const on = nearestOnRing(entry.knots, hit.uv);
+  if (!on || on.distance > threshold) return null;
+  entry.knots = insertKnot(entry.knots, on.after, on.at);
+  editor.dragging = on.after + 1;
+  editor.moved = false;
+  editor.fresh = true; // a just-inserted knot is not removed by the release
+  applyEdit(view);
+  return { action: "insert", view, index: on.after + 1 };
+}
+
+function editorDrag(nx, ny) {
+  if (editor.dragging < 0 || !editor.view) return null;
+  const hit = platePoint(nx, ny);
+  if (!hit) return null;
+  const entry = knots[editor.view];
+  if (!entry) return null;
+  editor.moved = true;
+  entry.knots = moveKnot(entry.knots, editor.dragging, hit.uv);
+  applyEdit(editor.view, { volume: false });
+  return { action: "move", view: editor.view, index: editor.dragging };
+}
+
+function editorUp() {
+  const index = editor.dragging;
+  const view = editor.view;
+  const remove = index >= 0 && !editor.moved && !editor.fresh;
+  editor.dragging = -1;
+  editor.moved = false;
+  editor.fresh = false;
+  if (remove && view && knots[view]) {
+    knots[view].knots = removeKnot(knots[view].knots, index);
+    applyEdit(view);
+    return { action: "remove", view, index };
+  }
+  if (index >= 0 && view && volumeGroup.visible) rebuildVolume();
+  return { action: index >= 0 ? "release" : "none", view, index };
+}
+
+const canvas = stage.renderer.domElement;
+function pointerNdc(event) {
+  const rect = canvas.getBoundingClientRect();
+  return [
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  ];
+}
+canvas.addEventListener("pointerdown", (event) => {
+  if (!editor.active || event.button !== 0) return;
+  const result = editorDown(...pointerNdc(event));
+  if (result) canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener("pointermove", (event) => {
+  if (!editor.active || editor.dragging < 0) return;
+  editorDrag(...pointerNdc(event));
+});
+canvas.addEventListener("pointerup", (event) => {
+  if (!editor.active) return;
+  editorUp();
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+});
+
+// --- the panel
+
+function setEditMode(on) {
+  editor.active = Boolean(on);
+  knotUI.edit?.setAttribute("aria-pressed", String(editor.active));
+  calque.setHandles(editor.active);
+  if (editor.active) {
+    // The plate has to be in the scene for there to be a line to grab.
+    const view = calque.shownView() ?? rig.matchingView();
+    if (view) calque.showPlate(view);
+  }
+  updateKnotInfo();
+  stage.nextFrame();
+  return editor.active;
+}
+
+knotUI.edit?.addEventListener("click", () => setEditMode(!editor.active));
+knotUI.poly?.addEventListener("click", () => setJoinMode("poly"));
+knotUI.bezier?.addEventListener("click", () => setJoinMode("bezier"));
+knotUI.reduce?.addEventListener("click", () => reduceKnots(knotUI.tol?.value));
+knotUI.reset?.addEventListener("click", () => resetKnots());
+knotUI.save?.addEventListener("click", () => saveKnots());
+
+// The panel follows the plate: `refreshPanel` already runs on every plate change, so the knot count
+// and the join buttons describe the view on screen.
+refreshPanel = () => {
+  picker.render();
+  updateKnotInfo();
+};
 
 // ------------------------------------------------------------------ view buttons
 
@@ -195,7 +513,7 @@ function rebuildVolume() {
     result = buildContourVolume({
       document: document_,
       views,
-      contours: modelModule.CONTOURS ?? null,
+      contours: effectiveContours,
       used: modelModule.TRACE?.views_used ?? [],
       divisions,
     });
@@ -449,14 +767,73 @@ window.__ctl = {
     };
   },
   calqueInfo: () => calque.info(),
-  // How the traced outline is read: `poly` joins the points it was fitted through, `bezier` samples
-  // the curve. Both come from one path, so the outline does not move when the reading changes.
-  contourMode: async (mode) => {
-    calque.setContourMode(mode);
-    await calque.showPlate(calque.shownView() ?? null);
-    if (volumeInfo.built) rebuildVolume();
-    return stage.nextFrame().then(() => calque.info().contour);
+  // How the knots are joined: `poly` draws straight lines through them, `bezier` a smooth curve.
+  // Both read the SAME knots, so the outline cannot move when the join changes -- only the line
+  // between two knots. This is the art director's join control.
+  contourMode: async (mode, view) => {
+    setJoinMode(mode, view ?? editorView());
+    return stage.nextFrame().then(() => modeOf(view ?? editorView() ?? ""));
   },
+  // The contour knots: the source the outline and the volume are read from.
+  knots: () => ({
+    shown: calque.shownView(),
+    edited: Object.fromEntries(
+      Object.entries(knots).map(([view, entry]) => [view, { mode: entry.mode, count: entry.knots.length }]),
+    ),
+    counts: Object.fromEntries(
+      Object.keys(tracedContours).map((view) => [view, knotsOf(view).length]),
+    ),
+    positions: knotsOf(calque.shownView())?.map((p) => [Number(p[0].toFixed(4)), Number(p[1].toFixed(4))]) ?? null,
+  }),
+  knotEdit: (on) => setEditMode(on),
+  // What a click at a normalised device coordinate would do: the pick, the nearest knot, and the
+  // grab threshold. It is how the pointer path is tested without a mouse.
+  knotProbe: (nx, ny) => {
+    const hit = platePoint(nx, ny);
+    if (!hit) return null;
+    const list = knotsOf(hit.view);
+    const near = nearestKnot(list, hit.uv);
+    return {
+      view: hit.view,
+      uv: hit.uv.map((v) => Number(v.toFixed(4))),
+      threshold_mm: Number(((10 * mmPerScreenPx())).toFixed(2)),
+      nearest_index: near?.index ?? null,
+      nearest_mm: near ? Number((near.distance * 1000).toFixed(2)) : null,
+      grab: Boolean(near && near.distance <= (10 * mmPerScreenPx()) / 1000),
+      editing: editor.active,
+    };
+  },
+  knotAdd: async (view, uv) => {
+    const entry = ensureKnots(view);
+    const on = nearestOnRing(entry.knots, uv);
+    if (!on) return null;
+    entry.knots = insertKnot(entry.knots, on.after, on.at);
+    await applyEdit(view);
+    return { view, index: on.after + 1, count: entry.knots.length };
+  },
+  knotRemove: async (view, index) => {
+    const entry = ensureKnots(view);
+    entry.knots = removeKnot(entry.knots, index);
+    await applyEdit(view);
+    return { view, count: entry.knots.length };
+  },
+  knotMove: async (view, index, uv) => {
+    const entry = ensureKnots(view);
+    entry.knots = moveKnot(entry.knots, index, uv);
+    await applyEdit(view);
+    return { view, count: entry.knots.length };
+  },
+  knotReduce: async (view, mm) => {
+    const result = reduceKnots(mm, view);
+    await stage.nextFrame();
+    return result;
+  },
+  knotReset: async (view) => {
+    resetKnots(view);
+    await stage.nextFrame();
+    return { view, count: knotsOf(view).length, edited: isEdited(view) };
+  },
+  knotSave: () => saveKnots(),
   // The volume the three contours describe, and the numbers it reached. `rebuild` redoes the
   // intersection, which is the only way to see a change in the paths.
   volume: async (options = {}) => {

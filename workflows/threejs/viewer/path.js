@@ -38,6 +38,45 @@ export function flattenPath(path, divisions) {
 }
 
 /**
+ * A closed path from an ordered list of knots, joined one of two ways.
+ *
+ * The knots are the points the art director kept or placed on the contour. They are the source: the
+ * two join modes read the SAME knots, so a switch between them cannot move a knot, only the line
+ * between two knots.
+ *
+ *   "poly"    straight segments through the knots -- the angular reading.
+ *   "bezier"  cubics through the knots, with the tangents of a Catmull-Rom spline: the curve passes
+ *             through every knot and joins smoothly, so a knot is a point the outline reaches.
+ *
+ * The output is the same shape as a traced path, so `flattenPath`, the contour line and the volume
+ * prism read it without knowing where it came from.
+ */
+export function pathFromKnots(knots, mode = "poly") {
+  const count = knots?.length ?? 0;
+  if (count < 3) return null;
+  const at = (index) => knots[((index % count) + count) % count];
+  const round = (value) => Number(value.toFixed(5));
+  const start = [round(knots[0][0]), round(knots[0][1])];
+  const segments = [];
+  if (mode === "bezier") {
+    for (let i = 0; i < count; i += 1) {
+      const previous = at(i - 1);
+      const from = at(i);
+      const to = at(i + 1);
+      const next = at(i + 2);
+      const c1 = [from[0] + (to[0] - previous[0]) / 6, from[1] + (to[1] - previous[1]) / 6];
+      const c2 = [to[0] - (next[0] - from[0]) / 6, to[1] - (next[1] - from[1]) / 6];
+      segments.push(["C", round(c1[0]), round(c1[1]), round(c2[0]), round(c2[1]),
+                     round(to[0]), round(to[1])]);
+    }
+  } else {
+    for (let i = 1; i < count; i += 1) segments.push(["L", round(knots[i][0]), round(knots[i][1])]);
+    segments.push(["L", start[0], start[1]]);
+  }
+  return { start, segments };
+}
+
+/**
  * A `THREE.Shape` from a flattened ring, in the ring's own units.
  *
  * The ring may arrive in either winding, and `ExtrudeGeometry` takes only one. The orientation is

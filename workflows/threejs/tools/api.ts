@@ -368,6 +368,58 @@ async function saveMeasurement(request: Request, root: string): Promise<Response
   return reply({ ok: true, written: relative(root, target) });
 }
 
+// ---------------------------------------------------------------- contour knots
+
+/**
+ * The hand-set contour knots, written back into the scene as a module.
+ *
+ * A module, not JSON, because the viewer loads the scene through its import graph and a scene module
+ * imports `three` only: a `fetch` here would be the one network call in a model file. The file is
+ * written from the viewer's save command, and the dev server reloads the page on the change.
+ */
+async function saveContours(request: Request, root: string): Promise<Response> {
+  const body = (await request.json().catch(() => null)) as { scene?: string; knots?: Json } | null;
+  if (!body?.scene || !body.knots) {
+    return reply({ ok: false, problems: ["expected { scene, knots }"] }, 400);
+  }
+  const dirAbs = resolveScene(body.scene);
+  if (!isInside(SCENES, dirAbs) || dirAbs === SCENES) {
+    return reply({ ok: false, problems: [`unknown scene: ${body.scene}`] }, 403);
+  }
+  const target = join(dirAbs, "contours.js");
+  if (!isInside(SCENES, target)) {
+    return reply({ ok: false, problems: ["forbidden"] }, 403);
+  }
+  await Bun.write(target, renderKnotsModule(body.knots));
+  return reply({ ok: true, written: relative(root, target) });
+}
+
+/** A knots object, as the `contours.js` module text. */
+function renderKnotsModule(knots: Json): string {
+  const lines = [
+    "// The hand-set contour knots, one list per view, in the plate's own metres.",
+    "//",
+    "// Written by the viewer's save command. See `viewer/knots.js`. A knot is a point the outline",
+    "// passes through; `mode` is \"poly\" (lines) or \"bezier\" (a smooth curve through the knots).",
+    "",
+    "export const KNOTS = {",
+  ];
+  for (const view of Object.keys(knots).sort()) {
+    const entry = knots[view] ?? {};
+    const mode = entry.mode === "bezier" ? "bezier" : "poly";
+    lines.push(`  ${JSON.stringify(view)}: {`);
+    lines.push(`    mode: ${JSON.stringify(mode)},`);
+    lines.push("    knots: [");
+    for (const point of entry.knots ?? []) {
+      lines.push(`      [${Number(point[0]).toFixed(5)}, ${Number(point[1]).toFixed(5)}],`);
+    }
+    lines.push("    ],");
+    lines.push("  },");
+  }
+  lines.push("};", "");
+  return lines.join("\n");
+}
+
 // ---------------------------------------------------------------- entry
 
 export async function handleApi(request: Request, context: ApiContext): Promise<Response | null> {
@@ -389,6 +441,9 @@ export async function handleApi(request: Request, context: ApiContext): Promise<
   }
   if (url.pathname === "/api/measure" && request.method === "POST") {
     return saveMeasurement(request, root);
+  }
+  if (url.pathname === "/api/contours" && request.method === "POST") {
+    return saveContours(request, root);
   }
 
   return reply({ ok: false, problems: [`unknown endpoint: ${url.pathname}`] }, 404);

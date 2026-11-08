@@ -162,12 +162,13 @@ produced, even when the method it describes has since been replaced.
 - **Blueprint candidate**: One generated image for one view, named `<model-slug>--<NN>.<ext>`. The art director picks one.
 - **Blueprint package**: The reference image, the six accepted view images, and the generation manifest of one subject.
 - **Calque**: A reference view placed in the scene as a plane, sized in metres from the two scales of that view. It is traced over, never rendered into a capture.
-- **Contour**: The closed outline of one orthogonal view, in the local metres of that view's plate. It comes from the cropped file, and it is drawn over the reference picture. It is not the volume, and the volume does not read it.
+- **Contour**: The closed outline of one orthogonal view, in the local metres of that view's plate. It is a list of **knots**, joined by lines or by a smooth curve. It comes from the cropped file, and it is drawn over the reference picture. The contour volume reads it: change a knot, and the volume changes.
 - **Crop**: A derived file `cropped/<view>.png`: a cut of the locked reference, with a small margin, identical to the same rectangle at the pixel. A crop never resamples, so the contour inherits the native resolution of the reference. Rebuild it at any time.
 - **Design unit**: The unit of the numbers of a document. Metres for a game asset, millimetres for a machined part.
 - **Draft**: Raw material in `blueprints/drafts/`. A draft is not a subject.
 - **Envelope**: The coarse box that contains the target volume at the first step of the fidelity ladder.
 - **Fidelity gate**: A number and a render that a stage passes before the next stage starts.
+- **Knot**: A point of a contour that the outline passes through. The knots are the source of the contour, in `scenes/<subject>/contours.js`; two join modes, `poly` and `bezier`, read the same knots. A knot is not an off-curve handle.
 - **Ladder**: The sequence of fidelity stages in [the method document](./research/progressive-volume-modeling.md).
 - **Locked view**: A view folder that contains `reference.<ext>`. The generator skips a locked view.
 - **Loon**: The compact S-expression language of vcad.

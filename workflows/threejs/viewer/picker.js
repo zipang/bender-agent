@@ -172,6 +172,7 @@ export function createPicker({
   return {
     measurement,
     pick: point,
+    pickAt,
     between,
     lastBetween,
     render,

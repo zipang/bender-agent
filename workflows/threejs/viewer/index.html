@@ -55,6 +55,24 @@
 
       body.shot #hud, body.shot #views, body.shot #layers { display: none; }
       body.shot, body.shot html { background: #fff; }
+
+      #knots {
+        position: fixed; top: 64px; right: 16px; display: flex; flex-wrap: wrap; gap: 6px;
+        align-items: center; padding: 6px; max-width: 380px;
+        background: rgb(255 255 255 / 0.82); border: 1px solid #d5d9de; border-radius: 8px;
+        backdrop-filter: blur(6px);
+      }
+      #knots[hidden] { display: none; }
+      #knots button, #knots input {
+        font: inherit; padding: 5px 9px; border: 1px solid #d5d9de; border-radius: 5px;
+        background: transparent; color: #22262b; cursor: pointer;
+      }
+      #knots button:hover { background: #e7eaee; }
+      #knots button[aria-pressed="true"] { background: #22262b; color: #fff; }
+      #knots input { width: 54px; cursor: text; }
+      #knots .label { color: #6a7480; }
+      #knots .sep { width: 1px; align-self: stretch; background: #d5d9de; margin: 2px 3px; }
+      body.shot #knots { display: none; }
     </style>
     <script type="importmap">
       {
@@ -139,6 +157,26 @@
     </div>
 
     <div id="views"></div>
+
+    <div id="knots">
+      <button id="knot-edit" type="button" aria-pressed="false"
+              title="show the knots and edit the contour: click the line to add, click a knot to remove, drag to move">
+        edit
+      </button>
+      <span class="sep"></span>
+      <span class="label">join</span>
+      <button id="knot-poly" type="button" aria-pressed="true" title="straight lines between the knots">poly</button>
+      <button id="knot-bezier" type="button" aria-pressed="false" title="a smooth curve through the knots">bezier</button>
+      <span class="sep"></span>
+      <span class="label">reduce</span>
+      <input id="knot-tol" type="number" min="0" step="1" value="12" title="tolerance in millimetres" />
+      <button id="knot-reduce" type="button" title="drop every knot that moves the line by less than the tolerance">mm</button>
+      <span class="sep"></span>
+      <button id="knot-reset" type="button" title="forget the hand-set knots of this view">reset</button>
+      <button id="knot-save" type="button" title="write the knots into the scene">save</button>
+      <span class="sep"></span>
+      <span class="label" id="knot-info">—</span>
+    </div>
 
     <script type="module" src="./main.js"></script>
   </body>

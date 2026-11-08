@@ -29,7 +29,7 @@ import { flattenPath } from "./path.js";
  * @param {object} options.document                the `/api/scene` document
  * @param {() => void} [options.onChange]          called after the plate set changes
  */
-export function createCalque({ scene, views, document: sceneDocument, contours, onChange }) {
+export function createCalque({ scene, views, document: sceneDocument, contours, knotsOf, onChange }) {
   const group = new THREE.Group();
   group.name = "Calque";
   group.renderOrder = -1;
@@ -41,6 +41,15 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
   const contourGroup = new THREE.Group();
   contourGroup.name = "Contour";
   scene.add(contourGroup);
+
+  // The knot handles: the points the outline passes through, shown only while editing. They are a
+  // sibling of the contour group, not a child: `showPlate` clears the contour group's children on
+  // every rebuild, and a handle that vanished with a rebuild would leave the editor with nothing to
+  // grab. `placeHandles` copies the same plate transform, so a handle cannot sit beside its line.
+  const handleGroup = new THREE.Group();
+  handleGroup.name = "KnotHandles";
+  handleGroup.visible = false;
+  scene.add(handleGroup);
 
   const calque = {
     view: null,     // the view whose plate is shown, or null
@@ -62,6 +71,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
       // the comparison between them a judgement about the drawing and not about two datasets.
       mode: "file",
       divisions: 12,
+      handles: false,
     },
     loaded: new Map(),
     contours: new Map(),
@@ -220,6 +230,49 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
   }
 
   /**
+   * The knots of one view, as points to grab. One `Points` object, so a hundred handles cost one
+   * draw call and the editor stays responsive on a dense outline.
+   */
+  function buildHandles(view) {
+    const knots = knotsOf?.(view);
+    if (!knots || knots.length === 0) return null;
+    const positions = new Float32Array(knots.length * 3);
+    for (let i = 0; i < knots.length; i += 1) {
+      positions[i * 3] = knots[i][0];
+      positions[i * 3 + 1] = knots[i][1];
+      positions[i * 3 + 2] = 0.001; // a hair in front of the line it belongs to
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({
+      color: 0xffd24a, size: 9, sizeAttenuation: false,
+      depthTest: false, depthWrite: false, toneMapped: false,
+    });
+    const points = new THREE.Points(geometry, material);
+    points.name = `Knots_${view}`;
+    points.renderOrder = 31;
+    return points;
+  }
+
+  /** Rebuild the handles for the view in the scene. Called after an edit, not on every frame. */
+  function refreshHandles() {
+    for (const child of [...handleGroup.children]) handleGroup.remove(child);
+    const plate = current();
+    if (!calque.contour.handles || !plate) {
+      handleGroup.visible = false;
+      return;
+    }
+    const points = buildHandles(plate.userData.view);
+    if (!points) {
+      handleGroup.visible = false;
+      return;
+    }
+    placeContour(points, plate);
+    handleGroup.add(points);
+    handleGroup.visible = true;
+  }
+
+  /**
    * Rebuild every outline at another reading of its path.
    *
    * The path holds control points, and one geometry serves both readings: `poly` keeps a segment's
@@ -249,6 +302,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     // buffers here leaves a plate that loads, parents cleanly, and draws nothing at all.
     for (const child of [...group.children]) group.remove(child);
     for (const child of [...contourGroup.children]) contourGroup.remove(child);
+    for (const child of [...handleGroup.children]) handleGroup.remove(child);
     if (!view) {
       onChange?.(); // no plate: the panel must stop quoting the last view's scale
       return null;
@@ -276,8 +330,30 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
       contourGroup.add(line);
       contourGroup.visible = calque.contour.enabled;
     }
+    refreshHandles();
     onChange?.();
     return mesh;
+  }
+
+  /**
+   * Forget the built outlines, so the next `showPlate` reads the current paths. The knots changed,
+   * and a cached line would keep drawing the old join.
+   */
+  function invalidate() {
+    for (const line of calque.contours.values()) {
+      if (!line) continue;
+      line.geometry.dispose();
+      line.material.dispose();
+    }
+    calque.contours.clear();
+  }
+
+  /** Show or hide the knot handles. */
+  function setHandles(value) {
+    calque.contour.handles = Boolean(value);
+    refreshHandles();
+    onChange?.();
+    return calque.contour.handles;
   }
 
   /** Follow the camera: show the plate of the axis it is on, and hide it otherwise. */
@@ -370,6 +446,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
         drawn: contourGroup.children.map((child) => child.name),
         mode: calque.contour.mode,
         divisions: calque.contour.divisions,
+        handles: calque.contour.handles,
       },
       shown: group.visible ? calque.view : null,
       depth: calque.depth,
@@ -393,6 +470,9 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     setEnabled,
     setContourEnabled,
     setContourMode,
+    setHandles,
+    invalidate,
+    refreshHandles,
     info,
   };
 }

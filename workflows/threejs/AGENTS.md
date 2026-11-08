@@ -45,6 +45,22 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
 - A distance is read from a tool, never estimated by eye.
 - A gate measured on one view is half-measured. Write `not measured` for the others and fail it.
 
+## Contour rules
+
+- The drawn contour reads the **picture**; the hull reads the **opened intervals**. The two are
+  separate on purpose: no drawing choice may move the volume.
+- The contour is the **boundary walk** of the region, not one `lo`/`hi` pair per pixel column. A
+  column pair cannot express an edge that runs along the rows.
+- A contour is a **path**, not a point list: `start`, then `L` and `C` segments.
+- `--tolerance` decides the shape, `--pitch` only the resolution. Never pass a pitch as if it were a
+  tolerance.
+- `poly` and `bezier` read **one** path. A second fit is a second dataset, and a comparison between
+  two datasets proves nothing.
+- Print the measured deviation. A fit that meets its tolerance is a fact about the output, not a
+  claim about the algorithm.
+- Choose a tolerance on a rendered contact sheet, never from a table.
+- A step that moves an edge must not also redefine **which** edge it is.
+
 ## Evidence rules
 
 - A stage ends with the `.glb` and one WebP per named view. Numbers alone cannot be judged.

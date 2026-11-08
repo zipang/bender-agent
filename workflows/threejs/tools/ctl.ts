@@ -254,7 +254,9 @@ async function main(): Promise<void> {
     if (opacity !== null) args.push(`opacity: ${opacity}`);
     const depth = option(rest, "depth");
     if (depth) args.push(`depth: ${JSON.stringify(depth)}`);
+    const mode = option(rest, "mode");
     await evaluate(`window.__ctl.calque({ ${args.join(", ")} }).then(() => true)`, session);
+    if (mode) await evaluate(`window.__ctl.contourMode(${JSON.stringify(mode)})`, session);
     const info = await evaluate("window.__ctl.calqueInfo()", session);
     console.log(JSON.stringify(info, null, 2));
     return;

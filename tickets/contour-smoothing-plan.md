@@ -1,18 +1,19 @@
 # Contour smoothing plan
 
-Status: in progress. Step 0 is done, and steps 1 to 7 are planned.
+Status: in progress. Steps 0, 1a, 3, 4, 6 and 7 are done. Step 5 is open, and §6.6 holds the
+open defect.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
 | 0 Baseline | done | `tickets/baseline-contour.json` |
 | 1 Subpixel edge | attempted, reverted. See §6.3 | — |
-| 1a Boundary walk | done. See §6.4 |
-| 2 Float opening | planned | |
-| 3 Path | planned | |
-| 4 Contact sheet | planned | |
-| 5 Hull from the path | planned | |
-| 6 Viewer | planned | |
-| 7 Documentation | planned. The reorg landed, so this step adds rows to an existing chapter | |
+| 1a Boundary walk | done. See §6.4 | `7fa12a2` |
+| 2 Float opening | not done. The 1-D opening stays for the hull: a 2-D disc costs 80 mm of length | — |
+| 3 Path | **done.** See §6.5 | this commit |
+| 4 Contact sheet | **done.** See §6.5, `/tmp/opencode/sheet-tolerance.png` | this commit |
+| 5 Hull from the path | not done. The hull still reads the photograph | — |
+| 6 Viewer | **done.** `calque --mode poly|bezier` | this commit |
+| 7 Documentation | **done.** `workflows/threejs/README.md` §5.1, `AGENTS.md` "Contour rules" | this commit |
 
 ## 1. Purpose
 
@@ -549,7 +550,75 @@ files, so a later step can prove which inputs it started from.
 The triangle gate is a designed target, chosen before the measurement. It is a test of the
 implementation, not a promise about the shape.
 
+### 6.5 Steps 3, 4, 6 and 7, done
+
+**The path.** `simplify_ring()` (Douglas-Peucker on a closed ring), `subdivide_ring()`,
+`fit_ring()` (greedy least-squares cubics with the end tangents taken from the neighbouring
+points), and `build_path()`. `plate_contour()` now emits a path plus its measured deviation.
+
+| Flag | Default | Changes |
+| :--- | ---: | :--- |
+| `--tolerance` | 0.25 mm | the SHAPE. The largest distance the drawn line may sit from the traced points |
+| `--pitch` | 2 mm | the resolution. The longest segment |
+| `--mode` | `poly` | the reading, not the shape: `L` segments, or cubics through the same points |
+
+**The measured tolerance, `top`, `--pitch 20`.**
+
+| `--tolerance` | Segments | Measured deviation |
+| ---: | ---: | ---: |
+| 0.25 | 584 | 0.01 mm |
+| 1 | 547 | 0.74 mm |
+| 3 | 346 | 2.95 mm |
+| 6 | 60 | 0.00 mm |
+
+Below the pixel size the fit cannot smooth anything, and it falls back to `L` segments — the honest
+answer there is the trace itself. The default is 3 mm, chosen on the rendered contact sheet
+`/tmp/opencode/sheet-tolerance.png`, which shows `poly` and `bezier` at 0.5, 1, 3 and 6 mm over the
+`top` flank of the reference.
+
+**Two bugs found by measuring, and worth keeping.** `_polyline_deviation` took the FARTHEST segment
+instead of the nearest, and reported the diameter of the shape (3524 mm). `simplify_ring` returned
+nothing on `left`, because the closed ring was split at the first point instead of at its two
+farthest-apart points. Neither could be seen without printing the number.
+
+**Viewer.** `calque.contour.mode` is `file`, `poly` or `bezier`; `flattenPath()` reads the path at a
+division count, and `__ctl.contourMode()` / `ctl.ts calque --mode` switch it live without rebuilding
+the scene. The evidence that the two readings agree: the outline does not move when the mode changes,
+because both come from the same control points.
+
+**Documentation.** `workflows/threejs/README.md` §5.1, and the "Contour rules" section of
+`workflows/threejs/AGENTS.md`.
+
+### 6.6 Open defect: the contour captures the accessories
+
+The verification that closed step 3 is the same one that opened this defect. Rasterized back onto
+the reference, the contour reproduces the picture at IoU 1.00000 on `top`, `front` and `bottom`,
+0.99993 to 0.99997 elsewhere. That is exact, and it means the outline also traces the tyres, the
+bumpers, the mirrors and the plate.
+
+The hull already answers this question, and the answer is `--smooth-mm`: a 1-D interval opening at
+150 mm removes a protrusion narrower than the window without eroding the nose and the tail (a 2-D
+disc opening was measured at 80 mm of body length). The drawn contour does not use it: it reads
+`view.body_mask`, which is the raw silhouette.
+
+The tension is arithmetic, not aesthetic. An accessory is attached to the body, so any mask
+operation that removes it also moves the body edge wherever the two meet. There are three ways out,
+and each one pays somewhere:
+
+| Route | How | Cost |
+| :--- | :--- | :--- |
+| Opened mask | draw from the region the hull already uses | the region is column-convex: the `top` flanks go back to 1 to 6 px outside the body |
+| 2-D disc opening | erode and dilate the mask with a disc of radius `--smooth-mm` | measured at 80 mm of body length on the hull; the nose and tail round off |
+| Separate accessory contours | the art director names the regions; the body contour keeps its exact fit and the accessories get their own closed paths | one extra decision per view, and one more artifact to carry |
+
+The third route is the only one that keeps the fit that was just accepted. It also matches the
+vocabulary of stage 3: an accessory is a named part, so it can be a named contour.
+
+None of the three is chosen. The measurement that picks between them is the same for each: the body
+contour, the accessory contour and the picture, compared per view.
+
 ## 7. Failure modes to keep
+
 
 | Symptom | Cause | Rule |
 | :--- | :--- | :--- |

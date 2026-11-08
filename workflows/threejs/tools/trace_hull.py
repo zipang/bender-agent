@@ -170,7 +170,7 @@ def dilate(lo, hi, radius):
 
 
 def open_intervals(lo, hi, radius):
-    """Erode, then dilate: the morphological OPENING of an outline.
+    """Erode, then dilate: the morphological OPENING of a profile.
 
     Erosion alone removes a protrusion and every taper with it, because a taper is a long run of
     small moves inward and each sample sees its neighbours. The dilation that follows restores the
@@ -179,6 +179,10 @@ def open_intervals(lo, hi, radius):
 
     This is the difference between "remove what sticks out" and "remove what is narrow", and only
     the second one is true of an accessory.
+
+    It is ONE-DIMENSIONAL on purpose. A wheel is a local protrusion in the vertical run of a column,
+    which is exactly what this removes, and a two-dimensional disc of the same size also erodes the
+    nose and the tail of the body. The drawing does not use this: see `View.body_mask`.
     """
     if radius <= 0:
         return np.array(lo, copy=True), np.array(hi, copy=True)
@@ -188,6 +192,79 @@ def open_intervals(lo, hi, radius):
     eroded_lo[inverted] = np.nan
     eroded_hi[inverted] = np.nan
     return dilate(eroded_lo, eroded_hi, radius)
+
+
+def sliding_extreme(values, window, is_min):
+    """A sliding min or max along axis 1, at a fixed window. O(1) per sample. Gil-Werman.
+
+    The window is centred, so `window` is odd. Outside the array the fill is the neutral element of
+    the operation: `True` for a min over a boolean mask (a window must not invent a background
+    pixel), `False` for a max.
+    """
+    pad = window // 2
+    fill = True if is_min else False
+    block = np.pad(values, ((0, 0), (pad, pad)), constant_values=fill)
+    length = block.shape[1]
+    blocks = -(-length // window)
+    if blocks * window > length:
+        block = np.pad(block, ((0, 0), (0, blocks * window - length)), constant_values=fill)
+    shaped = block.reshape(block.shape[0], blocks, window)
+    if is_min:
+        prefix = np.minimum.accumulate(shaped, axis=2).reshape(block.shape[0], -1)
+        suffix = np.minimum.accumulate(shaped[:, :, ::-1], axis=2)[:, :, ::-1]
+    else:
+        prefix = np.maximum.accumulate(shaped, axis=2).reshape(block.shape[0], -1)
+        suffix = np.maximum.accumulate(shaped[:, :, ::-1], axis=2)[:, :, ::-1]
+    suffix = suffix.reshape(block.shape[0], -1)
+    first = np.arange(values.shape[1])
+    if is_min:
+        return np.minimum(suffix[:, first], prefix[:, first + window - 1])
+    return np.maximum(suffix[:, first], prefix[:, first + window - 1])
+
+
+def _disc_pass(mask, radius_x, radius_y, is_min):
+    """One dilation or erosion by an ellipse, as a stack of horizontal runs.
+
+    A disc is the union of its horizontal chords, so the two-dimensional operation is a vertical
+    sweep of one-dimensional ones. The chord half-width at row offset `dy` is the ellipse equation
+    in pixels, which makes the structuring element a disc of radius `smooth_mm` in MODEL metres even
+    when the view is anisotropic.
+    """
+    height, width = mask.shape
+    if radius_x < 1 or radius_y < 1:
+        return mask.copy()
+    result = None
+    neutral = True if is_min else False
+    for dy in range(-radius_y, radius_y + 1):
+        fraction = 1.0 - (dy / float(radius_y)) ** 2
+        half = int(np.floor(radius_x * np.sqrt(fraction))) if fraction > 0 else 0
+        run = sliding_extreme(mask, 2 * half + 1, is_min)
+        piece = np.full((height, width), neutral, dtype=bool)
+        top = max(0, dy)
+        bottom = min(height, height + dy)
+        if bottom > top:
+            piece[top:bottom, :] = run[max(0, -dy):max(0, -dy) + (bottom - top), :]
+        result = piece if result is None else ((result & piece) if is_min else (result | piece))
+    return result
+
+
+def open_disc(mask, radius_x, radius_y):
+    """Erode, then dilate by a disc: the morphological OPENING of a region.
+
+    This is the difference between "remove what sticks out" and "remove what is narrow", and only
+    the second one is true of an accessory. A disc is the right element because it preserves every
+    edge whose curvature radius is larger than its own: an erosion moves such an edge inward by the
+    radius along the normal, and the dilation moves it back. A square does not, and it was measured
+    2 to 3 pixels inside the body.
+
+    The previous code opened the `lo` and `hi` profiles of a view, one sample at a time, which is a
+    one-dimensional operation. It removed the accessory and left the region COLUMN-CONVEX: every
+    column filled from its first subject pixel to its last. A near-vertical flank then lost its
+    slope, and any drawing of that region sat outside the body.
+    """
+    if radius_x < 1 or radius_y < 1:
+        return mask.copy()
+    return _disc_pass(_disc_pass(mask, radius_x, radius_y, True), radius_x, radius_y, False)
 
 
 # ---------------------------------------------------------------- masks
@@ -248,6 +325,19 @@ class View:
         # the call: it depends on neighbours the caller never asks for.
         self.rows = self._read_rows()          # indexed by y: (lo, hi) on the horizontal axis
         self.cols = self._read_cols()          # indexed by x: (lo, hi) on the vertical axis
+        # `body_mask` is the region the CONTOUR draws, and it is the picture. `cols` and `rows` are
+        # the region the HULL builds from, and they are opened first.
+        #
+        # The two must not be the same object. The opening removes an accessory from a PROFILE: a
+        # wheel is a local protrusion in the vertical run of a column, and a 150 mm window drops it.
+        # That is a statement about the body, and the hull needs it. Applied to the picture, the same
+        # window also erodes every convex edge the body really has, and the nose loses tens of
+        # millimetres. A contour is a diagnostic of the drawing over the photograph, so it reads the
+        # photograph.
+        #
+        # Keeping them apart also keeps the hull honest. `body_mask` is never opened, so no choice
+        # made for the drawing can move the volume.
+        self.body_mask = self.mask
         if mask_mode != "raw" and smooth_mm > 0:
             # The radius of an array follows the PIXEL AXIS it is indexed by, not the model axis the
             # view constrains: `cols` walks image x, whose scale is kx; `rows` walks image y, whose
@@ -553,27 +643,273 @@ def simplify_collinear(loop):
     return kept
 
 
-def region_from_columns(cols):
-    """The pixel set whose column intervals are `cols`, as a boolean image.
+# ---------------------------------------------------------------- paths
 
-    The contour has to describe the SAME region the trace already chose. That region is not the raw
-    silhouette: `View` opens the column intervals at `--smooth`, which is what removes the wheels,
-    the mirrors and every thin protrusion the body does not own. Walking the raw mask instead would
-    reach the tyres again and move the bottom of `front` by a hundred pixels -- a change of subject
-    disguised as a change of drawing.
+def _segment_distance(point, a, b):
+    """Distance from a point to the segment `a`-`b`, in the units of the points."""
+    px, py = point
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    length2 = dx * dx + dy * dy
+    if length2 <= 0.0:
+        return float(np.hypot(px - ax, py - ay))
+    t = ((px - ax) * dx + (py - ay) * dy) / length2
+    t = max(0.0, min(1.0, t))
+    return float(np.hypot(px - (ax + t * dx), py - (ay + t * dy)))
+
+
+def _polyline_deviation(points, path):
+    """Worst distance from any traced point to the drawn polyline, in the points' units.
+
+    Per point it is the NEAREST segment that counts: a point is off the line when it is far from all
+    of it, not from one of it. Taking the farthest segment reports the diameter of the shape.
     """
-    lo, hi = cols
-    height = int(np.nanmax(hi[np.isfinite(hi)])) + 1 if np.isfinite(hi).any() else 0
-    region = np.zeros((max(height, 1), lo.size), dtype=bool)
-    for x in range(lo.size):
-        if not np.isfinite(lo[x]) or not np.isfinite(hi[x]):
+    if len(path) < 2:
+        return float("inf")
+    arrays = np.asarray(path, dtype=float)
+    a = arrays[:-1]
+    b = arrays[1:]
+    ab = b - a
+    length2 = np.einsum("ij,ij->i", ab, ab)
+    worst = 0.0
+    for point in np.asarray(points, dtype=float):
+        ap = point - a
+        dot = np.einsum("ij,ij->i", ap, ab)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            t = np.where(length2 > 0.0, dot / length2, 0.0)
+        t = np.clip(t, 0.0, 1.0)
+        closest = a + t[:, None] * ab
+        distance = np.hypot(*(point - closest).T)
+        nearest = float(distance.min())
+        if nearest > worst:
+            worst = nearest
+    return worst
+
+
+def simplify_ring(points, tolerance):
+    """Douglas-Peucker on a closed ring, at a chord tolerance. Returns new corner points.
+
+    This is the only place the shape is decided, and it is decided by one number: the largest
+    distance the drawn path may sit from the traced points. A tolerance under the pixel size keeps
+    the pixel staircase, and a tolerance above it removes the staircase and nothing else. There is
+    no per-subject constant anywhere in it.
+
+    A ring has no ends, so it is split at its two farthest-apart points. Each half is an open
+    polyline and the standard recursion applies to it.
+    """
+    ring = np.asarray(points, dtype=float)
+    count = ring.shape[0]
+    if count < 4:
+        return ring.tolist()
+    # A ring has no ends, so it is opened at its farthest-from-centre point and walked once around,
+    # ending on the same corner. The two ends coincide, which is what lets one recursion serve both
+    # the opening and the closing edge.
+    centre = ring.mean(axis=0)
+    first = int(np.argmax(np.hypot(*(ring - centre).T)))
+    order = [(first + step) % count for step in range(count + 1)]
+
+    stack = [(0, len(order) - 1)]
+    keep = {0, len(order) - 1}
+    while stack:
+        head, tail = stack.pop()
+        if tail - head < 2:
             continue
-        region[int(lo[x]):int(hi[x]) + 1, x] = True
-    return region
+        a, b = ring[order[head]], ring[order[tail]]
+        worst, at = -1.0, -1
+        for offset in range(head + 1, tail):
+            d = _segment_distance(ring[order[offset]], a, b)
+            if d > worst:
+                worst, at = d, offset
+        if worst <= tolerance or at < 0:
+            continue
+        keep.add(at)
+        stack.append((head, at))
+        stack.append((at, tail))
+
+    # The last kept index repeats the first point, so it is dropped from the closed ring.
+    return [ring[order[i]].tolist() for i in sorted(keep)[:-1]]
 
 
-def plate_contour(view):
-    """The outline of one view, in the plate's own metres.
+def subdivide_ring(points, max_length):
+    """Insert points so that no segment is longer than `max_length`. Corners are kept as they are."""
+    if max_length <= 0 or len(points) < 2:
+        return list(points)
+    out = []
+    count = len(points)
+    for index in range(count):
+        a = points[index]
+        b = points[(index + 1) % count]
+        out.append(list(a))
+        length = float(np.hypot(b[0] - a[0], b[1] - a[1]))
+        steps = int(np.ceil(length / max_length)) if length > max_length else 1
+        for step in range(1, steps):
+            t = step / float(steps)
+            out.append([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])])
+    return out
+
+
+def _fit_cubic(points, tangent_start, tangent_end):
+    """Least-squares cubic through a span, with fixed end tangents. Returns (c1, c2)."""
+    first = np.array(points[0], dtype=float)
+    last = np.array(points[-1], dtype=float)
+    span = float(np.hypot(*(last - first)))
+    if span <= 0.0:
+        return first.tolist(), last.tolist()
+    # Chord-length parametrisation: a first guess that is already close for a short span.
+    u = [0.0]
+    for index in range(1, len(points)):
+        u.append(u[-1] + float(np.hypot(*(np.array(points[index]) - np.array(points[index - 1])))))
+    total = u[-1] or 1.0
+    u = [value / total for value in u]
+
+    t1 = np.array(tangent_start, dtype=float)
+    t2 = np.array(tangent_end, dtype=float)
+    n1 = np.linalg.norm(t1)
+    n2 = np.linalg.norm(t2)
+    if n1 == 0.0 or n2 == 0.0:
+        return (first + (last - first) / 3.0).tolist(), (first + 2.0 * (last - first) / 3.0).tolist()
+    t1 = t1 / n1 * span / 3.0
+    t2 = t2 / n2 * span / 3.0
+
+    # Solve for the two scalar lengths along the tangents, by least squares on the residual.
+    a11 = a12 = a22 = x1 = x2 = 0.0
+    for index, point in enumerate(points):
+        t = u[index]
+        s = 1.0 - t
+        b0, b1, b2, b3 = s * s * s, 3 * s * s * t, 3 * s * t * t, t * t * t
+        a1 = t1 * b1
+        a2 = t2 * b2
+        target = np.array(point, dtype=float) - (b0 * first + b3 * last)
+        a11 += float(a1 @ a1)
+        a12 += float(a1 @ a2)
+        a22 += float(a2 @ a2)
+        x1 += float(a1 @ target)
+        x2 += float(a2 @ target)
+    det = a11 * a22 - a12 * a12
+    if abs(det) < 1e-12:
+        alpha, beta = span / 3.0, span / 3.0
+    else:
+        alpha = (x1 * a22 - x2 * a12) / det
+        beta = (a11 * x2 - a12 * x1) / det
+    # A negative length folds the curve back; a very long one overshoots. Both are clamped to the
+    # chord, which is the only scale the span itself provides.
+    alpha = max(0.0, min(alpha, span))
+    beta = max(0.0, min(beta, span))
+    return (first + t1 / (span / 3.0) * alpha).tolist(), (last - t2 / (span / 3.0) * beta).tolist()
+
+
+def _cubic_points(control, samples=48):
+    """Sample a cubic segment into points, for measuring only."""
+    p0 = np.array(control[0], dtype=float)
+    c1 = np.array(control[1], dtype=float)
+    c2 = np.array(control[2], dtype=float)
+    p3 = np.array(control[3], dtype=float)
+    out = []
+    for index in range(samples + 1):
+        t = index / float(samples)
+        s = 1.0 - t
+        out.append(s * s * s * p0 + 3 * s * s * t * c1 + 3 * s * t * t * c2 + t * t * t * p3)
+    return out
+
+
+def fit_ring(points, tolerance, max_length=0.0):
+    """Greedy cubic fit of a closed ring, guarded by a maximum deviation.
+
+    Each span grows one point at a time until the cubic through it strays further than `tolerance`
+    from the traced points, and the span before the failure is emitted. The tangents at both ends
+    come from the neighbouring points, which is what keeps two spans meeting along one line instead
+    of at an angle.
+
+    A span that cannot meet the tolerance even at its shortest becomes a straight segment. That is
+    not a failure: a tolerance under the pixel size cannot smooth a pixel staircase, and the honest
+    answer there is the trace itself. Raising the tolerance is what removes the staircase, and the
+    measured deviation says when it has.
+
+    The measured deviation of the result is returned with it. A fit that meets the tolerance is a
+    fact about the output, not a claim about the algorithm.
+    """
+    ring = np.asarray(points, dtype=float)
+    count = ring.shape[0]
+    if count < 4:
+        return {"start": ring[0].tolist(), "segments": [["L", *ring[i].tolist()] for i in range(1, count)]}, 0.0
+
+    def tangent(index, forward=True):
+        step = 1 if forward else -1
+        return ring[(index + step) % count] - ring[index % count]
+
+    def chord(a, b):
+        return float(np.hypot(*(ring[b] - ring[a])))
+
+    segments = []
+    worst = 0.0
+    index = 0
+    while index < count:
+        best = None
+        end = index + 2
+        while end <= count - 1:
+            # `pitch` is a cap on the span, and it applies to the curve as much as to a polyline:
+            # a cubic that spans the whole flank is one segment the caller cannot subdivide.
+            if max_length > 0.0 and chord(index, end) > max_length:
+                break
+            span = ring[index:end + 1]
+            control = [span[0].tolist(),
+                       *_fit_cubic(span, tangent(index), -tangent(end % count, forward=False)),
+                       span[-1].tolist()]
+            deviation = _polyline_deviation(span, _cubic_points(control))
+            if deviation > tolerance:
+                break
+            best = (end, control, deviation)
+            end += 1
+        if best is None:
+            # No cubic meets the tolerance here: keep the trace, one segment.
+            nxt = (index + 1) % count
+            segments.append(["L", round(float(ring[nxt][0]), 4), round(float(ring[nxt][1]), 4)])
+            index += 1
+            continue
+        end, control, deviation = best
+        worst = max(worst, deviation)
+        segments.append(["C",
+                         round(control[1][0], 4), round(control[1][1], 4),
+                         round(control[2][0], 4), round(control[2][1], 4),
+                         round(control[3][0], 4), round(control[3][1], 4)])
+        index = end
+    return {"start": [round(float(v), 4) for v in ring[0]], "segments": segments}, worst
+
+
+def build_path(points, mode, pitch_mm, tolerance_mm):
+    """Turn a traced ring into a path, at the resolution the caller asks for.
+
+    Two parameters, and each one answers a different question:
+
+    - `tolerance_mm` decides how far the drawn line may sit from the traced points. It is the only
+      knob that changes the SHAPE, and it is the same number for `poly` and `bezier`.
+    - `pitch_mm` decides the longest segment. It changes how finely the shape is written down, not
+      what it is.
+
+    `poly` is the simplified ring with straight segments: the trace, read literally. `bezier` fits
+    cubics to the same points, so the two modes describe the same curve at the same tolerance, and a
+    viewer can switch between them without the outline moving.
+
+    Returns the path, the number of points it consumed, and the measured deviation in metres.
+    """
+    scale = 1.0
+    simplified = simplify_ring(points, tolerance_mm)
+    if mode == "bezier":
+        path, deviation = fit_ring(simplified, tolerance_mm, pitch_mm)
+        consumed = len(simplified)
+    else:
+        dense = subdivide_ring(simplified, pitch_mm) if pitch_mm > 0 else simplified
+        start = dense[0]
+        path = {"start": [round(v, 4) for v in start],
+                "segments": [["L", round(p[0], 4), round(p[1], 4)] for p in dense[1:]]}
+        consumed = len(dense)
+        deviation = _polyline_deviation(points, dense)
+    return path, consumed, float(deviation)
+
+
+def plate_contour(view, mode="poly", pitch_mm=2.0, tolerance_mm=0.25):
+    """The outline of one view, in the plate's own metres, as a path at a chosen resolution.
 
     The plate is a plane of `imgW * kx` by `imgH * ky` centred on the image, so a pixel maps to
     local coordinates without touching the subject box or the crop offset: the plate mesh already
@@ -584,33 +920,30 @@ def plate_contour(view):
     and the picture agree on every side of the body, including an edge that runs along the rows.
 
     It is drawn over the reference picture so the trace can be judged where it came from -- and this
-    array is NOT what the hull reads. The hull re-samples the photograph on its own lattice, at
-    `--step`. A pixel staircase here and a 20 mm staircase on the surface are two separate facts,
-    and a plan that conflates them fixes neither.
+    path is NOT what the hull reads. The hull re-samples the photograph on its own lattice. A pixel
+    staircase here and a 20 mm staircase on the surface are two separate facts, and a plan that
+    conflates them fixes neither.
 
-    Coordinates alternate `u, v, u, v, ...` in metres; a flat array halves the file and the reader
-    pairs them back.
+    Returns `None` when the view has no boundary.
     """
     height, width = view.mask.shape
-    loops = boundary_loops(region_from_columns(view.cols))
+    loops = boundary_loops(view.body_mask)
     if not loops:
-        return []
+        return None
     # The outer boundary is the one that encloses the most area. A separate island -- a mirror
     # detached from the shell, a part cut away -- is not part of one ring, and the viewer draws one
     # line per view, so the outer loop is the one it can carry.
     outer = max(loops, key=lambda loop: abs(_area(loop)))
 
-    def local(cx, cy):
-        # Pixel CORNERS, not centres: corner `c` sits at `c - width / 2` plate units, so a pixel of
-        # index 0 spans its two corners and its centre reads half a pixel inside, as before.
-        return (round((cx - width / 2.0) * view.kx, 4),
-                round(-((cy - height / 2.0) * view.ky), 4))
-
-    points = []
-    for cx, cy in outer:
-        u, v = local(cx, cy)
-        points.extend([u, v])
-    return points
+    # Plate-local metres. `tolerance_mm` and `pitch_mm` are millimetres, so the shape is decided in
+    # the units the art director can reason about, not in pixels that change with the crop.
+    ring = [((cx - width / 2.0) * view.kx, -((cy - height / 2.0) * view.ky)) for cx, cy in outer]
+    path, consumed, deviation = build_path(ring, mode, pitch_mm / 1000.0, tolerance_mm / 1000.0)
+    return {
+        "path": path,
+        "points": consumed,
+        "deviation_mm": round(deviation * 1000.0, 4),
+    }
 
 
 def _area(loop):
@@ -725,7 +1058,22 @@ def main() -> None:
     )
     parser.add_argument(
         "--smooth-mm", type=float, default=150.0,
-        help="the widest protrusion to erase, in millimetres of outline. 0 disables the opening",
+        help="the widest protrusion to erase from the HULL, in millimetres of outline. "
+             "0 disables the opening. The drawn contour reads the picture and is never opened",
+    )
+    parser.add_argument(
+        "--pitch", type=float, default=2.0,
+        help="millimetres. The longest segment of the drawn contour. It sets the resolution, "
+             "not the shape",
+    )
+    parser.add_argument(
+        "--mode", choices=("poly", "bezier"), default="poly",
+        help="poly draws straight segments, bezier fits cubics to the same points",
+    )
+    parser.add_argument(
+        "--tolerance", type=float, default=0.25,
+        help="millimetres. The largest distance the drawn contour may sit from the traced points. "
+             "This is the one number that changes the SHAPE",
     )
     parser.add_argument(
         "--face", choices=("front", "back"), default="back",
@@ -818,24 +1166,36 @@ def main() -> None:
                 view = View(name, args.subject, manifest, dimensions, real, smooth, args.mask)
             except (KeyError, FileNotFoundError, ValueError):
                 continue
-        points = plate_contour(view)
-        if len(points) < 6:
+        traced = plate_contour(view, args.mode, args.pitch, args.tolerance)
+        if not traced:
             continue
         contours[name] = {
             "kx": round(view.kx, 7),
             "ky": round(view.ky, 7),
             "size_px": [view.mask.shape[1], view.mask.shape[0]],
             "used": name in used,
-            "points": points,
+            # The resolution is written down with the geometry, so a reader can tell a shape from a
+            # sampling choice. `deviation_mm` is measured on the output, never requested.
+            "mode": args.mode,
+            "pitch_mm": args.pitch,
+            "tolerance_mm": args.tolerance,
+            "points": traced["points"],
+            "deviation_mm": traced["deviation_mm"],
+            "path": traced["path"],
         }
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(header)
         handle.write(f"export const TRACE = {json.dumps(summary, separators=(',', ':'))};\n\n")
         handle.write("// The outline each view contributed, in plate-local metres (u right, v up,\n")
-        handle.write("// origin at the image centre). Drawn over the reference picture, so the trace\n")
-        handle.write("// can be judged where it came from. The hull does NOT read this array: it\n")
-        handle.write("// re-samples the photograph at its own lattice, and that is where the\n")
-        handle.write("// surface staircase comes from.\n")
+        handle.write("// origin at the image centre), as a PATH: a start point and segments of\n")
+        handle.write("// type L or C, which THREE.Path accepts as they are. Drawn over the\n")
+        handle.write("// reference picture, so the trace can be judged where it came from.\n")
+        handle.write("//\n")
+        handle.write("// `mode`, `pitch_mm` and `tolerance_mm` say how it was sampled, and\n")
+        handle.write("// `deviation_mm` is the measured distance from the traced points to the\n")
+        handle.write("// drawn line. The hull does NOT read this path: it re-samples the\n")
+        handle.write("// photograph at its own lattice, and that is where the surface\n")
+        handle.write("// staircase comes from.\n")
         handle.write(f"export const CONTOURS = {json.dumps(contours, separators=(',', ':'))};\n\n")
         handle.write("export const SECTIONS = [\n")
         for section in hull["sections"]:

@@ -322,6 +322,13 @@ window.__ctl = {
     };
   },
   calqueInfo: () => calque.info(),
+  // How the traced outline is read: `poly` joins the points it was fitted through, `bezier` samples
+  // the curve. Both come from one path, so the outline does not move when the reading changes.
+  contourMode: async (mode) => {
+    calque.setContourMode(mode);
+    await calque.showPlate(calque.shownView() ?? null);
+    return stage.nextFrame().then(() => calque.info().contour);
+  },
   // The two eyes, from the shell: `__ctl.layers({ model: false })` is a plate-only frame, and
   // `__ctl.layers({ calque: false })` is a bare model. Both resolve on the next drawn frame, so a
   // screenshot taken after them shows the state that was asked for.

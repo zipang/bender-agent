@@ -104,12 +104,42 @@ section is guessed.
 
 ```bash
 python3 workflows/threejs/tools/trace_hull.py --subject blueprints/vehicules/<subject> \
-  --out workflows/threejs/scenes/<subject>/body-hull.js --step 20
+  --out workflows/threejs/scenes/<subject>/body-hull.js --step 20 \
+  --smooth-mm 150 --mode bezier --pitch 20 --tolerance 3
 ```
 
 It writes `body-hull.js`, which holds `SECTIONS`, `CONTOURS` for all six views, and the numbers the
 gate reads. The mesh step is separate from the contour step: the hull steps by `--step` in
-millimetres, and the contour steps by one pixel.
+millimetres, and the contour is a path sampled by `--pitch`.
+
+### 5.1 The contour path
+
+`CONTOURS` holds one **path** per view, not a point list: a start point, then segments of type `L`
+or `C` in the shape that `THREE.Path` accepts. Three flags produce it, and only one of them changes
+the shape.
+
+| Flag | Default | Meaning |
+| :--- | ---: | :--- |
+| `--tolerance` | 0.25 | millimetres. The largest distance the drawn line may sit from the traced points. **This is the one number that changes the shape.** |
+| `--pitch` | 2 | millimetres. The longest segment. It sets the resolution, not the shape. |
+| `--mode` | `poly` | `poly` joins the points the fit kept; `bezier` fits cubics to the same points. |
+| `--smooth-mm` | 150 | millimetres. The widest protrusion the **hull** may erase. The drawn contour reads the picture and is never opened. |
+
+Both modes read one path. `poly` flattens each segment to its own end point, `bezier` samples the
+curve, so a switch between them cannot move the outline. The tool prints the measured
+`deviation_mm` it reached: a fit that meets the tolerance is a fact about the output.
+
+Measured on `r5-tl-1972`, `top` view, `--pitch 20`:
+
+| `--tolerance` | Segments | Measured deviation |
+| ---: | ---: | ---: |
+| 0.25 | 584 | 0.01 mm. Keeps the pixel staircase |
+| 1 | 547 | 0.74 mm |
+| 3 | 346 | 2.95 mm. The default |
+| 6 | 60 | 0.00 mm. Loses the wheel-arch detail |
+
+The value is chosen on a rendered contact sheet, not from this table. The table only shows that the
+flag does what it says.
 
 Stage 2 models the body only. No accessory, no placeholder, no reference box, and **no hole**:
 wheel arches, window openings and lamp recesses belong to stage 3, when the part that fills them has
@@ -182,7 +212,7 @@ Every row states what the tool reads, what it writes, and how it is called.
 | `tools/check.ts` | the captures, the references | one report, and the overlays | `bun run check` |
 | `tools/silhouette.ts` | a render, a reference | an overlay PNG: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |
 | `tools/compare_silhouette.py` | a render, its sidecar, a reference, `dimensions.json` | an overlay, and a station table in millimetres | `--subject <s> --view <v> --render <file>` |
-| `tools/trace_hull.py` | the cropped views, `dimensions.json` | `body-hull.js`: sections, contours, gate numbers | `--subject <s> --out <file> --step 20` |
+| `tools/trace_hull.py` | the cropped views, `dimensions.json` | `body-hull.js`: sections, contours, gate numbers | `--subject <s> --out <file> --step 20 --mode bezier --pitch 20 --tolerance 3` |
 | `tools/paths.ts` | nothing | nothing. It holds the root, the viewer, the scenes and the tool folder | imported |
 | `scripts/blueprint/crop_reference.py` | `reference.<ext>` | `cropped/<view>.png` and `cropped/manifest.json`. A cut, not a resample: the pixels are the same rectangle, so the native resolution of the reference survives | `--subject <s>` |
 | `scripts/blueprint/view_scale.py` | a cropped view, the real dimensions | an entry in `dimensions.json` | `--view <v> --length .. --write` |

@@ -55,6 +55,12 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     contour: {
       enabled: true,
       views: Object.keys(contours ?? {}),
+      // How finely a curve segment is drawn. The file carries a path, not a point list, so the two
+      // readings come from ONE geometry: `poly` flattens every segment to its own endpoints and
+      // `bezier` samples it. Switching modes therefore cannot move the outline, which is what makes
+      // the comparison between them a judgement about the drawing and not about two datasets.
+      mode: "file",
+      divisions: 12,
     },
     loaded: new Map(),
     contours: new Map(),
@@ -154,8 +160,10 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
    */
   function buildContour(view) {
     const entry = contours?.[view];
-    if (!entry || !Array.isArray(entry.points) || entry.points.length < 6) return null;
-    const flat = entry.points;
+    const path = entry?.path;
+    if (!path || !Array.isArray(path.segments) || path.segments.length < 2) return null;
+    const flat = flattenPath(path, calque.contour.mode === "poly" ? 1 : calque.contour.divisions);
+    if (!flat || flat.length < 6) return null;
     const positions = new Float32Array((flat.length / 2) * 3);
     for (let i = 0; i < flat.length / 2; i += 1) {
       positions[i * 3] = flat[i * 2];
@@ -184,6 +192,44 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     line.userData.witness = witness;
     line.renderOrder = 30;
     return line;
+  }
+
+  /**
+   * A path from `body-hull.js` flattened into a flat `[u, v, ...]` position ring.
+   *
+   * `divisions` is how many samples a curve segment contributes. `1` keeps only the segment's end,
+   * which turns every curve back into the straight line between the points it was fitted through:
+   * that is the angular reading. A larger number samples the curve: the smooth one. Both come from
+   * the same control points, so neither can drift from the trace the other describes.
+   */
+  function flattenPath(path, divisions) {
+    const start = path.start;
+    if (!Array.isArray(start) || start.length < 2) return null;
+    const out = [start[0], start[1]];
+    let cursor = [start[0], start[1]];
+    for (const segment of path.segments) {
+      if (!Array.isArray(segment) || segment.length < 3) continue;
+      const kind = segment[0];
+      if (kind === "L") {
+        cursor = [segment[1], segment[2]];
+        out.push(cursor[0], cursor[1]);
+      } else if (kind === "C" && segment.length >= 7) {
+        const c1 = [segment[1], segment[2]];
+        const c2 = [segment[3], segment[4]];
+        const end = [segment[5], segment[6]];
+        const steps = Math.max(1, Math.round(divisions));
+        for (let i = 1; i <= steps; i += 1) {
+          const t = i / steps;
+          const s = 1 - t;
+          out.push(
+            s * s * s * cursor[0] + 3 * s * s * t * c1[0] + 3 * s * t * t * c2[0] + t * t * t * end[0],
+            s * s * s * cursor[1] + 3 * s * s * t * c1[1] + 3 * s * t * t * c2[1] + t * t * t * end[1],
+          );
+        }
+        cursor = end;
+      }
+    }
+    return out;
   }
 
   /**
@@ -226,6 +272,22 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     line.position.copy(plate.position);
     line.quaternion.copy(plate.quaternion);
     line.scale.copy(plate.scale);
+  }
+
+  /**
+   * Rebuild every outline at another reading of its path.
+   *
+   * The path holds control points, and one geometry serves both readings: `poly` keeps a segment's
+   * end only, `bezier` samples the curve. So the two cannot disagree about where the outline is, and
+   * a switch between them is a fair comparison of the DRAWING instead of a comparison of two files.
+   */
+  function setContourMode(mode) {
+    if (mode === "poly" || mode === "bezier") calque.contour.mode = mode;
+    else calque.contour.mode = "file";
+    calque.contours.clear();
+    for (const child of [...contourGroup.children]) contourGroup.remove(child);
+    onChange?.();
+    return calque.contour.mode;
   }
 
   /** Show or hide every traced outline, without touching the plates or the model. */
@@ -361,6 +423,8 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
         enabled: calque.contour.enabled,
         views: calque.contour.views,
         drawn: contourGroup.children.map((child) => child.name),
+        mode: calque.contour.mode,
+        divisions: calque.contour.divisions,
       },
       shown: group.visible ? calque.view : null,
       depth: calque.depth,
@@ -383,6 +447,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     set,
     setEnabled,
     setContourEnabled,
+    setContourMode,
     info,
   };
 }

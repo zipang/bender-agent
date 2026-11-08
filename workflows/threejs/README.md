@@ -184,7 +184,7 @@ Every row states what the tool reads, what it writes, and how it is called.
 | `tools/compare_silhouette.py` | a render, its sidecar, a reference, `dimensions.json` | an overlay, and a station table in millimetres | `--subject <s> --view <v> --render <file>` |
 | `tools/trace_hull.py` | the cropped views, `dimensions.json` | `body-hull.js`: sections, contours, gate numbers | `--subject <s> --out <file> --step 20` |
 | `tools/paths.ts` | nothing | nothing. It holds the root, the viewer, the scenes and the tool folder | imported |
-| `scripts/blueprint/crop_reference.py` | `reference.<ext>` | `cropped/<view>.png` and `cropped/manifest.json` | `--subject <s>` |
+| `scripts/blueprint/crop_reference.py` | `reference.<ext>` | `cropped/<view>.png` and `cropped/manifest.json`. A cut, not a resample: the pixels are the same rectangle, so the native resolution of the reference survives | `--subject <s>` |
 | `scripts/blueprint/view_scale.py` | a cropped view, the real dimensions | an entry in `dimensions.json` | `--view <v> --length .. --write` |
 | `scripts/blueprint/measure_view.py` | a reference, a render | a landmark table in millimetres | `<reference> <render> --json` |
 | `scripts/blueprint/read_reference.py` | a side-view reference | profile data, in millimetres from the nose | `<image> --length 3520` |
@@ -202,7 +202,7 @@ not under this folder.
 | `blueprints/<cat>/<sub>/reference.<ext>` | the art director, by promotion | the art director |
 | `blueprints/<cat>/<sub>/source.<ext>` | the cleaning pass, before it writes | nobody modifies it |
 | `blueprints/<cat>/<sub>/<view>/reference.<ext>` | the art director, from the candidates | the art director |
-| `blueprints/<cat>/<sub>/cropped/*` | `crop_reference.py` | derived, rebuilt at any time |
+| `blueprints/<cat>/<sub>/cropped/*` | `crop_reference.py` | derived, rebuilt at any time. A pure cut, so the crop carries the native resolution of the reference and the scale in `dimensions.json` is millimetres per pixel **of the crop** |
 | `blueprints/<cat>/<sub>/dimensions.json` | `view_scale.py`, then read | committed: it records the decision |
 | `blueprints/<cat>/<sub>/measurements.json` | `report.py`, or `POST /api/measure` | committed |
 | `scenes/<sub>/body-hull.js` | `trace_hull.py` | generated, committed, never hand-edited |

@@ -1,0 +1,151 @@
+{
+  "note": "Step 0 of tickets/contour-smoothing-plan.md. The numbers every later step is compared to. A step changes one thing, and this file says what did not move.",
+  "subject": "blueprints/vehicules/r5-tl-1972",
+  "captured": "2026-11-08",
+  "trace": {
+    "unit": "m",
+    "up": "y",
+    "forward": "z",
+    "step_mm": 20.0,
+    "pitch": 0.02,
+    "columns": 77,
+    "real": {
+      "length": 3.521,
+      "width": 1.525,
+      "height": 1.4
+    },
+    "views_used": [
+      "left",
+      "back",
+      "top"
+    ],
+    "mask": "body",
+    "smooth_mm": 150.0,
+    "face_view": "back",
+    "width_from": "real",
+    "plan_x_scale": 1.085551
+  },
+  "contours": {
+    "per_view": {
+      "back": {
+        "points": 1396,
+        "used": true,
+        "size_px": [
+          701,
+          659
+        ],
+        "kx_mm": 2.1879,
+        "ky_mm": 2.1374
+      },
+      "bottom": {
+        "points": 1018,
+        "used": false,
+        "size_px": [
+          512,
+          1027
+        ],
+        "kx_mm": 2.9961,
+        "ky_mm": 3.4418
+      },
+      "front": {
+        "points": 1970,
+        "used": false,
+        "size_px": [
+          988,
+          885
+        ],
+        "kx_mm": 1.5498,
+        "ky_mm": 1.5891
+      },
+      "left": {
+        "points": 2494,
+        "used": true,
+        "size_px": [
+          1251,
+          532
+        ],
+        "kx_mm": 2.8236,
+        "ky_mm": 2.6515
+      },
+      "right": {
+        "points": 2442,
+        "used": false,
+        "size_px": [
+          1225,
+          539
+        ],
+        "kx_mm": 2.8837,
+        "ky_mm": 2.6168
+      },
+      "top": {
+        "points": 736,
+        "used": true,
+        "size_px": [
+          372,
+          708
+        ],
+        "kx_mm": 4.144,
+        "ky_mm": 5.0014
+      }
+    },
+    "total_points": 10056
+  },
+  "sections": {
+    "stations": 177,
+    "stations_with_columns": 177,
+    "columns_total": 12764,
+    "columns_min": 5,
+    "columns_max": 76,
+    "z_pitch_mm": 20.01
+  },
+  "hull": {
+    "size_m": [
+      1.505,
+      1.18,
+      3.521
+    ],
+    "size_mm": [
+      1505.0,
+      1180.0,
+      3521.0
+    ],
+    "triangles": 51300,
+    "meshes": 1,
+    "sill_mm": 215,
+    "deviation_mm": {
+      "height": -5,
+      "length": 0,
+      "sill": 215,
+      "width": -20
+    },
+    "min_m": [
+      -0.762,
+      0.215,
+      -1.76
+    ],
+    "max_m": [
+      0.742,
+      1.395,
+      1.76
+    ]
+  },
+  "silhouette": {
+    "note": "IoU of the model against the locked reference, measured on a ctl.ts capture opened with --shot.",
+    "left": 0.94,
+    "front": 0.855,
+    "back": 0.915,
+    "top": 0.936,
+    "bottom": 0.935,
+    "tolerance": 0.005
+  },
+  "hashes": {
+    "body-hull.js": "60c80e4907cd6a1a6cfa672a521fd104c7f3d3e0b8877f9c91b6e91d6d6bc440",
+    "dimensions.json": "ee7a412f56a233a7f687c656e9333f1db858beb468e3e92431394420d4e03173",
+    "cropped/left.png": "c1a37b60b0dbb44e93b3dd6580a20a27983d913b6c05f2fabdded3cda39396f5",
+    "cropped/right.png": "7f7b7630553deca954adabfd53e9b8659952d9efc49fe56818ceda3565aa3c30",
+    "cropped/front.png": "28b27ae1dd5ca7ba317231aa546084ce1a999ca3dbdebe73be470136d2ce3dcc",
+    "cropped/back.png": "c879fc4cf35f0d5320fd3161248bf7f05e96073d69f180f1854cbe8c1f97eaeb",
+    "cropped/top.png": "7374fa6c2eb55828776aa0461384e0cd0b5c6f3fd2a86f55e2c2e005bc15ae29",
+    "cropped/bottom.png": "0ebdf87c48c8793ebf22ef183ff18002dd52a4af66d38babb9ca1b00854ea28d"
+  }
+}

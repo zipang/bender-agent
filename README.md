@@ -162,6 +162,8 @@ produced, even when the method it describes has since been replaced.
 - **Blueprint candidate**: One generated image for one view, named `<model-slug>--<NN>.<ext>`. The art director picks one.
 - **Blueprint package**: The reference image, the six accepted view images, and the generation manifest of one subject.
 - **Calque**: A reference view placed in the scene as a plane, sized in metres from the two scales of that view. It is traced over, never rendered into a capture.
+- **Contour**: The closed outline of one orthogonal view, in the local metres of that view's plate. It comes from the cropped file, and it is drawn over the reference picture. It is not the volume, and the volume does not read it.
+- **Crop**: A derived file `cropped/<view>.png`: a cut of the locked reference, with a small margin, identical to the same rectangle at the pixel. A crop never resamples, so the contour inherits the native resolution of the reference. Rebuild it at any time.
 - **Design unit**: The unit of the numbers of a document. Metres for a game asset, millimetres for a machined part.
 - **Draft**: Raw material in `blueprints/drafts/`. A draft is not a subject.
 - **Envelope**: The coarse box that contains the target volume at the first step of the fidelity ladder.
@@ -173,9 +175,12 @@ produced, even when the method it describes has since been replaced.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
 - **Pivot**: The origin of a node. It is the centre of rotation for animation.
+- **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.
+- **Section**: The set of vertical columns of the body at one station along its length. It is the three-way intersection of one interval from each view.
 - **Silhouette overlay**: A comparison image where red is present in the reference only, blue in the model only, and magenta in both.
 - **Skill**: A folder with a `SKILL.md` file, holding instructions and helper files that an agent loads on demand.
+- **Station**: One position along the length of the body, where a section is taken. The hull's lattice pitch is the distance between two stations.
 - **STE**: Simplified Technical English. It is the writing standard of every document in this repository.
 - **Ticket**: A plan for work to be done, in `tickets/`. It holds numbered steps, a gate per step, and the failure modes the work must keep.
 - **Workflow**: One way to build an asset, from the shared inputs to the same deliverable. This project holds three, and one is active.

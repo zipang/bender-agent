@@ -1,10 +1,10 @@
 # Contour smoothing plan
 
-Status: planned. No step is done.
+Status: in progress. Step 0 is done, and steps 1 to 7 are planned.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
-| 0 Baseline | planned | |
+| 0 Baseline | done | `tickets/baseline-contour.json` |
 | 1 Subpixel edge | planned | |
 | 2 Float opening | planned | |
 | 3 Path | planned | |
@@ -412,7 +412,7 @@ No step starts before the previous step passes its gate.
 
 | # | Step | Content |
 | :--- | :--- | :--- |
-| 0 | Baseline | Record the six point counts, the station and column counts, the hull numbers, and the five IoU values in `baseline-contour.json`. |
+| 0 | Baseline | Record the six point counts, the station and column counts, the hull numbers, and the five IoU values in `baseline-contour.json`. **Done.** Gate: the tracer reproduces `body-hull.js` byte for byte from the same inputs. |
 | 1 | Subpixel edge | `crossing()` in `trace_hull.py`. `cols` and `rows` become floats. The hull and the contour read them. Gate: the hull size moves by under 2 mm on every axis. |
 | 2 | Float opening | The morphology reads floats without a code change. Verify the 150 mm window still removes the mirrors and keeps the sill. Gate: the cut table is unchanged within 2 mm. |
 | 3 | Path | `--pitch`, `--mode`, `--tolerance`, the greedy fit, and the measured deviation. `CONTOURS` moves to version 2. Gate: deviation at or under the tolerance on all six views, and `left` under 120 segments. |
@@ -425,6 +425,7 @@ No step starts before the previous step passes its gate.
 
 | Gate | Check |
 | :--- | :--- |
+| Baseline reproducible | Re-running the tracer on the same subject writes `body-hull.js` byte for byte. A baseline that cannot be rebuilt is a memory, not a measurement |
 | Model identity | `size` and `target` within 2 mm of the baseline of step 0 |
 | Silhouette | IoU on `left`, `front`, `back`, `top`, `bottom` within 0.005 of the step 0 values |
 | Path | Deviation at or under the tolerance, on all six views, printed by the tool |
@@ -436,8 +437,22 @@ No step starts before the previous step passes its gate.
 | Documents | `workflows/threejs/README.md` names the command and the output of every script in the workflow |
 | Parameter choice | The pitch and the tolerance come from a rendered contact sheet that shows the surface, and the chosen cell is written in this plan |
 
-The IoU values of step 0 are: `left` 0.940, `front` 0.855, `back` 0.915, `top` 0.936, `bottom`
-0.935. The hull is 3521 x 1505 x 1180 mm, with the sill at 215 mm.
+### 6.2 The step 0 baseline, measured
+
+`tickets/baseline-contour.json` holds the whole record. The numbers that later steps are compared
+to:
+
+| Quantity | Baseline |
+| :--- | :--- |
+| Contour points | `left` 2494, `right` 2442, `front` 1970, `back` 1396, `bottom` 1018, `top` 736. Total 10056 |
+| Stations | 177, all with columns. Pitch 20.01 mm |
+| Columns | 12764 in total, from 5 to 76 per station |
+| Hull | 3521 x 1505 x 1180 mm. 51300 triangles, one mesh |
+| Deviation | length 0, height -5, width -20, sill 215 mm |
+| IoU | `left` 0.940, `front` 0.855, `back` 0.915, `top` 0.936, `bottom` 0.935 |
+
+The file also keeps the sha256 of `body-hull.js`, of `dimensions.json` and of the six cropped
+files, so a later step can prove which inputs it started from.
 
 The triangle gate is a designed target, chosen before the measurement. It is a test of the
 implementation, not a promise about the shape.

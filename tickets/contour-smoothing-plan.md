@@ -1,6 +1,6 @@
 # Contour smoothing plan
 
-Status: **revised, planned.** No step is done.
+Status: planned. No step is done.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
@@ -13,27 +13,14 @@ Status: **revised, planned.** No step is done.
 | 6 Viewer | planned | |
 | 7 Documentation | planned. The reorg landed, so this step adds rows to an existing chapter | |
 
-## 0. Revision note
-
-The first version of this plan blamed the pixel. It said the staircase came from one integer sample
-per column, and it put subpixel accuracy first.
-
-A measurement on 2026-11-08 shows that this diagnosis is wrong, and this revision replaces it. The
-defect is on the surface, and its pitch is 20 mm, not 2.8 mm. The pixel is the finest measurement
-that this project has, and the mesh discards it.
-
-`tickets/escaliers.png` is the evidence: a shaded render of the body, with the staircase circled at
-the line where the roof profile and the side profile meet.
-
-What this revision changes: §2.3 replaces the old cause, §3.5 is new, step 5 is new, and the gates
-now measure the surface. What it keeps: the subpixel edge, the float opening, the path, the contact
-sheet, the viewer change, and every documentation rule.
-
 ## 1. Purpose
 
 The body surface carries a staircase along a diagonal line. The line is where two extruded
 silhouettes meet. It is a real feature of the shape, and it must stay. What must go is the way the
 surface draws it: as a run of steps instead of a straight line.
+
+`tickets/escaliers.png` shows the defect on a shaded render, circled at the meeting line of the roof
+profile and the side profile.
 
 This plan therefore does two things in one movement:
 
@@ -90,15 +77,12 @@ The hull is built on a fixed lattice. `--step 20` is documented in the tracer as
 station pitch**, and the measurement confirms it:
 
 | Quantity | Measured |
-| :--- | :--- |
+| :--- | --- |
 | Stations along the length | 177, for 3521 mm. Pitch 20.1 mm |
 | Columns across the width | 76, for 1505 mm. Pitch 20.1 mm |
 | Vertices outside that lattice | none |
 | Triangles | 51,300 |
 | Pixel pitch on `left` | 2.82 mm across, 2.65 mm down |
-
-The mesh is therefore 7 to 13 times coarser than the photograph. Nothing at 2.8 mm can appear on
-the surface, and no pixel defect can cause a 20 mm step.
 
 The surface height is `min(face_hi(x), side_hi(z))`. The two silhouettes cross along a diagonal
 crease. At a mid station, 42 of 75 columns carry a distinct pair of heights, so the roof is not
@@ -113,6 +97,9 @@ shoulder edge is quantized to 20.1 mm. The flank ribbon then notches at every st
 
 **The crease is not the defect.** The defect is that a diagonal is drawn as a staircase. A
 simplified path restores the straight line, and keeps the crease.
+
+The hull lattice is 7 to 13 times coarser than the photograph. The pixel is the finest measurement
+this project has, and it is the surface that needs the resolution, not the sampling.
 
 ### 2.4 What the image supports
 
@@ -138,17 +125,8 @@ photograph -> tracer -> SECTIONS  (20 mm lattice) -> mesh
 photograph -> tracer -> CONTOURS  (1 point per pixel) -> viewer plate
 ```
 
-This is the fact that this revision exists for. A simplified contour would change the plate and
-leave the mesh exactly where it is. The two consumers must become one chain.
-
-### 2.6 Two lattices, two owners
-
-The pixel lattice and the hull lattice are separate, and a fix of one does not touch the other.
-
-| Lattice | Pitch | Set by | Visible as |
-| :--- | ---: | :--- | :--- |
-| Pixel | 2.8 mm | the generated image | the outline on the plate |
-| Hull | 20 mm | `--step` | the staircase on the surface |
+A simplified contour would change the plate and leave the mesh exactly where it is. The two
+consumers must become one chain.
 
 ## 3. Target design
 
@@ -334,8 +312,8 @@ builder changes.
 | `--deviation` | 0.5 | millimetres. Chord tolerance of the hull lattice |
 | `--step` | 200 | millimetres. Hard cap on the span length |
 
-`--step` changes meaning. It was the fixed pitch of the hull. It is now a cap. An old command line
-that passes `--step 20` still runs, and it still means what it said.
+`--step` is a cap, not a pitch. An old command line that passes `--step 20` still runs, and it means
+"no span longer than 20 mm".
 
 ### 4.4 Viewer
 
@@ -395,8 +373,7 @@ A step of this plan is not complete when the code passes its gate. It is complet
 documents describe the new behavior, and the commit carries both.
 
 The rule exists because the cost is real. This session read the code three times to answer
-questions the documents should have answered, and the first version of this plan was written from a
-wrong reading of the same code.
+questions the documents should have answered.
 
 ### 5.4 Where a sentence belongs
 
@@ -453,7 +430,6 @@ implementation, not a promise about the shape.
 | A witness that disagrees everywhere | the witness used the raw mask | the witness gets the same mask and the same opening |
 | A bezier that misses the trace | the fit was trusted, not measured | print the maximum deviation and gate on it |
 | A staircase that comes back | the hull re-sampled the photograph | the hull reads the path, and the station count is printed |
-| A staircase blamed on the pixel | the diagnosis was reasoned, not measured | measure the lattice pitch before naming a cause |
 | A plate that draws nothing | the plate sat under the ground disc | a plan view is placed by height, not by depth |
 | A document that describes an older tool | the doc was written once | the same commit updates the documents |
 

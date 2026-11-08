@@ -170,11 +170,12 @@ stage.scene.add(volumeGroup);
 
 const volumeMaterial = new THREE.MeshStandardMaterial({
   name: "contour-volume",
-  color: 0x9fb0c0,
-  roughness: 0.55,
+  // A solid, mid-tone surface. It has to read against the near-white capture field AND the pale
+  // page background, where the first version -- a translucent light blue-grey -- was invisible. The
+  // contour line draws with `depthTest: false`, so an opaque volume never hides the line.
+  color: 0x6f7f8f,
+  roughness: 0.5,
   metalness: 0.0,
-  transparent: true,
-  opacity: 0.9,
   side: THREE.DoubleSide,
 });
 
@@ -249,10 +250,18 @@ function showLayerState() {
 
 function setLayer(name, visible) {
   if (name === "model") root.visible = Boolean(visible);
-  else if (name === "volume") volumeGroup.visible = Boolean(visible);
-  else if (name === "contour") calque.setContourEnabled(visible);
+  else if (name === "volume") {
+    // The volume is built on demand, and the button is the only path that reaches this without the
+    // CLI. Flipping the flag on an empty group shows nothing, which reads as a broken button: the
+    // group must exist before it is shown. `rebuildVolume` is a no-op once built.
+    if (visible && !volumeInfo.built) rebuildVolume();
+    volumeGroup.visible = Boolean(visible);
+  } else if (name === "contour") calque.setContourEnabled(visible);
   else if (name === "calque") calque.setEnabled(visible);
   showLayerState();
+  // The HUD counts what is drawn, and this just changed it. Without this line a volume-only frame
+  // still reports the model's triangle count, which is a number about a layer that is switched off.
+  stage.updateHud(currentView);
   return stage.nextFrame();
 }
 

@@ -185,6 +185,10 @@ The editor, in the viewer's `#knots` panel:
 | `reset` | drop the hand-set knots of the view and return to the traced path |
 | `save` | write `contours.js` |
 
+`edit` puts the camera on a flat view when it is on a perspective one: a perspective view has no
+plate, so it has no line to grab, and the panel would do nothing. `reduce` acts on the view on
+screen, and an empty or zero tolerance falls back to 12 mm rather than keep every point.
+
 `reduce` always re-derives from the **traced ring**, so two reduces in a row give the same answer as
 one, and a manual knot placed between them is not silently kept as if it were on the trace.
 

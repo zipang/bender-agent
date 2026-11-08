@@ -291,12 +291,18 @@ function setJoinMode(mode, view = editorView()) {
  */
 function reduceKnots(tolerance_mm, view = editorView()) {
   if (!view) return null;
+  // An empty or zero field is not a choice: a tolerance of zero keeps every point, which is exactly
+  // the state this control exists to leave. Fall back to a default and show it in the field, so the
+  // button always does something visible.
+  const requested = Number(tolerance_mm);
+  const value = Number.isFinite(requested) && requested > 0 ? requested : 12;
+  if (knotUI.tol) knotUI.tol.value = String(value);
   const entry = ensureKnots(view);
   const ring = ringOf(tracedContours[view]?.path);
   const before = entry.knots.length;
-  entry.knots = simplifyRing(ring, Math.max(0, Number(tolerance_mm) || 0) / 1000);
+  entry.knots = simplifyRing(ring, value / 1000);
   applyEdit(view);
-  return { view, before, after: entry.knots.length };
+  return { view, tolerance_mm: value, before, after: entry.knots.length };
 }
 
 function resetKnots(view = editorView()) {
@@ -424,15 +430,27 @@ canvas.addEventListener("pointerup", (event) => {
 function setEditMode(on) {
   editor.active = Boolean(on);
   knotUI.edit?.setAttribute("aria-pressed", String(editor.active));
-  calque.setHandles(editor.active);
   if (editor.active) {
-    // The plate has to be in the scene for there to be a line to grab.
-    const view = calque.shownView() ?? rig.matchingView();
-    if (view) calque.showPlate(view);
+    // Editing needs a plate, and a perspective view has none: `edit` on `front-3q` used to open an
+    // editor with no line, where every control silently did nothing. Put the camera on a flat view.
+    const view = calque.shownView() ?? rig.matchingView() ?? flatView();
+    if (view) {
+      editor.view = view;
+      if (view !== currentView) setView(view);
+      else calque.showPlate(view);
+    }
   }
+  calque.setHandles(editor.active);
   updateKnotInfo();
   stage.nextFrame();
   return editor.active;
+}
+
+/** The flat view to edit on: one already edited, else the first flat view in the table. */
+function flatView() {
+  const edited = Object.keys(knots)[0];
+  if (edited) return edited;
+  return Object.keys(views).find((name) => !views[name].perspective) ?? null;
 }
 
 knotUI.edit?.addEventListener("click", () => setEditMode(!editor.active));

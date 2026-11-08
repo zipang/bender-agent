@@ -59,17 +59,38 @@ Point counts today: `left` 2494, `right` 2442, `front` 1970, `back` 1396, `botto
 
 ### 2.2 The source resolution
 
-The tracer reads the cropped PNG. It does not read the canvas, and it does not read the source
-image.
+The tracer reads `cropped/<view>.png`. It does not read the canvas, and it does not read the
+reference directly.
 
-| View | Source image | Cropped file | Resampling |
+That file is a **cut, not a resample**. `crop_reference.py` calls `Image.crop` and saves, so the
+cropped array is identical to the same rectangle of the locked reference. Measured on `left`: 768 x
+1376 source, 532 x 1251 crop, and the two arrays are equal at the pixel.
+
+| View | Locked reference | Cropped file | Resampling |
 | :--- | ---: | ---: | :--- |
 | `left` | 1376 x 768 | 1251 x 532 | none. The crop is a sub-rectangle. |
 | `front` | 2048 x 1152 | 988 x 885 | none. |
 | `top` | 1376 x 768 | 372 x 708 | none. |
 
-The pixel pitch of the contour is the pitch of the generated image: 2.8236 mm across and 2.6515 mm
-down, on `left`.
+The pixel pitch of the contour is therefore the pitch of the locked reference: 2.8236 mm across and
+2.6515 mm down, on `left`.
+
+The rule follows from that. **The trace reads the reference at its native resolution.** The crop
+never resamples, and no image is upscaled to reach the trace. An upscale would repeat the
+interpolation that `crossing()` already does, at a larger file size and with no new information.
+
+Resolution is decided upstream, when the art director locks `reference.<ext>` for a view. The trace
+inherits that choice, and cannot improve it.
+
+`dimensions.json` records `image_px` for the cropped file, and the scale it holds is millimetres per
+pixel **of that file**. A reference with a different native size gives a different crop and a
+different scale. It is a re-measurement with `view_scale.py`, never a multiplication of the old
+value. The locked references do not change in this plan, so the step 0 baseline stays valid.
+
+What resolution buys has a limit, and it is measured. The coverage of a `left` column crosses from
+0.10 to 0.60 over 4 pixels, which is 11.5 mm. The softness is the rounded, lit shoulder of the
+generated render, not the sampling grid. A subpixel crossing locates that ramp to about 0.3 mm, and
+a finer grid samples the same ramp better. It does not make the ramp narrower.
 
 ### 2.3 What the staircase is
 
@@ -439,6 +460,10 @@ implementation, not a promise about the shape.
 - A per-view orthographic fit, so each reference fills the frame. It changes the images, and it
   needs its own before and after.
 - A contour for the perspective views. Today they have no plate, so they have no contour.
+- The resolutions of the locked references. Five of the six are 1376 x 768, and a 2048 x 1152
+  candidate sits in the same folder for each. A larger reference gives a larger crop and a
+  different measurement, so it changes the picture and not only the sampling. It needs its own pass,
+  with its own baseline, before step 0 or after this ticket closes.
 - The crease as a real edge loop. The hull could emit the meeting line as its own edge, so the two
   surfaces are separated by a hard edge rather than by a change of normal inside a quad. This is a
   shading and topology question, not a sampling one, and it needs its own measurement.

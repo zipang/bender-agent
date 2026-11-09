@@ -90,6 +90,7 @@ export function createStage({ frame, shot, report, rigRef }) {
     meshes: document.getElementById("hud-meshes"),
     draws: document.getElementById("hud-draws"),
     size: document.getElementById("hud-size"),
+    zoom: document.getElementById("hud-zoom"),
   };
 
   function updateHud(name) {
@@ -99,6 +100,12 @@ export function createStage({ frame, shot, report, rigRef }) {
     if (hud.meshes) hud.meshes.textContent = String(stats.meshes);
     if (hud.draws) hud.draws.textContent = String(renderer.info.render.calls);
     if (hud.size) hud.size.textContent = stats.size.map((v) => v.toFixed(2)).join(" × ");
+    // The zoom is a fact about the orthographic camera only: a perspective view has no zoom factor,
+    // so it reads a dash rather than a number that would be about a different projection.
+    const rig = rigRef?.current;
+    if (hud.zoom) {
+      hud.zoom.textContent = rig && !rig.state.perspective ? `${rig.zoomPercent()} %` : "—";
+    }
   }
 
   // ------------------------------------------------------------------ loop
@@ -110,7 +117,9 @@ export function createStage({ frame, shot, report, rigRef }) {
   renderer.setAnimationLoop(() => {
     const rig = rigRef?.current;
     if (!rig) return;
-    if (rig.activeCamera === rig.camera) rig.controls.update();
+    // Both instances are damped, so the ACTIVE one is updated every frame. Updating only the
+    // perspective one left the flat view's inertia frozen mid-gesture.
+    rig.activeControls.update();
     renderer.render(scene, rig.activeCamera);
     frames += 1;
     if (frames === 2) onSecondFrame?.();

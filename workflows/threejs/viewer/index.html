@@ -8,7 +8,13 @@
       :root { color-scheme: light; }
       html, body { margin: 0; height: 100%; overflow: hidden; background: #eef0f2; }
       body { font: 12px/1.45 ui-monospace, "SF Mono", Menlo, monospace; color: #22262b; }
-      canvas { display: block; }
+      /* The cursor says what a left drag will do before it is pressed. `default` is the floor, not a
+         state: every view pans with a left drag now, so the resting cursor is the open hand on the
+         free views as well as the flat ones, and it closes while a pan runs. T0004 will add its
+         marquee state between the two rules below. */
+      canvas { display: block; cursor: default; }
+      body.pan-ready canvas { cursor: grab; }
+      body.pan-dragging canvas { cursor: grabbing; }
 
       #hud {
         position: fixed; top: 16px; left: 16px; padding: 12px 14px;
@@ -94,6 +100,7 @@
         <dt>meshes</dt><dd id="hud-meshes">—</dd>
         <dt>draws</dt><dd id="hud-draws">—</dd>
         <dt>size</dt><dd id="hud-size">—</dd>
+        <dt>zoom</dt><dd id="hud-zoom">—</dd>
       </dl>
     </div>
 

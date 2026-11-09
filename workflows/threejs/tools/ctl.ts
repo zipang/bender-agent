@@ -11,6 +11,9 @@
 //   bun run workflows/threejs/tools/ctl.ts view rear-3q     (no name: the page default)
 //   bun run workflows/threejs/tools/ctl.ts camera --azimuth 35 --elevation 18 --distance 9
 //   bun run workflows/threejs/tools/ctl.ts ortho --on --height 4.4
+//   bun run workflows/threejs/tools/ctl.ts zoom                    (report)
+//   bun run workflows/threejs/tools/ctl.ts zoom --percent 250
+//   bun run workflows/threejs/tools/ctl.ts zoom --reset
 //   bun run workflows/threejs/tools/ctl.ts wireframe --on
 //   bun run workflows/threejs/tools/ctl.ts isolate Wheel_FL
 //   bun run workflows/threejs/tools/ctl.ts isolate --all
@@ -185,6 +188,11 @@ async function main(): Promise<void> {
       await evaluate("window.__ctl.calque({ off: true })", session);
     }
 
+    // A capture is always at 100 %. A hand-set zoom could clip the subject, and a clipped subject
+    // silently corrupts the scale `compare_silhouette.py` derives from its bounding box. The
+    // sidecar records `zoom: 1`, which is the proof.
+    await evaluate("window.__ctl.zoom(100)", session);
+
     await ab(["screenshot", "canvas", scratch, "--session", session]);
     // The sidecar is what makes the picture measurable. It records the camera that drew it, so a
     // silhouette tool can convert pixels to millimetres instead of guessing a scale.
@@ -223,6 +231,23 @@ async function main(): Promise<void> {
     // No flag: report. This is the command a tracing pass uses most, so it is the default.
     const points = await evaluate("window.__ctl.measurePoints()", session);
     console.log(JSON.stringify(points, null, 2));
+    return;
+  }
+
+  if (command === "zoom") {
+    await waitForReady(session);
+    // No flag: report. `--percent N`: set, clamped by the page. `--reset`: back to 100 %.
+    if (rest.includes("--reset")) {
+      const value = await evaluate("window.__ctl.zoom(100)", session);
+      console.log(JSON.stringify(value, null, 2));
+      return;
+    }
+    const percent = numberOption(rest, "percent");
+    const value = await evaluate(
+      percent === null ? "window.__ctl.zoom()" : `window.__ctl.zoom(${percent})`,
+      session,
+    );
+    console.log(JSON.stringify(value, null, 2));
     return;
   }
 

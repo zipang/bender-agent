@@ -138,6 +138,9 @@ async function main(): Promise<void> {
 
     for (const view of options.views) {
       await evalJson(`window.__setView(${JSON.stringify(view)}).then(() => true)`, s);
+      // A capture is always at 100 %: a hand-set zoom could clip the subject, and a clipped subject
+      // corrupts the scale the silhouette comparison derives from its bounding box.
+      await evalJson("window.__ctl.zoom(100)", s);
       const pngPath = `${scratch}/${view}.png`;
       await ab(["screenshot", "canvas", pngPath, "--session", s]);
       const png = await Bun.file(pngPath).bytes();

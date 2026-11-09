@@ -296,6 +296,43 @@ and `front` is the weakest one, with the model outside the reference along both 
 real disagreement between the three drawings, and it is the first thing to settle before a contour
 is simplified further.
 
+### 7.2 Zoom and pan on the flat views
+
+The flat views zoom and pan with the library's own gesture, not with a hand-written one. `camera.js`
+holds **two** `OrbitControls` instances on the same canvas, one per camera, and `enabled` picks the
+active one. Both are configured from **one frozen `SHARED` table**, so the wheel, the ratio per
+notch, the inertia, the cursor anchoring and the drags are the same on every view. `enableRotate` is
+the single difference: `true` on the free view, `false` on the flat one.
+
+| Gesture | Effect |
+| :--- | :--- |
+| wheel | zoom, anchored on the point under the cursor, 100 % to 400 % |
+| left drag | pan, on both families |
+| middle drag | dolly, on both families |
+| `Shift` + left drag | orbit on a free view, inert on a flat one |
+| right drag | nothing: the button is kept for a context menu |
+
+`Shift` + left drag is the one behaviour not in the `OrbitControls` documentation: the library swaps
+the rotate and pan actions under `ctrl`, `meta` or `shift`, and the flat instance refuses the rotate
+branch because `enableRotate` is `false`. This is pinned to r187, and `tools/check_zoom.ts` asserts
+it so a version bump fails loudly.
+
+The zoom is a fact about the orthographic camera (`OrthographicCamera.zoom`), mirrored into
+`state.zoom` from the instance's `change` event. `orthoHeight` stays the height of the **100 %**
+frame, and the visible height at any zoom is `orthoHeight / zoom`. The `#hud` carries a `zoom` row
+that reads the percentage on a flat view and a dash elsewhere. The canvas cursor is the open hand
+while a left drag pans, and the closed hand during the drag.
+
+**A named view and a capture are always 100 % and centred.** `view(name)` and `ctl.ts shot` reset the
+framing, so `compare_silhouette.py` derives its scale from a frame it can reproduce.
+
+```bash
+bun run workflows/threejs/tools/ctl.ts zoom                    # report { percent, applied, mmPerPx }
+bun run workflows/threejs/tools/ctl.ts zoom --percent 250
+bun run workflows/threejs/tools/ctl.ts zoom --reset
+bun run workflows/threejs/tools/check_zoom.ts                  # the deterministic page check
+```
+
 ## 8. The tools
 
 Every row states what the tool reads, what it writes, and how it is called.
@@ -304,7 +341,8 @@ Every row states what the tool reads, what it writes, and how it is called.
 | :--- | :--- | :--- | :--- |
 | `tools/serve.ts` | the scene folder, the viewer, `node_modules/three` | nothing | `bun run serve` |
 | `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` and `POST /api/contours` | reached through `serve.ts` |
-| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `eval`, `stats` |
+| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `eval`, `stats` |
+| `tools/check_zoom.ts` | the live page, through `__ctl` and real input | a report; non-zero on the first failed assertion | `check_zoom.ts` |
 | `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
 | `tools/check.ts` | the captures, the references | one report, and the overlays | `bun run check` |
 | `tools/silhouette.ts` | a render, a reference | an overlay PNG: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |

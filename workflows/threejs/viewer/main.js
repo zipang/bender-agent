@@ -107,6 +107,13 @@ showLayerState();
 });
 rigRef.current = rig;
 
+// The wheel and the pan on a flat view change the zoom, and the HUD must show it as it happens.
+// Only the flat instance is wired: on a perspective view the zoom row is a dash whatever the
+// pointer does.
+rig.flat.addEventListener("change", () => {
+  stage.updateHud(currentView);
+});
+
 // ------------------------------------------------------------------ contour knots
 
 // The contour as a list of knots the art director controls.
@@ -425,6 +432,27 @@ canvas.addEventListener("pointerup", (event) => {
   if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
 });
 
+// --- the cursor
+//
+// One state, one place. `syncCursor` reads the page and writes the body classes; it never sets
+// `canvas.style.cursor` directly, so a later feature can add a state without rewriting the others.
+// A view at rest is `pan-ready` -- every view pans with a left drag now -- and `pan-dragging` closes
+// the hand while a left drag is in progress. T0004 adds `marquee-armed` between the two.
+function syncCursor() {
+  document.body.classList.add("pan-ready");
+}
+
+// `pan-dragging` is set from this file's own pointerdown with `button === 0`, which it receives only
+// when the editor did not claim the press. Cleared on release, cancel and blur, so the hand never
+// stays closed after the pointer leaves.
+canvas.addEventListener("pointerdown", (event) => {
+  if (event.button === 0) document.body.classList.add("pan-dragging");
+});
+const endPanDrag = () => document.body.classList.remove("pan-dragging");
+canvas.addEventListener("pointerup", endPanDrag);
+canvas.addEventListener("pointercancel", endPanDrag);
+window.addEventListener("blur", endPanDrag);
+
 // --- the panel
 
 function setEditMode(on) {
@@ -620,6 +648,7 @@ function setView(name) {
   currentView = name in views ? name : DEFAULT_VIEW;
   rig.placeCamera(currentView);
   syncButtons();
+  syncCursor();
   stage.updateHud(currentView);
   calque.sync();
   return stage.nextFrame();
@@ -641,6 +670,7 @@ function ctlCamera(options = {}) {
   if (options.reset) rig.reset();
   currentView = "custom";
   syncButtons();
+  syncCursor();
   rig.applyCamera();
   stage.updateHud("custom");
   calque.sync();
@@ -716,6 +746,9 @@ function stats() {
       calque: calque.info().enabled,
     },
     frame: orthoFrame(),
+    // The orthographic zoom factor. `orthoHeight` stays the 100 % frame height, so a reader can
+    // compute the visible height at any zoom; a capture is always prepared at zoom 1.
+    zoom: rig.ortho.zoom,
     // What the body is checked against, and where it stands. Millimetres, because that is the unit
     // of the gates: G2 allows 100 mm or 3 % of the largest dimension, whichever is smaller.
     target: targetOf(),
@@ -729,6 +762,35 @@ function stats() {
 window.__setView = setView;
 window.__views = Object.keys(views);
 window.__stats = stats;
+
+// The fields of one OrbitControls instance, side by side with the other. Every knob that makes the
+// two gestures feel alike is here, so `__ctl.controls()` compares the configuration rather than a
+// promise. The last three are live readouts the checks need, not configuration.
+function describeControls(controls) {
+  return {
+    enableDamping: controls.enableDamping,
+    dampingFactor: controls.dampingFactor,
+    enableZoom: controls.enableZoom,
+    enablePan: controls.enablePan,
+    enableRotate: controls.enableRotate,
+    zoomSpeed: controls.zoomSpeed,
+    panSpeed: controls.panSpeed,
+    rotateSpeed: controls.rotateSpeed,
+    zoomToCursor: controls.zoomToCursor,
+    screenSpacePanning: controls.screenSpacePanning,
+    minZoom: controls.minZoom,
+    maxZoom: controls.maxZoom,
+    minDistance: controls.minDistance,
+    maxDistance: controls.maxDistance,
+    maxPolarAngle: controls.maxPolarAngle,
+    mouseButtons: { ...controls.mouseButtons },
+    touches: { ...controls.touches },
+    azimuth: controls.getAzimuthalAngle(),
+    distance: controls.getDistance(),
+    camera: controls.object.position.toArray(),
+    target: controls.target.toArray(),
+  };
+}
 
 window.__ctl = {
   view: setView,
@@ -748,6 +810,7 @@ window.__ctl = {
   stats,
   state: () => ({
     ...rig.state,
+    zoomPercent: rig.zoomPercent(),
     // The view NAME, so a caller can prove the page is on the view it asked for. `camera` and the
     // orbit controls both set this to "custom", so a hand-moved camera can never claim to be `left`.
     view: currentView,
@@ -894,6 +957,38 @@ window.__ctl = {
     if (!entry) return null;
     return { ...entry, between: picker.lastBetween() };
   },
+  // The zoom of the orthographic views. The value is the camera's own, and `setZoom` clamps it
+  // through the instance's limits. On a perspective view there is no zoom factor, so a set is a
+  // no-op and `applied` is false.
+  zoom: (percent) => {
+    if (typeof percent === "number" && !rig.state.perspective) {
+      rig.setZoom(percent);
+      stage.updateHud(currentView);
+    }
+    const ortho = !rig.state.perspective;
+    const visibleHeight = ortho ? rig.state.orthoHeight / rig.state.zoom : null;
+    return {
+      percent: rig.zoomPercent(),
+      applied: ortho,
+      mmPerPx: ortho
+        ? (visibleHeight * 1000) / window.innerHeight
+        : picker.state().mmPerScreenPx,
+      visibleHeight,
+    };
+  },
+  // Programmatic pan, in pixels, as documented. `panBy` is `OrbitControls.pan` with the sign
+  // convention of a drag already handled by the library.
+  pan: (dx, dy) => {
+    rig.panBy(dx, dy);
+    stage.updateHud(currentView);
+    return {
+      target: [rig.state.target.x, rig.state.target.y, rig.state.target.z],
+      percent: rig.zoomPercent(),
+    };
+  },
+  // The two control instances, field by field, so the check proves the parity instead of trusting a
+  // paragraph. `azimuth`, `distance` and `camera` are live readouts, not configuration.
+  controls: () => ({ orbit: describeControls(rig.controls), flat: describeControls(rig.flat) }),
   reset: ctlReset,
   wait: () => stage.nextFrame(),
 };
@@ -910,6 +1005,7 @@ stage.readyOnSecondFrame(() => {
 currentView = currentView in views ? currentView : DEFAULT_VIEW;
 rig.placeCamera(currentView);
 syncButtons();
+syncCursor();
 
 // The dev server pushes one message per file change. A full reload is enough here: the model is
 // rebuilt from source, and it costs a fraction of a second.

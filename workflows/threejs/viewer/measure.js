@@ -12,12 +12,17 @@
  * Millimetres of world per screen pixel, at the depth the camera is aimed at. Exact everywhere for
  * an orthographic camera; for a perspective one it is the value at the target plane.
  *
- * @param {{ perspective: boolean, orthoHeight: number, distance: number, fov: number, height: number }} camera
+ * `zoom` is the orthographic zoom factor (`OrthographicCamera.zoom`, default 1). It scales the
+ * visible height, so the frame height is divided by it. It is ignored by the perspective camera,
+ * which has no zoom factor.
+ *
+ * @param {{ perspective: boolean, orthoHeight: number, zoom?: number, distance: number, fov: number, height: number }} camera
  */
 export function mmPerScreenPx(camera) {
   const { perspective, orthoHeight, distance, fov, height } = camera;
+  const zoom = camera.zoom ?? 1;
   if (!height) return Number.NaN;
-  if (!perspective) return (orthoHeight * 1000) / height;
+  if (!perspective) return (orthoHeight * 1000) / (height * zoom);
   const worldHeight = 2 * distance * Math.tan((fov * Math.PI) / 180 / 2);
   return (worldHeight * 1000) / height;
 }

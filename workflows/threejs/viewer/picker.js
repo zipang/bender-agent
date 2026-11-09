@@ -40,6 +40,9 @@ export function createPicker({
     return screenMmPerPx({
       perspective: rig.state.perspective,
       orthoHeight: rig.state.orthoHeight,
+      // The zoom the orthographic camera is at: the panel and the 10 px grab threshold follow it, so
+      // a handle stays as easy to grab at 400 % as at 100 %.
+      zoom: rig.state.zoom,
       distance: rig.state.distance,
       fov: rig.state.fov,
       height: renderer.domElement.height,

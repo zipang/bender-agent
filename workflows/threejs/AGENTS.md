@@ -45,6 +45,21 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
 - A distance is read from a tool, never estimated by eye.
 - A gate measured on one view is half-measured. Write `not measured` for the others and fail it.
 
+## Camera rules
+
+- The flat views zoom and pan through a **second** `OrbitControls` bound to the orthographic camera.
+  Never hand-write a wheel listener, a zoom clamp, a cursor-anchoring formula or a pan vector: the
+  library's own gesture is the only implementation.
+- Both instances are configured from **one frozen `SHARED` table** in `camera.js`. `enableRotate` is
+  the single difference: `true` on the free view, `false` on the flat one.
+- `mouseButtons` is `LEFT` pan, `MIDDLE` dolly, `RIGHT` unbound. `Shift` + left drag orbits a free
+  view and is inert on a flat one: this swap is in the `OrbitControls` source and not in its
+  documentation, it is pinned to r187, and `tools/check_zoom.ts` asserts it so a version bump fails.
+- A named view and a capture are always **100 %** and centred. `orthoHeight` is the 100 % frame
+  height; the visible height at any zoom is `orthoHeight / zoom`.
+- Run `bun run workflows/threejs/tools/check_zoom.ts` after a camera change. It exits non-zero on the
+  first failed assertion.
+
 ## Contour rules
 
 - The drawn contour reads the **picture**; the hull reads the **opened intervals**. The two are

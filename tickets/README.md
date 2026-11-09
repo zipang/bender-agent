@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0008`.**
+- **The next free ID is `T0010`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -33,19 +33,25 @@ when the art director asks for a change.
 
 | ID | Title | Track | Depends on |
 | :--- | :--- | :--- | :--- |
-| [T0005](./planned/T0005-measurement-pick-invocation.md) | How a measurement point is invoked: Ctrl + left click, on release | Three.js viewer | T0003 |
 | [T0004](./planned/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | T0003, T0005 |
+| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length | Three.js viewer (measurement) | T0004, T0005 — **draft, specification settled, awaits validation** |
 
-T0003, T0005, and T0004 all touch `picker.js`, so they run in that order. T0003 gives the left button
+T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
-what forces the two tickets after it: T0005 moves the measurement point to `Ctrl` + left click on
+what forced the two tickets after it: T0005 moved the measurement point to `Ctrl` + left click on
 release, so a pan cannot drop one, and T0004 lets the knot editor borrow the left button inside a
-knot's grab threshold.
+knot's grab threshold. T0003 and T0005 are done; **T0004 is the last of the three.**
 
 T0006 and T0007 were opened by the same diagnosis, and neither is on the critical path of the three
 above. T0007 comes first because it is the one that makes the machine usable: the page renders every
 frame unconditionally, so an idle tab burns nine of sixteen cores, every headless run pegs the box,
 and a browser session that outlives its run keeps burning forever.
+
+T0009 answers three gaps that T0005 left: the measurement tool cannot be turned on from the page,
+nothing is drawn where a point lands, and the panel still states the pre-T0005 chord. Its eight
+decisions (D1–D8) are settled with the art director and its contract is complete, but it is still a
+draft: it awaits validation before it leaves `planned/`. It comes after T0004 because the two share
+`picker.js` and the canvas `pointerdown`.
 
 ### In progress
 
@@ -65,6 +71,7 @@ No ticket.
 | [T0007](./done/T0007-viewer-idles-at-zero.md) | The viewer idles at zero: draw on demand, not every frame | Three.js viewer | 2026-11-09 |
 | [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools) | 2026-11-09 |
 | [T0008](./done/T0008-silhouette-report-presentation.md) | The silhouette report says what it means | Three.js viewer (tools) | 2026-11-09 |
+| [T0005](./done/T0005-measurement-pick-invocation.md) | How a measurement point is invoked: Ctrl + left click, on release | Three.js viewer | 2026-11-09 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 

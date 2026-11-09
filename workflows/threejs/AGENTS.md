@@ -20,6 +20,11 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
 - Never add a page or a script under `scenes/`. A scene is data plus a model module, and everything
   that draws belongs to `viewer/`.
 - Never edit `viewer/` to look from another angle. Drive the page with `tools/ctl.ts`.
+- The page draws **on demand**. `renderer.setAnimationLoop` is the only clock, and it runs only while
+  there is a reason: a pending change, a caller waiting for a frame, or the active `OrbitControls`'
+  `change` event (which also fires while damping decays the inertia). It **stops** when none is left.
+  Never render every frame, and never skip behind an early return. Run
+  `bun run workflows/threejs/tools/check_idle.ts` after a change to the loop.
 - Keep the authoring source of a scene committed. Keep its renders and its `.glb` local.
 
 ## The three gates

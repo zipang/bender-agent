@@ -106,6 +106,9 @@ showLayerState();
   },
 });
 rigRef.current = rig;
+// The loop follows the active controls' `change` event: a gesture, or an inertia tail, wakes it and
+// keeps it awake until the camera stops.
+stage.bindRig(rig);
 
 // The wheel and the pan on a flat view change the zoom, and the HUD must show it as it happens.
 // Only the flat instance is wired: on a perspective view the zoom row is a dash whatever the
@@ -195,6 +198,9 @@ const calque = createCalque({
     stage.updateHud(currentView);
     showLayerState();
     refreshPanel();
+    // A plate can arrive asynchronously (the texture load) and a handle set is rebuilt on an edit:
+    // both change what is on screen, so the loop must be asked for a frame.
+    stage.nextFrame();
   },
 });
 calque.followCamera(() => rig.matchingView());
@@ -589,6 +595,9 @@ function rebuildVolume() {
     size_mm: [size.x, size.y, size.z].map((v) => Number((v * 1000).toFixed(1))),
   };
   showLayerState();
+  // The volume is a layer that changes the picture: rebuild it and ask for a frame, or a release
+  // after a knot drag would rebuild geometry nobody draws.
+  stage.nextFrame();
   return volumeInfo;
 }
 
@@ -808,6 +817,7 @@ window.__ctl = {
   exposure: stage.ctl.exposure,
   nodes: stage.ctl.nodes,
   stats,
+  frames: () => stage.frames(),
   state: () => ({
     ...rig.state,
     zoomPercent: rig.zoomPercent(),

@@ -130,6 +130,29 @@ export function createCameraRig({ views, frame, element, onManual }) {
     state.target.copy(flat.target);
   });
 
+  // The documented `change` event of the ACTIVE instance is the signal that the camera moved, and it
+  // fires again on every frame while `enableDamping` decays the inertia. One subscription here
+  // follows the flat/perspective swap in `applyCamera()`, so the page's loop wakes on the active
+  // camera's motion and never on the disabled instance's.
+  const changeListeners = new Set();
+  let changeTarget = orbit;
+  const emitChange = () => { for (const listener of changeListeners) listener(); };
+  changeTarget.addEventListener("change", emitChange);
+
+  function rebindChange() {
+    const next = state.perspective ? orbit : flat;
+    if (next === changeTarget) return;
+    changeTarget.removeEventListener("change", emitChange);
+    changeTarget = next;
+    changeTarget.addEventListener("change", emitChange);
+  }
+
+  /** Subscribe to the active instance's `change` event. Returns an unsubscribe function. */
+  function onChange(listener) {
+    changeListeners.add(listener);
+    return () => changeListeners.delete(listener);
+  }
+
   function frameOrtho() {
     const h = state.orthoHeight;
     const a = window.innerWidth / window.innerHeight;
@@ -167,6 +190,9 @@ export function createCameraRig({ views, frame, element, onManual }) {
     );
 
     activeCamera = state.perspective ? camera : ortho;
+    // The active instance changed: the `change` listener moves with it, so the loop follows the
+    // camera that can actually move.
+    rebindChange();
     activeCamera.up.set(...state.up);
     activeCamera.position.copy(position);
     activeCamera.lookAt(t);
@@ -293,6 +319,7 @@ export function createCameraRig({ views, frame, element, onManual }) {
     applyCamera,
     placeCamera,
     matchingView,
+    onChange,
     zoomPercent,
     setZoom,
     panBy,

@@ -110,35 +110,93 @@ export function createStage({ frame, shot, report, rigRef }) {
 
   // ------------------------------------------------------------------ loop
 
-  let frames = 0;
+  // The page draws on demand. `setAnimationLoop` is the only clock, and it runs only while there is
+  // a reason: a pending change (`dirty`) or a caller waiting for a frame (`waiters`). A headless
+  // browser has no vsync, so an unconditional loop rasterises the scene as fast as the software
+  // renderer allows -- nine cores of sixteen, for a still picture. Stopping the loop, not skipping
+  // its body, is what takes the idle cost to zero.
+  //
+  // Two counters, so the check can tell "stopped" from "skipped". `rendered` counts calls to
+  // `renderer.render`; `ticks` counts invocations of the animation-loop callback. `rendered` frozen
+  // alone would pass with a spinning loop; `ticks` frozen too is the proof that the loop stopped.
+  let rendered = 0;
+  let ticks = 0;
+  let dirty = true;      // a reason to draw exists until the first frame clears it
   let waiters = [];
   let onSecondFrame = null;
+  let running = false;
 
-  renderer.setAnimationLoop(() => {
+  // A reason to draw: a pending change, a caller waiting, or the two start-up frames `onSecondFrame`
+  // needs. When none is left, the loop stops.
+  function hasReason() {
+    return dirty || waiters.length > 0 || rendered < 2;
+  }
+
+  // `dirty` and the re-arm are one step. Every mutator and the active controls' `change` event set
+  // the flag through this, so a stopped loop always comes back.
+  function requestFrame() {
+    dirty = true;
+    if (!running) {
+      running = true;
+      renderer.setAnimationLoop(tick);
+    }
+  }
+
+  function tick() {
+    ticks += 1;
+    // Consume the pending reason BEFORE the controls are updated. A move that happens in this frame
+    // -- the inertia tail of a gesture, above all -- fires `change`, which sets `dirty` again and
+    // keeps the loop awake for the next frame. Clearing after the update would eat that signal and
+    // stop one frame too early.
+    dirty = false;
     const rig = rigRef?.current;
-    if (!rig) return;
-    // Both instances are damped, so the ACTIVE one is updated every frame. Updating only the
-    // perspective one left the flat view's inertia frozen mid-gesture.
-    rig.activeControls.update();
-    renderer.render(scene, rig.activeCamera);
-    frames += 1;
-    if (frames === 2) onSecondFrame?.();
+    if (rig) {
+      // Both instances are damped, so the ACTIVE one is updated every frame. Updating only the
+      // perspective one left the flat view's inertia frozen mid-gesture.
+      rig.activeControls.update();
+      renderer.render(scene, rig.activeCamera);
+      rendered += 1;
+      if (rendered === 2) onSecondFrame?.();
+    }
     if (waiters.length > 0) {
       // One extra frame so the resolved caller sees the frame that was just drawn.
       const pending = waiters;
       waiters = [];
       requestAnimationFrame(() => pending.forEach((resolve) => resolve({ calls: renderer.info.render.calls })));
     }
-  });
+    if (!hasReason()) {
+      // Stop, do not skip: `setAnimationLoop(null)` cancels the loop, so `requestAnimationFrame` is
+      // not left spinning behind an early return.
+      running = false;
+      renderer.setAnimationLoop(null);
+    }
+  }
 
-  // Resolves once a frame that includes the new camera position has been drawn.
+  // The documented `change` event of the ACTIVE controls is the signal that the camera moved, and it
+  // fires again on every frame while `enableDamping` decays the inertia. The rig re-targets the
+  // listener when the flat/perspective swap happens, so only the active instance drives frames. An
+  // inertia tail therefore keeps the loop awake by itself, and the loop sleeps when the camera stops.
+  let unbindControls = null;
+  function bindRig(rig) {
+    unbindControls?.();
+    unbindControls = rig?.onChange ? rig.onChange(requestFrame) : null;
+  }
+
+  // The first frame: arm the loop. It runs until the start-up frames are drawn and nothing is dirty.
+  requestFrame();
+
+  // Resolves once a frame that includes the new camera position has been drawn. It sets `dirty` and
+  // re-arms the loop BEFORE it registers its waiter, so a caller that arrives while the page sleeps
+  // still gets a frame.
   function nextFrame() {
+    requestFrame();
     return new Promise((resolve) => waiters.push(resolve));
   }
 
   window.addEventListener("resize", () => {
     rigRef?.current?.resize();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    requestFrame();
   });
 
   // ------------------------------------------------------------------ control surface
@@ -149,6 +207,7 @@ export function createStage({ frame, shot, report, rigRef }) {
   function setRoot(object) {
     root = object;
     scene.add(object);
+    requestFrame();
   }
 
   function meshesMatching(name) {
@@ -269,6 +328,8 @@ export function createStage({ frame, shot, report, rigRef }) {
     hud,
     updateHud,
     nextFrame,
+    frames: () => ({ rendered, ticks }),
+    bindRig,
     setRoot,
     readyOnSecondFrame(fn) { onSecondFrame = fn; },
     ctl: {

@@ -333,6 +333,37 @@ bun run workflows/threejs/tools/ctl.ts zoom --reset
 bun run workflows/threejs/tools/check_zoom.ts                  # the deterministic page check
 ```
 
+### 7.3 The page draws on demand
+
+`renderer.setAnimationLoop` is the only clock, and it runs only while there is a reason. The page
+does **not** render every frame. A headless browser has no vsync, so an unconditional loop rasterises
+the scene as fast as the software renderer allows: an idle tab costs nine cores of sixteen, forever,
+and a browser session that outlives its run keeps burning them. The loop **stops** -- it is not
+skipped behind an early return -- and re-arms from whatever sets the flag.
+
+A reason to draw is a pending change (`dirty`) or a caller waiting for a frame. `dirty` is set by
+every call that changes what is on screen -- a resize, `setRoot`, a layer toggle, an edit, a view
+change, the `ctl` surface -- and by the **`change` event of the active `OrbitControls`**. That event
+fires when a gesture moves the camera, and again on every frame while `enableDamping` decays the
+inertia, so an inertia tail keeps the loop awake by itself and the page sleeps when the camera stops.
+The listener follows the flat/perspective swap in `applyCamera()`, so only the active instance drives
+frames.
+
+`stage` exposes two counters, and `__ctl.frames()` returns them:
+
+| Counter | Counts |
+| :--- | :--- |
+| `rendered` | calls to `renderer.render` |
+| `ticks` | invocations of the animation-loop callback |
+
+`rendered` frozen alone would pass with a spinning loop; `ticks` frozen too is the proof that the
+loop stopped. `nextFrame()` keeps its meaning: it sets `dirty`, re-arms the loop, and only then
+registers its waiter, so a caller that arrives while the page sleeps still gets a frame.
+
+```bash
+bun run workflows/threejs/tools/check_idle.ts                  # the idle rule, on the live page
+```
+
 ## 8. The tools
 
 Every row states what the tool reads, what it writes, and how it is called.
@@ -343,6 +374,7 @@ Every row states what the tool reads, what it writes, and how it is called.
 | `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` and `POST /api/contours` | reached through `serve.ts` |
 | `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `eval`, `stats` |
 | `tools/check_zoom.ts` | the live page, through `__ctl` and real input | a report; non-zero on the first failed assertion | `check_zoom.ts` |
+| `tools/check_idle.ts` | the live page, through `__ctl.frames()` | a report; non-zero on the first failed assertion | `check_idle.ts` |
 | `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
 | `tools/check.ts` | the captures, the references | one report, and the overlays | `bun run check` |
 | `tools/silhouette.ts` | a render, a reference | an overlay PNG: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |

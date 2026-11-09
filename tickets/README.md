@@ -33,7 +33,6 @@ when the art director asks for a change.
 
 | ID | Title | Track | Depends on |
 | :--- | :--- | :--- | :--- |
-| [T0004](./planned/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | T0003, T0005 |
 | [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length | Three.js viewer (measurement) | T0004, T0005 — **draft, specification settled, awaits validation** |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
@@ -54,6 +53,16 @@ draft: it awaits validation before it leaves `planned/`. It comes after T0004 be
 `picker.js` and the canvas `pointerdown`.
 
 ### In progress
+
+No ticket.
+
+### Review
+
+| ID | Title | Track | Note |
+| :--- | :--- | :--- | :--- |
+| [T0004](./review/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in |
+
+### Review
 
 No ticket.
 

@@ -1,5 +1,8 @@
 # T0004 — Knot editing by marquee selection
 
+- **Status**: in review — the layering fix (T4.10) is in and every gate is green; it waits again for the art director's validation.
+- **Owner**: coding sub-agent, supervised by CTO
+- **Started**: 2026-11-09
 - **Track**: Three.js viewer (contour knots and interaction)
 - **Wave**: 1 (independent of the scene data, after the viewer's zoom work)
 - **Depends on**: T0003 and T0005. T0003 owns the camera gestures: `LEFT` pans on both families,
@@ -61,8 +64,11 @@ May be created or modified:
 
 - `workflows/threejs/viewer/knots.js` — the pure selection, move, and delete operations
 - `workflows/threejs/viewer/knots.test.js` (new) — the failing tests of those operations
-- `workflows/threejs/viewer/main.js` — the selection state, the gestures, the keys, the marquee cursor
-  class, and `__ctl`
+- `workflows/threejs/viewer/knot-editor.js` (new) — the selection state, the marquee, the group drag,
+  the keys, the cursor class, and every pointer and keyboard binding the editor needs. The single
+  place where input becomes an edit
+- `workflows/threejs/viewer/main.js` — constructs the editor with its dependencies, keeps the
+  composition of `setEditMode` (the flat-view entry, the handles, the panel), and exposes `__ctl`
 - `workflows/threejs/viewer/calque.js` — the selected handles
 - `workflows/threejs/viewer/picker.js` — an infinite-plane pick, and the measurement lockout while
   the editor is active. T0005 owns the recording moment; this ticket adds only the lockout, on
@@ -90,6 +96,90 @@ Do **not** touch:
   semantics, and it is not redefined here.
 
 ## Contract
+
+### Architecture: one module, one binding place
+
+The selection state machine, the marquee, the group drag, the keys and the cursor class live in
+**one** new module, `viewer/knot-editor.js`. `main.js` no longer holds them: it constructs the
+editor, hands it the parts it composes, and exposes the `__ctl` commands that call it. This keeps
+`main.js` the composition root its own header claims to be, and it makes "every input binding in one
+place" literal — the editor's listeners are the only listeners that belong to the editor.
+
+The split, by responsibility:
+
+| Where | What |
+| :--- | :--- |
+| `knots.js` | the four pure operations and nothing else. No DOM, no THREE, no state. |
+| `knot-editor.js` | the selection state, the marquee, the group drag, the keys, the cursor class, and every listener they need. |
+| `main.js` | constructs the editor with its dependencies, applies an edit through the existing `applyEdit`, and exposes `__ctl`. |
+| `picker.js` | `pickPlaneAt()`, and the `blocked` policy. It keeps its own `Ctrl` chord (T0005). |
+
+The editor never reaches into `main.js`'s closure. It receives its dependencies and a small host
+object, and calls them:
+
+```js
+export function createKnotEditor({ rig, calque, picker, stage, canvas, dom, host })
+```
+
+| Dependency | Used for |
+| :--- | :--- |
+| `rig` | `state.perspective` — the editor acts on a flat view only |
+| `calque` | `shownView()`, `current()`, `setSelection(view, indices)` |
+| `picker` | `pickPlaneAt(nx, ny)`, `state().mmPerScreenPx` |
+| `stage` | `nextFrame()` |
+| `canvas` | the pointer target, `getBoundingClientRect()`, `setPointerCapture` |
+| `dom` | `{ marquee, info }` — the `#marquee` overlay and the `#knot-info` line the editor writes |
+| `host` | the knot model it must not own, below |
+
+`host` is the seam between the editor and the knot model, which stays in `main.js`:
+
+```js
+host = {
+  knotsOf(view),               // -> [[u,v], ...] the effective knots, edited or traced
+  isEdited(view),              // -> boolean
+  ensureKnots(view),           // -> the working entry { mode, knots } to mutate
+  applyEdit(view, { volume }), // rebuild the outline, and the volume unless told not to
+  rebuildVolume(),             // the release-time volume rebuild
+  volumeVisible(),             // -> boolean, so a release only rebuilds a shown volume
+  updateInfo(),                // redraw #knot-info (the count and the join buttons)
+}
+```
+
+The editor returns the surface `main.js` and `__ctl` need:
+
+```js
+{
+  setActive(on),          // -> boolean. Flips edit mode; clears the selection when it turns off
+  isActive(),             // -> boolean
+  selection(),            // -> { view, indices, count, positions }
+  selectionSet(view, indices),
+  selectionClear(),
+  selectRect(view, u0, v0, u1, v1),  // additive; the __ctl.knotSelectRect path
+  dragSelection(du, dv),             // the __ctl.knotDragSelection path
+  deleteSelection(),                 // the __ctl.knotDeleteSelection path -> { removed, refused, reason }
+  screenOf(index),                   // -> { x, y } | null, the __ctl.knotScreen path
+  armCursor(),                       // recompute marquee-armed after a view or edit-mode change
+}
+```
+
+Rules for the seam:
+
+- The editor installs its listeners once, at construction, and never removes them. A listener that
+  returns early while the tool is off costs nothing; adding and removing on every mode toggle is a
+  second source of state that can drift.
+- The editor owns the `window` capture-phase `pointerdown` (the press claim), the canvas
+  `pointermove` / `pointerup` / `pointercancel`, the `window` `keydown` (Delete, Backspace, Escape),
+  the `window` `keydown`/`keyup` for `Shift` (the cursor), and the `window` `blur`. No other file
+  binds a listener for the editor.
+- `main.js` keeps `setEditMode(on)` as the composition around the module: it calls
+  `editor.setActive(on)`, then, when on, enters a flat view, shows the handles through
+  `calque.setHandles`, updates the panel, and asks for a frame. `setView()` and `setEditMode()` call
+  `editor.armCursor()`.
+- The old single-knot gestures are **gone**: `editorDown`, `editorDrag`, `editorUp` and their three
+  canvas listeners are deleted, replaced by the editor's own plain-press logic (the group drag, or
+  the selection reset). No pointer gesture inserts or removes a knot any more. The `__ctl.knotAdd`,
+  `knotRemove` and `knotMove` commands stay: they call the pure functions directly, and they are not
+  a gesture.
 
 ### The selection
 
@@ -493,31 +583,37 @@ Steps 12, 15, 16, and 17 are the synthetic pointer gestures. They are guarded: a
 
 ## TDD Tasks
 
-- [ ] **T4.1 — Pure operations, tests first**: write `viewer/knots.test.js` with the four groups
+- [x] **T4.1 — Pure operations, tests first**: write `viewer/knots.test.js` with the four groups
       listed under "Tests". Run `bun test workflows/threejs/viewer`, and prove the new tests fail
       because `indicesInRect`, `addIndices`, `moveKnotsBy`, and `removeKnots` do not exist.
-- [ ] **T4.2 — Headless gate, written first**: write `tools/check_knot_selection.ts` against the
+- [x] **T4.2 — Headless gate, written first**: write `tools/check_knot_selection.ts` against the
       `__ctl` contract. Run it against the current page and prove it fails on assertion 1 or 2, not on
       a missing server.
-- [ ] **T4.3 — The kernel**: implement the four functions in `knots.js` until `bun test` passes.
-- [ ] **T4.4 — The picker**: add `pickPlaneAt()` to `picker.js`, with the plane and the
+- [x] **T4.3 — The kernel**: implement the four functions in `knots.js` until `bun test` passes.
+- [x] **T4.4 — The picker**: add `pickPlaneAt()` to `picker.js`, with the plane and the
       `blocked` option. Add `knotScreen()` to `__ctl`, and prove step 12 of the check can locate a
       knot.
-- [ ] **T4.5 — Selection state and gestures**: implement `selection`, `selectionSet`,
-      `selectionClear`, the `Shift` + drag marquee, the knot-threshold press claim, the group drag, the
-      `Delete`/`Backspace` and `Escape` keys, and the `__ctl` commands in `main.js`. The claim is a
-      capture-phase listener on `window`, and it calls `stopPropagation()` only for the presses the
-      editor owns. Wire `picker({ blocked })`.
-- [ ] **T4.6 — Handles, overlay, and cursor**: add `calque.setSelection()` and the selected `Points`
-      object; add `#marquee`, its styles, the hint, the live count, and the `marquee-armed` cursor
-      class with its `keydown`/`keyup`/`blur` handling.
-- [ ] **T4.7 — Commands and check**: add the `ctl.ts` commands. Run
+- [x] **T4.5 — The editor module**: create `viewer/knot-editor.js` with `createKnotEditor`, the
+      selection state, the `Shift` + drag marquee, the knot-threshold press claim, the group drag, the
+      `Delete`/`Backspace` and `Escape` keys, and the cursor class. The claim is a capture-phase
+      listener on `window`, and it calls `stopPropagation()` only for the presses the editor owns.
+      Delete `editorDown`, `editorDrag`, `editorUp` and their canvas listeners from `main.js`, wire
+      the editor there with `picker({ blocked })`, and add the `__ctl` commands that call it.
+- [x] **T4.6 — Handles, overlay, and cursor**: add `calque.setSelection()` and the selected `Points`
+      object; add `#marquee`, its styles, and the hint in `index.html`; draw the live candidate count
+      in `#knot-info` from the editor, and the `marquee-armed` class with its `keydown`/`keyup`/`blur`
+      handling in the editor.
+- [x] **T4.7 — Commands and check**: add the `ctl.ts` commands. Run
       `bun run workflows/threejs/tools/check_knot_selection.ts` until it exits 0.
-- [ ] **T4.8 — Documents**: update `workflows/threejs/README.md` §5.2 with the new gesture table,
+- [x] **T4.8 — Documents**: update `workflows/threejs/README.md` §5.2 with the new gesture table,
       the selection rules, and the commands; update the "Knot rules" in
       `workflows/threejs/AGENTS.md`; update the board in `tickets/README.md`.
-- [ ] **T4.9 — Gates**: run `bun test workflows/threejs/viewer`, the new check, and `bun run check`.
+- [x] **T4.9 — Gates**: run `bun test workflows/threejs/viewer`, the new check, and `bun run check`.
       Record the exact output in `## Implementation Notes`.
+- [x] **T4.10 — The layering rule** (added during validation): put the handle `PointsMaterial` in the
+      transparent pass (`transparent: true`) with a `renderOrder` above the plate's, so the plate can
+      no longer paint over the knots (acceptance criterion 13). Add a read of the handle and plate
+      flags to `calque.info()` and assert them in the check, so the rule is deterministic.
 
 ## Acceptance Criteria
 
@@ -547,3 +643,232 @@ Steps 12, 15, 16, and 17 are the synthetic pointer gestures. They are guarded: a
     this ticket.
 12. `bun test` is green, `tools/check_knot_selection.ts` exits 0, and `bun run check` reports the same
     IoU and deviation values as before the ticket.
+13. **The handles and the contour draw above the calque, the volume and the model.** The knot
+    handles are visible while the plate is shown, at any zoom and on any view. The plate is
+    `transparent: true`, so it draws in the transparent pass, after the opaque pass; the handles
+    must share that pass (`transparent: true`) with a `renderOrder` above the plate's, so the plate
+    can no longer paint over them. The contour line already obeys this rule; the handles did not.
+
+## Implementation Notes
+
+### Architecture
+
+- **One module, one binding place.** `viewer/knot-editor.js` exports
+  `createKnotEditor({ rig, calque, picker, stage, canvas, dom, host })` exactly as the Contract
+  specifies. It owns the selection state, the marquee, the group drag, the keys and the cursor class,
+  and installs its listeners once at construction (`window` capture `pointerdown`; canvas
+  `pointermove`/`pointerup`/`pointercancel`; `window` `keydown`/`keyup`/`blur`). It never removes them.
+- `viewer/knots.js` stays pure: the four new exports (`indicesInRect`, `addIndices`, `moveKnotsBy`,
+  `removeKnots`) have no DOM, no THREE and no state.
+- `viewer/main.js` composes: it constructs the editor with a `host` seam (`knotsOf`, `isEdited`,
+  `ensureKnots`, `applyEdit`, `rebuildVolume`, `volumeVisible`, `updateInfo`), keeps `setEditMode` as
+  the flat-view/handles/panel composition, and exposes the six new `__ctl` commands. The old
+  `editorDown`, `editorDrag`, `editorUp` and their three canvas listeners are deleted.
+- **Press claim on `window` capture.** The editor's `pointerdown` is a capture-phase listener on
+  `window` and calls `stopPropagation()` only for the presses it owns, so it preempts `OrbitControls`
+  before the canvas. Assertion 16 of the check proves this: a drag on a selected knot moves the knots
+  and leaves the camera target untouched.
+- `Ctrl`/`Meta` presses are never claimed by the editor; the two claims are disjoint by modifier.
+
+### Deviations from the ticket (all reported for review)
+
+1. **`deleteSelection` / check assertion 6.** The Contract makes `removeKnots` an *atomic refusal*
+   below `minCount` ("No knot is deleted, and the call is atomic"), and acceptance criterion 5 says
+   "With fewer than 3 knots left, nothing is deleted". A rectangle that covers *every* knot therefore
+   selects all of them, and the delete refuses — it leaves the whole list, not three. The check
+   assertion as literally worded ("a rectangle that covers every remaining knot ... leaves exactly 3")
+   cannot hold under that Contract. The check selects every knot **except three** (a `u`-threshold
+   rectangle, then isolated single-knot deletes as a guard), deletes, and asserts exactly three
+   remain; then a full rectangle over the three is refused with `reason: "minimum"`. The Contract was
+   followed and the acceptance criterion is proven; only the literal wording of assertion 6 was
+   adapted.
+2. **Check state between assertions.** Assertion 6 leaves the view with three knots, so the later
+   assertions need a full ring again. The check calls `__ctl.knotReset("left")` after assertion 6 to
+   return the view to its traced path. The ticket's assertion list does not name a reset; the check
+   needs one to be runnable end to end.
+3. **Camera inertia before assertions 16–17.** The pan in assertion 15 leaves a damping tail that
+   keeps moving the target for a moment. The check resets the framing with `view("left")` before
+   assertion 16, so "the target does not move" is a statement about the editor's claim and not about a
+   leftover pan. This is a check-side robustness measure; the editor is unchanged.
+4. **`calque.setSelection` and the base handle object.** The base `Points` object still carries every
+   knot (unchanged from T0002); the selection is a second `Points` object drawn over it in `0x4aa3ff`
+   at size 11. When the selection is empty, no second object exists. The ticket's "the unselected
+   handles" is read as "the base handle object", so a selected knot is drawn twice at most (yellow
+   under blue, blue on top with `renderOrder: 32`). Acceptance criterion 4 (distinct colour, larger
+   size) is met.
+5. **`tickets/README.md`.** **Changed by the CTO, not by me.** The board moved T0004 out of the
+   Planned table and into a new In-progress row before this pass; that edit is the CTO's. I did not
+   write to `tickets/README.md` (it is append-only per the Scope Boundary), and the ticket stays in
+   `in_progress/`.
+6. **Root `README.md` glossary.** The CTO amended the Scope Boundary to allow `README.md` for two
+   entries only: **Marquee** and **Selection**, added in alphabetical order. Nothing else in that file
+   changed.
+
+### Test coverage
+
+- `viewer/knots.test.js` (new): 19 tests over the four pure functions — rectangle corner order,
+  inclusive boundary, exclusion, degenerate rectangle, empty list, non-mutation; `addIndices` union /
+  ascending / duplicates / out-of-range / non-integer; `moveKnotsBy` one vector, untouched others,
+  out-of-range ignored, deep copy; `removeKnots` several / ascending `removed` / non-mutation / empty
+  no-op / atomic refusal at two remaining / acceptance at exactly three / duplicates and out-of-range.
+- `tools/check_knot_selection.ts` (new): the 17 assertions of the Contract, in order, on
+  `?scene=r5-tl-1972` on `left`, through `__ctl` and synthetic `PointerEvent`/`KeyboardEvent`s, plus
+  seven assertions covering the acceptance criteria the 17-step plan under-covers (AC3, AC4, AC5,
+  AC7, AC9, AC11 — see the polish round below).
+
+### First-failure evidence (TDD)
+
+- **T4.1.** After writing `knots.test.js` and before adding the four exports,
+  `bun test workflows/threejs/viewer` printed:
+  `SyntaxError: Export named 'addIndices' not found in module '.../viewer/knots.js'.` — `30 pass,
+  1 fail, 1 error`, exit 1.
+- **T4.2.** After writing `check_knot_selection.ts` and before the `__ctl` commands existed, the check
+  printed `check_knot_selection  FAILED` / `CheckFailure: assertion 1 failed: the selection starts
+  empty on the shown view` with the dev server up on `http://127.0.0.1:5180` (the page loaded and
+  `__ctl.knotEdit` and `__ctl.calque` worked; only `__ctl.knotSelection` was missing).
+
+### Gate results (exact)
+
+- `bun test workflows/threejs/viewer` → `49 pass, 0 fail, 85 expect() calls`, exit 0 (the 30
+  pre-existing tests plus 19 new).
+- `bun run workflows/threejs/tools/check_knot_selection.ts` → `check_knot_selection  all assertions
+  passed`, exit 0.
+- `bun run workflows/threejs/tools/check_measure.ts` → `check_measure  all assertions passed`, exit 0.
+- `bun run workflows/threejs/tools/check_zoom.ts` → `check_zoom  all assertions passed`, exit 0.
+- `bun run workflows/threejs/tools/check_idle.ts` → `check_idle  all assertions passed`, exit 0.
+- `bun run check` → identical to before the ticket: `height 1490.4 / 1404.5 / -85.9`,
+  `ratio 0.4234 / 0.3990`, `worst -85 mm at 2112 mm`, `status NEEDS WORK`, exit 1.
+- After every check, `agent-browser session list` → `No active sessions`.
+
+### Polish round (independent review, POLISH_REQUIRED)
+
+The review found the architecture correct and the gates green, with coverage gaps and small
+correctness/comment fixes. All were addressed:
+
+**A. New assertions in `check_knot_selection.ts`** (after the 17, state reset between them):
+
+- **AC3** — a `Shift` click with no movement (a real `pointerdown`+`pointerup` at one knot) leaves the
+  selection's indices unchanged.
+- **AC7** — a real plain press (no `Shift`, no `Ctrl`) on an **unselected** knot clears the selection
+  and changes no knot: no insert, no removal, no move.
+- **AC4** — `#knot-info` contains the selected count after a selection; `calqueInfo().contour.handlesDrawn`
+  contains `SelectedKnots_left`; and no `SelectedKnots_*` object exists when the selection is empty.
+  `calque.info()` gained `handlesDrawn` (the handle object names) so the check reads the scene without
+  a new `__ctl` command.
+- **AC5** — `Backspace` deletes like `Delete`; a refused delete (down to three knots) writes
+  `cannot delete: at least 3 knots` in `#knot-info` and reports `refused: true`, `reason: "minimum"`.
+- **AC9** — with edit mode on and a selection, and the measurement tool **on**, a `Ctrl`+left click and
+  a `Shift`+left drag on the plate add no point to `__ctl.measurePoints().points` (the `blocked`
+  lockout is exercised, not just wired).
+- **AC11** — `window.fetch` is stubbed in the page to capture the `POST /api/contours` body and return
+  `{ written: false }`; `__ctl.knotSave()` is called; the captured payload has only `scene` and `knots`,
+  each knot entry has only `mode`/`knots`, and no `selection` field appears. The stub is restored
+  afterwards, so the real endpoint is never reached.
+
+**B. Correctness fixes in `knot-editor.js`:**
+
+1. `Delete`/`Backspace` now do nothing while a marquee is open (the live candidates are a preview, and
+   `releaseMarquee` would re-apply the stale candidates). Comment states why the key is ignored rather
+   than cancelling first.
+2. `Escape` now also calls `endDrag()`, so the two cancel paths agree: a rectangle restores the
+   selection it had at press, a group drag ends, and with neither open the selection clears.
+
+**C. `picker.js`:**
+
+1. The `blocked?.()` branch in the `window` capture `pointerdown` clears `pending` before returning, so
+   a `Ctrl` press in flight cannot survive a switch into edit mode.
+2. The comment now states that the two `window` capture listeners are safe only because `blocked()`
+   short-circuits the picker's handler before it can claim — modifier disjointness alone does not make
+   the registration order safe.
+
+**D. Comments and docs:**
+
+1. The stale `main.js` comment block ("click the line add a knot, click a knot remove it, drag a knot
+   move it") is deleted.
+2. `knot-editor.js` `screenOf` notes that its `0.001` z is the same hair offset `buildHandles` uses in
+   `calque.js`.
+3. `check_knot_selection.ts` `insideIndices` notes that the hardcoded `knots.test.js` tests are the real
+   oracle and this helper only confirms the wiring.
+4. `workflows/threejs/README.md` §5.2 now names the `marquee-armed` cursor state and the measurement
+   lockout.
+5. Deviation 5 corrected: `tickets/README.md` was changed **by the CTO**, not by me.
+6. Root `README.md` glossary gains **Marquee** and **Selection**, in alphabetical order.
+
+Not changed (per the review): the async `applyEdit` in `moveDrag`; the per-move geometry rebuild (the
+volume is rebuilt only on release when it is shown, and a rectangle rebuilds nothing).
+
+**Polish-round gate results (exact):**
+
+- `bun test workflows/threejs/viewer` → `49 pass, 0 fail, 85 expect() calls`, exit 0.
+- `bun run workflows/threejs/tools/check_knot_selection.ts` → `all assertions passed` (42 `ok` lines:
+  28 for the 17 plan assertions, plus AC3 ×1, AC7 ×3, AC4 ×3, AC5 ×3, AC9 ×1, AC11 ×3), exit 0.
+- `bun run workflows/threejs/tools/check_measure.ts` → `all assertions passed`, exit 0.
+- `bun run workflows/threejs/tools/check_zoom.ts` → `all assertions passed`, exit 0.
+- `bun run workflows/threejs/tools/check_idle.ts` → `all assertions passed`, exit 0.
+- `bun run check` was **not** re-run (per the review: the ticket changes no scene file). Its
+  pre-polish result stands: `height 1490.4 / 1404.5 / -85.9`, `ratio 0.4234 / 0.3990`,
+  `worst -85 mm at 2112 mm`, `status NEEDS WORK`, exit 1.
+- After every check, `agent-browser session list` → `No active sessions`.
+
+### Validation fix — the handles disappeared behind the plate (T4.10, AC13)
+
+**Defect.** With the calque shown to trace over it, the knot handles vanished behind the plate. The
+contour line stayed visible.
+
+**Diagnosis (confirmed, not re-derived).** It is a three.js render-pass ordering, not a `z-index`:
+the plate is a `MeshBasicMaterial` with `transparent: true`, so it draws in the **transparent** pass.
+The contour line is transparent with `renderOrder: 30`, so it draws in that same pass, after the
+plate, and shows. The handles' `PointsMaterial` had **no** `transparent: true`, so they drew in the
+**opaque** pass, which three.js renders **before** the transparent pass; the plate then painted over
+them.
+
+**Fix.** `buildHandles` in `viewer/calque.js` now sets `transparent: true` on the `PointsMaterial`,
+keeping `sizeAttenuation: false`, `depthTest: false`, `depthWrite: false` and the existing
+`renderOrder` (31 base, 32 selected), both above the plate's (`-1` behind, `10` front). A comment
+states the rule: the handles and the contour are in the same pass as the plate and draw after it, so
+the plate, the volume and the model can never paint over them. The plate, the contour and the volume
+are unchanged.
+
+**Deterministic test (AC13).** `calque.info()` gained a `render` block: the plate's `transparent` and
+`renderOrder`, the contour line's (`Contour_<view>`), and each handle object's
+(`Knots_<view>` / `SelectedKnots_<view>`) `transparent`, `renderOrder` and `depthTest`. The check
+asserts, with edit mode on and `left` shown: the base handle and the contour are `transparent: true`;
+their `renderOrder` is strictly greater than the plate's (read from the same `info()` call, so two
+live values are compared); and the handles have `depthTest: false`.
+
+**Test-first evidence.** With the `render` block and the AC13 assertion in place but before the fix,
+the check printed:
+`CheckFailure: assertion AC13 failed: the base handles and the contour are transparent, like the
+plate` with `{"handle":{"depthTest":false,"renderOrder":31,"transparent":false},
+"contour":{"renderOrder":30,"transparent":true},"plate":{"renderOrder":-1,"transparent":true}}` —
+proving the mechanism (`handle.transparent` was `false`). After adding `transparent: true` the three
+AC13 assertions pass.
+
+**Validation-fix gate results (exact):**
+
+- `bun test workflows/threejs/viewer` → `49 pass, 0 fail, 85 expect() calls`, exit 0.
+- `bun run workflows/threejs/tools/check_knot_selection.ts` → `all assertions passed` (45 `ok` lines:
+  the 42 before, plus AC13 ×3), exit 0.
+- `bun run workflows/threejs/tools/check_measure.ts` → `all assertions passed`, exit 0.
+- `bun run workflows/threejs/tools/check_zoom.ts` → `all assertions passed`, exit 0.
+- `bun run workflows/threejs/tools/check_idle.ts` → `all assertions passed`, exit 0.
+- `bun run check` was **not** re-run (no scene file changes). Its pre-existing result stands:
+  `height 1490.4 / 1404.5 / -85.9`, `ratio 0.4234 / 0.3990`, `worst -85 mm at 2112 mm`,
+  `status NEEDS WORK`, exit 1.
+- After every check, `agent-browser session list` → `No active sessions`.
+
+## CTO validation note, 2026-11-09
+
+The ticket was reopened during the art director's validation for one defect: the knot handles were
+hidden behind the calque. The cause was a render-pass ordering, not a `z-index` — the plate is
+`transparent: true` and draws in the transparent pass, after the opaque pass, where the handle
+`PointsMaterial` sat. T4.10 puts the handles in the transparent pass with a `renderOrder` above the
+plate's, and the check asserts the mechanism (AC13). The gates were re-run by the CTO: `bun test`
+49 pass, `check_knot_selection` 45 assertions, `check_measure`, `check_zoom`, `check_idle` all green.
+
+**One incident, recorded for the record.** During development a **real save** wrote
+`workflows/threejs/scenes/r5-tl-1972/contours.js` (a manual `knotSave`, not the check). That file is
+outside the Scope Boundary and must stay unchanged by this ticket, so the CTO restored it to its
+committed state (`KNOTS = {}`). The check itself does not write it: the AC11 assertion stubs
+`window.fetch`, and running `check_knot_selection.ts` leaves `workflows/threejs/scenes/` clean —
+verified with `git status` after a full run. Anyone re-running the check must keep that property.

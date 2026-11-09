@@ -19,6 +19,7 @@ import { createPicker } from "./picker.js";
 import { createStage } from "./stage.js";
 import { checkDocument, checkModel, describe as describeContract } from "./contract.js";
 import { buildContourVolume } from "./volume.js";
+import { createKnotEditor } from "./knot-editor.js";
 import {
   pathFromKnots, ringOf, simplifyRing, nearestKnot, nearestOnRing,
   insertKnot, removeKnot, moveKnot,
@@ -213,21 +214,15 @@ const picker = createPicker({
   renderer: stage.renderer,
   element: stage.renderer.domElement,
   root,
+  // While the knot editor is active, the measurement tool ignores both the press and the release.
+  // The two chords are disjoint by modifier; this is a policy, not a necessity, and it states "one
+  // tool at a time on one view" in one place instead of relying on the claim's side effect.
+  blocked: () => knotEditor?.isActive() ?? false,
 });
 refreshPanel = () => picker.render();
 
 // ------------------------------------------------------------------ knot editor
 
-// The editing surface. It lives here because it composes three parts that already exist -- the rig,
-// the calque plate and the knots -- and a module that reached into all three would be the
-// composition root under another name.
-//
-//   click the line      add a knot on it, at the nearest point of the current outline
-//   click a knot        remove it
-//   drag a knot         move it
-//
-// A drag rebuilds the contour line only; the volume is rebuilt on release, because the boolean
-// intersection costs about two seconds and cannot run at pointer speed.
 const knotUI = {
   panel: document.getElementById("knots"),
   edit: document.getElementById("knot-edit"),
@@ -240,7 +235,33 @@ const knotUI = {
   info: document.getElementById("knot-info"),
 };
 
-const editor = { active: false, dragging: -1, view: null, moved: false, fresh: false };
+// The selection state, the marquee, the group drag, the keys and the cursor class live in
+// `knot-editor.js`. This file composes the parts the editor needs and exposes the `__ctl`
+// commands that call it; it holds no gesture of its own. The old single-knot gestures -- a click
+// that inserted or removed a knot -- are gone: no pointer gesture inserts or removes a knot any
+// more, and the selection is the only way into an edit.
+const knotEditor = createKnotEditor({
+  rig,
+  calque,
+  picker,
+  stage,
+  canvas: stage.renderer.domElement,
+  dom: { marquee: document.getElementById("marquee"), info: document.getElementById("knot-info") },
+  host: {
+    knotsOf,
+    isEdited,
+    ensureKnots,
+    applyEdit: (view, options) => applyEdit(view, options),
+    rebuildVolume,
+    volumeVisible: () => volumeGroup.visible,
+    updateInfo: () => updateKnotInfo(),
+  },
+});
+
+/** The view being edited: the plate in the scene. */
+function editorView() {
+  return calque.shownView();
+}
 
 function mmPerScreenPx() {
   return picker.state().mmPerScreenPx || 1;
@@ -251,11 +272,6 @@ function platePoint(nx, ny) {
   return hit && hit.view ? { view: hit.view, uv: [hit.u, hit.v] } : null;
 }
 
-/** The view being edited: the plate in the scene, or the last one touched. */
-function editorView() {
-  return calque.shownView() ?? editor.view;
-}
-
 function updateKnotInfo() {
   if (!knotUI.info) return;
   const view = calque.shownView();
@@ -264,7 +280,10 @@ function updateKnotInfo() {
     return;
   }
   const list = knotsOf(view);
-  knotUI.info.textContent = `${view}: ${list.length}${isEdited(view) ? "" : " (traced)"}`;
+  const chosen = knotEditor?.selection();
+  const selected = chosen && chosen.view === view ? chosen.count : 0;
+  const suffix = selected > 0 ? ` · ${selected} selected` : "";
+  knotUI.info.textContent = `${view}: ${list.length}${isEdited(view) ? "" : " (traced)"}${suffix}`;
   updateJoinButtons();
 }
 
@@ -314,6 +333,8 @@ function reduceKnots(tolerance_mm, view = editorView()) {
   const ring = ringOf(tracedContours[view]?.path);
   const before = entry.knots.length;
   entry.knots = simplifyRing(ring, value / 1000);
+  // `reduce` re-derives the whole list, so every stored index is meaningless: the selection goes.
+  knotEditor.selectionClear();
   applyEdit(view);
   return { view, tolerance_mm: value, before, after: entry.knots.length };
 }
@@ -322,6 +343,7 @@ function resetKnots(view = editorView()) {
   if (!view) return null;
   delete knots[view];
   discarded.add(view);
+  knotEditor.selectionClear();
   applyEdit(view);
   return view;
 }
@@ -354,89 +376,11 @@ async function saveKnots() {
   }
 }
 
-// --- pointer editing
-
-function editorDown(nx, ny) {
-  const hit = platePoint(nx, ny);
-  if (!hit) return null;
-  const view = hit.view;
-  editor.view = view;
-  const entry = ensureKnots(view);
-  // 10 screen pixels, in the plate's metres. The plate's own scale is what makes a handle grabbable
-  // at the zoom the art director is working at.
-  const threshold = (10 * mmPerScreenPx()) / 1000;
-  const near = nearestKnot(entry.knots, hit.uv);
-  if (near && near.distance <= threshold) {
-    // A press on a knot grabs it. A press and release with no movement removes it -- that is what
-    // makes "click a knot to remove it" and "drag a knot to move it" the same gesture.
-    editor.dragging = near.index;
-    editor.moved = false;
-    editor.fresh = false;
-    return { action: "grab", view, index: near.index };
-  }
-  // An insert must land ON the line. A click in the empty plate that snapped to the nearest ring
-  // point would add a knot far from where the art director pointed, and a second click at the same
-  // place would add the same knot again.
-  const on = nearestOnRing(entry.knots, hit.uv);
-  if (!on || on.distance > threshold) return null;
-  entry.knots = insertKnot(entry.knots, on.after, on.at);
-  editor.dragging = on.after + 1;
-  editor.moved = false;
-  editor.fresh = true; // a just-inserted knot is not removed by the release
-  applyEdit(view);
-  return { action: "insert", view, index: on.after + 1 };
-}
-
-function editorDrag(nx, ny) {
-  if (editor.dragging < 0 || !editor.view) return null;
-  const hit = platePoint(nx, ny);
-  if (!hit) return null;
-  const entry = knots[editor.view];
-  if (!entry) return null;
-  editor.moved = true;
-  entry.knots = moveKnot(entry.knots, editor.dragging, hit.uv);
-  applyEdit(editor.view, { volume: false });
-  return { action: "move", view: editor.view, index: editor.dragging };
-}
-
-function editorUp() {
-  const index = editor.dragging;
-  const view = editor.view;
-  const remove = index >= 0 && !editor.moved && !editor.fresh;
-  editor.dragging = -1;
-  editor.moved = false;
-  editor.fresh = false;
-  if (remove && view && knots[view]) {
-    knots[view].knots = removeKnot(knots[view].knots, index);
-    applyEdit(view);
-    return { action: "remove", view, index };
-  }
-  if (index >= 0 && view && volumeGroup.visible) rebuildVolume();
-  return { action: index >= 0 ? "release" : "none", view, index };
-}
+// The pointer gestures -- the selection rectangle, the group drag and the press claim -- live in
+// `knot-editor.js`. No gesture here inserts or removes a knot; the `__ctl.knotAdd` / `knotRemove`
+// / `knotMove` commands below call the pure functions directly and are not gestures.
 
 const canvas = stage.renderer.domElement;
-function pointerNdc(event) {
-  const rect = canvas.getBoundingClientRect();
-  return [
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1,
-  ];
-}
-canvas.addEventListener("pointerdown", (event) => {
-  if (!editor.active || event.button !== 0) return;
-  const result = editorDown(...pointerNdc(event));
-  if (result) canvas.setPointerCapture(event.pointerId);
-});
-canvas.addEventListener("pointermove", (event) => {
-  if (!editor.active || editor.dragging < 0) return;
-  editorDrag(...pointerNdc(event));
-});
-canvas.addEventListener("pointerup", (event) => {
-  if (!editor.active) return;
-  editorUp();
-  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-});
 
 // --- the cursor
 //
@@ -462,22 +406,22 @@ window.addEventListener("blur", endPanDrag);
 // --- the panel
 
 function setEditMode(on) {
-  editor.active = Boolean(on);
-  knotUI.edit?.setAttribute("aria-pressed", String(editor.active));
-  if (editor.active) {
+  const isOn = knotEditor.setActive(on);
+  knotUI.edit?.setAttribute("aria-pressed", String(isOn));
+  if (isOn) {
     // Editing needs a plate, and a perspective view has none: `edit` on `front-3q` used to open an
     // editor with no line, where every control silently did nothing. Put the camera on a flat view.
     const view = calque.shownView() ?? rig.matchingView() ?? flatView();
     if (view) {
-      editor.view = view;
       if (view !== currentView) setView(view);
       else calque.showPlate(view);
     }
   }
-  calque.setHandles(editor.active);
+  calque.setHandles(isOn);
+  knotEditor.armCursor();
   updateKnotInfo();
   stage.nextFrame();
-  return editor.active;
+  return isOn;
 }
 
 /** The flat view to edit on: one already edited, else the first flat view in the table. */
@@ -487,7 +431,7 @@ function flatView() {
   return Object.keys(views).find((name) => !views[name].perspective) ?? null;
 }
 
-knotUI.edit?.addEventListener("click", () => setEditMode(!editor.active));
+knotUI.edit?.addEventListener("click", () => setEditMode(!knotEditor.isActive()));
 knotUI.poly?.addEventListener("click", () => setJoinMode("poly"));
 knotUI.bezier?.addEventListener("click", () => setJoinMode("bezier"));
 knotUI.reduce?.addEventListener("click", () => reduceKnots(knotUI.tol?.value));
@@ -658,6 +602,9 @@ function setView(name) {
   rig.placeCamera(currentView);
   syncButtons();
   syncCursor();
+  // The plate changes, so the selection's indices address a list that is no longer shown: it goes.
+  knotEditor?.selectionClear();
+  knotEditor?.armCursor();
   stage.updateHud(currentView);
   calque.sync();
   return stage.nextFrame();
@@ -877,6 +824,15 @@ window.__ctl = {
     positions: knotsOf(calque.shownView())?.map((p) => [Number(p[0].toFixed(4)), Number(p[1].toFixed(4))]) ?? null,
   }),
   knotEdit: (on) => setEditMode(on),
+  // The selection: transient, addressed by plate-local metres so a caller does not depend on the
+  // camera, the zoom or the window size. These call the same functions as the pointer and the
+  // keyboard; they do not emulate a gesture.
+  knotSelection: () => knotEditor.selection(),
+  knotSelectRect: (u0, v0, u1, v1) => knotEditor.selectRect(calque.shownView(), u0, v0, u1, v1),
+  knotClearSelection: () => knotEditor.selectionClear(),
+  knotDragSelection: (du, dv) => knotEditor.dragSelection(du, dv),
+  knotDeleteSelection: () => knotEditor.deleteSelection(),
+  knotScreen: (index) => knotEditor.screenOf(index),
   // What a click at a normalised device coordinate would do: the pick, the nearest knot, and the
   // grab threshold. It is how the pointer path is tested without a mouse.
   knotProbe: (nx, ny) => {
@@ -891,7 +847,7 @@ window.__ctl = {
       nearest_index: near?.index ?? null,
       nearest_mm: near ? Number((near.distance * 1000).toFixed(2)) : null,
       grab: Boolean(near && near.distance <= (10 * mmPerScreenPx()) / 1000),
-      editing: editor.active,
+      editing: knotEditor.isActive(),
     };
   },
   knotAdd: async (view, uv) => {

@@ -27,7 +27,7 @@ import {
  * @param {THREE.Object3D} options.root               the model root, for shift-click picks
  */
 export function createPicker({
-  rig, calque, views, document: sceneDocument, renderer, element, root,
+  rig, calque, views, document: sceneDocument, renderer, element, root, blocked,
 }) {
   const measurement = {
     active: false,
@@ -77,6 +77,32 @@ export function createPicker({
       u: local.x,
       v: local.y,
     };
+  }
+
+  /**
+   * Pick a point on the plate's INFINITE plane, through the documented three.js surface.
+   *
+   * A selection rectangle may start or end outside the finite plate, where `intersectObject` returns
+   * no hit, so the pick is against the plane the plate lies in. The plane's normal is the plate's
+   * own local +z, rotated into the world; the point is converted back into the plate's metres, which
+   * are aligned with the flat view's screen axes, so a box drawn in `uv` is the box the eye drew.
+   */
+  function pickPlaneAt(nx, ny) {
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(nx, ny), rig.activeCamera);
+    const plate = calque.current();
+    if (!plate) return null;
+    const quaternion = new THREE.Quaternion();
+    plate.getWorldQuaternion(quaternion);
+    const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      normal,
+      plate.getWorldPosition(new THREE.Vector3()),
+    );
+    const point = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+    if (!point) return null;
+    const local = plate.worldToLocal(point.clone());
+    return { view: plate.userData.view, uv: [local.x, local.y], world: point.toArray() };
   }
 
   function record(point) {
@@ -170,7 +196,17 @@ export function createPicker({
   let pending = null;  // { pointerId, clientX, clientY, source } | null
 
   window.addEventListener("pointerdown", (event) => {
-    // A press that is not the chord abandons any point the previous press was carrying.
+    // While the knot editor is active, the tool ignores the press: a point in flight from the
+    // previous press is dropped, so a `Ctrl` press cannot survive a switch into edit mode and land
+    // on release.
+    if (blocked?.()) {
+      pending = null;
+      return;
+    }
+    // The two `window` capture listeners (this one and the knot editor's) are safe to register in
+    // any order only because `blocked()` short-circuits this one before it can claim: the editor
+    // claims every press while it is active, so this handler must not `stopPropagation` first. The
+    // modifier disjointness alone does not make the registration order safe.
     if (!measurement.active || event.button !== 0 || !event.ctrlKey) {
       pending = null;
       return;
@@ -192,6 +228,7 @@ export function createPicker({
   // the pointer on the same element, so a `pointerup` reaches the canvas even when the press was
   // the camera's.
   element.addEventListener("pointerup", (event) => {
+    if (blocked?.()) return;
     if (!pending || event.pointerId !== pending.pointerId) return;
     const moved = Math.hypot(event.clientX - pending.clientX, event.clientY - pending.clientY);
     const source = pending.source;
@@ -222,6 +259,7 @@ export function createPicker({
     measurement,
     pick: point,
     pickAt,
+    pickPlaneAt,
     between,
     lastBetween,
     render,

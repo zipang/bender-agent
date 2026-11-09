@@ -177,17 +177,48 @@ The editor, in the viewer's `#knots` panel:
 
 | Action | Result |
 | :--- | :--- |
-| click the line | add a knot on it, at the nearest point of the current outline |
-| click a knot | remove it |
-| drag a knot | move it |
+| `Shift` + left drag | draw a selection rectangle; every knot of the view inside it joins the selection |
+| a second `Shift` + drag | add to the selection; no knot is selected twice |
+| `Shift` click (under 3 px) | change nothing |
+| drag a selected knot | move the whole selection by one vector; the outline follows the pointer |
+| drag an unselected knot | clear the selection; no knot is inserted, removed or moved |
+| left drag away from every knot | pan the camera; the selection is kept |
+| `Delete` / `Backspace` | remove the selected knots, unless fewer than three would remain |
+| `Escape` | clear the selection, or cancel an open rectangle |
 | `poly` / `bezier` | change the join |
 | `reduce` + mm | Douglas-Peucker on the traced ring at that tolerance: 194 knots become 34 at 25 mm |
 | `reset` | drop the hand-set knots of the view and return to the traced path |
 | `save` | write `contours.js` |
 
+The selection is **transient**. It lives in memory only: it is never written to `contours.js` and it
+never enters the `POST /api/contours` payload. A view change, `reduce`, `reset`, and leaving edit
+mode clear it; a join switch keeps it, because a join does not move a list index.
+
+The editor does not own the left button. A left drag pans, on a flat view as on a free one; the
+editor borrows the button only for a press that lands inside a knot's grab threshold, or a `Shift`
+press that opens a rectangle. The claim is a capture-phase listener on `window`, so it runs before
+`OrbitControls` at the canvas. No click inserts or removes a knot any more: the selection is the only
+way into an edit.
+
+While `Shift` is held in edit mode on a flat view the canvas cursor is a `+` sight (`body.marquee-armed`
+sets `crosshair`); releasing it restores the open hand, and a pan already in progress keeps the closed
+hand. While the editor is active the measurement tool is **locked out**: its `Ctrl` + left chord records
+no point, so a reshaping pass cannot drop a measurement on the plate.
+
 `edit` puts the camera on a flat view when it is on a perspective one: a perspective view has no
 plate, so it has no line to grab, and the panel would do nothing. `reduce` acts on the view on
 screen, and an empty or zero tolerance falls back to 12 mm rather than keep every point.
+
+The selection is driven from the shell in plate-local metres, so a command does not depend on the
+camera, the zoom or the window size:
+
+```bash
+bun run workflows/threejs/tools/ctl.ts knots                     # counts, selection, positions
+bun run workflows/threejs/tools/ctl.ts select --rect u0,v0,u1,v1
+bun run workflows/threejs/tools/ctl.ts select --clear
+bun run workflows/threejs/tools/ctl.ts drag --delta du,dv
+bun run workflows/threejs/tools/ctl.ts delete-selection
+```
 
 `reduce` always re-derives from the **traced ring**, so two reduces in a row give the same answer as
 one, and a manual knot placed between them is not silently kept as if it were on the trace.
@@ -400,10 +431,11 @@ Every row states what the tool reads, what it writes, and how it is called.
 | :--- | :--- | :--- | :--- |
 | `tools/serve.ts` | the scene folder, the viewer, `node_modules/three` | nothing | `bun run serve` |
 | `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` and `POST /api/contours` | reached through `serve.ts` |
-| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `eval`, `stats` |
+| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `knots`, `select`, `drag`, `delete-selection`, `eval`, `stats` |
 | `tools/check_zoom.ts` | the live page, through `__ctl` and real input | a report; non-zero on the first failed assertion | `check_zoom.ts` |
 | `tools/check_idle.ts` | the live page, through `__ctl.frames()` | a report; non-zero on the first failed assertion | `check_idle.ts` |
 | `tools/check_measure.ts` | the live page, through `__ctl` and synthetic pointer events | a report; non-zero on the first failed assertion | `check_measure.ts` |
+| `tools/check_knot_selection.ts` | the live page, through `__ctl` and synthetic pointer and keyboard events | a report; non-zero on the first failed assertion | `check_knot_selection.ts` |
 | `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp`; its scratch under `test-reports/` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
 | `tools/check.ts` | the captures, the references | one report, and the overlays under `test-reports/silhouette/` | `bun run check`. It prints a timestamped line per step (coloured on a TTY), streams each child's output, and exits 1 when the model is outside the tolerance |
 | `tools/session.ts` | nothing | nothing. It owns a browser session: open, close in a `finally` and on `SIGINT`/`SIGTERM`, a stale-session sweep, and a timeout on every `agent-browser` call | imported |

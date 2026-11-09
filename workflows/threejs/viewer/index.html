@@ -14,7 +14,19 @@
          marquee state between the two rules below. */
       canvas { display: block; cursor: default; }
       body.pan-ready canvas { cursor: grab; }
+      /* The selection rectangle's sight. It comes after `pan-ready`, so arming the marquee replaces
+         the open hand; `pan-dragging` comes last, so a pan already in progress keeps the closed hand
+         even while Shift is held. No handler writes `canvas.style.cursor`: the default rule and the
+         three classes are the whole cursor contract. */
+      body.marquee-armed canvas { cursor: crosshair; }
       body.pan-dragging canvas { cursor: grabbing; }
+
+      /* The selection rectangle. A fixed, screen-aligned box drawn in client pixels; the script sets
+         its left, top, width and height and toggles `hidden`. It never takes a pointer event. */
+      #marquee {
+        position: fixed; pointer-events: none; z-index: 15;
+        border: 1px dashed #22262b; background: rgb(34 38 43 / 0.08);
+      }
 
       #hud {
         position: fixed; top: 16px; left: 16px; padding: 12px 14px;
@@ -60,6 +72,7 @@
       #layers button[aria-pressed="false"] .off { display: block; }
 
       body.shot #hud, body.shot #views, body.shot #layers { display: none; }
+      body.shot #marquee { display: none !important; }
       body.shot, body.shot html { background: #fff; }
 
       #knots {
@@ -165,9 +178,12 @@
 
     <div id="views"></div>
 
+    <div id="marquee" hidden></div>
+
     <div id="knots">
+      <span class="label" id="knot-hint">Shift+drag selects · drag a selected knot moves all · Delete removes</span>
       <button id="knot-edit" type="button" aria-pressed="false"
-              title="show the knots and edit the contour: click the line to add, click a knot to remove, drag to move">
+              title="Shift+drag selects · drag a selected knot moves all · Delete removes">
         edit
       </button>
       <span class="sep"></span>

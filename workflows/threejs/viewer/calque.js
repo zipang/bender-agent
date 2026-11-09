@@ -75,6 +75,9 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     },
     loaded: new Map(),
     contours: new Map(),
+    // The selected knot indices of the view in the scene. Transient: it lives in memory only, is
+    // never written to `contours.js`, and is redrawn with the handles on every rebuild.
+    selection: { view: null, indices: [] },
   };
 
   async function buildPlate(view) {
@@ -230,27 +233,39 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
   }
 
   /**
-   * The knots of one view, as points to grab. One `Points` object, so a hundred handles cost one
-   * draw call and the editor stays responsive on a dense outline.
+   * The knots of one view, as points to grab. One `Points` object per role, so a hundred selected
+   * knots stay two draw calls at most: the base object carries every knot, and a second object
+   * carries the selection, drawn over it in a distinct colour and a larger size.
    */
-  function buildHandles(view) {
-    const knots = knotsOf?.(view);
-    if (!knots || knots.length === 0) return null;
-    const positions = new Float32Array(knots.length * 3);
-    for (let i = 0; i < knots.length; i += 1) {
-      positions[i * 3] = knots[i][0];
-      positions[i * 3 + 1] = knots[i][1];
-      positions[i * 3 + 2] = 0.001; // a hair in front of the line it belongs to
-    }
+  function buildHandles(view, knots, indices) {
+    const list = indices ? indices.filter((index) => knots[index]) : knots.map((_, index) => index);
+    if (list.length === 0) return null;
+    const selected = Boolean(indices);
+    const positions = new Float32Array(list.length * 3);
+    list.forEach((index, n) => {
+      positions[n * 3] = knots[index][0];
+      positions[n * 3 + 1] = knots[index][1];
+      positions[n * 3 + 2] = 0.001; // a hair in front of the line it belongs to
+    });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    // `transparent: true` puts the handles in the SAME pass as the plate (a transparent
+    // `MeshBasicMaterial`) and the contour line, and the `renderOrder` below is above the plate's
+    // (`-1` behind, `10` front). A `PointsMaterial` without it draws in the OPAQUE pass, which
+    // three.js renders BEFORE the transparent pass, so the plate painted over the handles exactly
+    // when the art director traced on it. The rule: the handles and the contour are in the same pass
+    // as the plate and draw after it, so the plate, the volume and the model can never paint over
+    // them. `depthTest: false` and `depthWrite: false` keep that true regardless of depth.
     const material = new THREE.PointsMaterial({
-      color: 0xffd24a, size: 9, sizeAttenuation: false,
+      color: selected ? 0x4aa3ff : 0xffd24a,
+      size: selected ? 11 : 9,
+      sizeAttenuation: false,
+      transparent: true,
       depthTest: false, depthWrite: false, toneMapped: false,
     });
     const points = new THREE.Points(geometry, material);
-    points.name = `Knots_${view}`;
-    points.renderOrder = 31;
+    points.name = selected ? `SelectedKnots_${view}` : `Knots_${view}`;
+    points.renderOrder = selected ? 32 : 31;
     return points;
   }
 
@@ -262,13 +277,27 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
       handleGroup.visible = false;
       return;
     }
-    const points = buildHandles(plate.userData.view);
-    if (!points) {
+    const view = plate.userData.view;
+    const knots = knotsOf?.(view);
+    if (!knots || knots.length === 0) {
       handleGroup.visible = false;
       return;
     }
-    placeContour(points, plate);
-    handleGroup.add(points);
+    const base = buildHandles(view, knots, null);
+    placeContour(base, plate);
+    handleGroup.add(base);
+
+    // The selection is drawn apart from the others. It is empty for most views, so no second object
+    // exists until the art director selects something, and it is redrawn with the base on every
+    // rebuild so an edit never loses it.
+    const chosen = calque.contour.selection;
+    if (chosen && chosen.view === view && chosen.indices?.length) {
+      const selected = buildHandles(view, knots, chosen.indices);
+      if (selected) {
+        placeContour(selected, plate);
+        handleGroup.add(selected);
+      }
+    }
     handleGroup.visible = true;
   }
 
@@ -356,6 +385,14 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     return calque.contour.handles;
   }
 
+  /** Store the selected knot indices of a view, and redraw both handle objects. */
+  function setSelection(view, indices) {
+    calque.contour.selection = { view: view ?? null, indices: [...(indices ?? [])] };
+    refreshHandles();
+    onChange?.();
+    return calque.contour.selection;
+  }
+
   /** Follow the camera: show the plate of the axis it is on, and hide it otherwise. */
   function sync() {
     const plateView = rigView();
@@ -438,6 +475,9 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
   }
 
   function info() {
+    const plate = current();
+    const view = calque.view;
+    const line = contourGroup.children.find((child) => child.name === `Contour_${view}`) ?? null;
     return {
       enabled: calque.enabled,
       contour: {
@@ -447,6 +487,28 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
         mode: calque.contour.mode,
         divisions: calque.contour.divisions,
         handles: calque.contour.handles,
+        // The handle objects actually in the scene: `Knots_<view>` and, when a selection exists,
+        // `SelectedKnots_<view>`. Reported so a check can prove the selected object is drawn without
+        // reaching into the scene graph.
+        handlesDrawn: handleGroup.children.map((child) => child.name),
+      },
+      // What decides the render pass and the paint order, live. The plate, the contour and the
+      // handles must share the transparent pass and draw after the plate (a higher `renderOrder`),
+      // or the plate paints over the handles exactly when the art director traces on it.
+      render: {
+        plate: plate
+          ? { transparent: plate.material?.transparent ?? null, renderOrder: plate.renderOrder }
+          : null,
+        contour: line
+          ? { transparent: line.material?.transparent ?? null, renderOrder: line.renderOrder }
+          : null,
+        handles: Object.fromEntries(
+          handleGroup.children.map((child) => [child.name, {
+            transparent: child.material?.transparent ?? null,
+            renderOrder: child.renderOrder,
+            depthTest: child.material?.depthTest ?? null,
+          }]),
+        ),
       },
       shown: group.visible ? calque.view : null,
       depth: calque.depth,
@@ -471,6 +533,7 @@ export function createCalque({ scene, views, document: sceneDocument, contours, 
     setContourEnabled,
     setContourMode,
     setHandles,
+    setSelection,
     invalidate,
     refreshHandles,
     info,

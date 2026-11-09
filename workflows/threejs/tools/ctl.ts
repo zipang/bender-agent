@@ -231,6 +231,50 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "knots") {
+    // The knots of the shown view, plus the current selection: the counts, the positions and the
+    // selected indices, all in plate-local metres.
+    await waitForReady(session);
+    const value = await evaluate(
+      "({ ...window.__ctl.knots(), selection: window.__ctl.knotSelection() })",
+      session,
+    );
+    console.log(JSON.stringify(value, null, 2));
+    return;
+  }
+
+  if (command === "select") {
+    await waitForReady(session);
+    if (rest.includes("--clear")) {
+      const value = await evaluate("window.__ctl.knotClearSelection()", session);
+      console.log(JSON.stringify(value, null, 2));
+      return;
+    }
+    const rect = option(rest, "rect");
+    if (!rect) throw new Error("select needs --rect u0,v0,u1,v1, or --clear");
+    const [u0, v0, u1, v1] = rect.split(",").map(Number);
+    const value = await evaluate(`window.__ctl.knotSelectRect(${u0}, ${v0}, ${u1}, ${v1})`, session);
+    console.log(JSON.stringify(value, null, 2));
+    return;
+  }
+
+  if (command === "drag") {
+    await waitForReady(session);
+    const delta = option(rest, "delta");
+    if (!delta) throw new Error("drag needs --delta du,dv");
+    const [du, dv] = delta.split(",").map(Number);
+    const value = await evaluate(`window.__ctl.knotDragSelection(${du}, ${dv})`, session);
+    console.log(JSON.stringify(value, null, 2));
+    return;
+  }
+
+  if (command === "delete-selection") {
+    await waitForReady(session);
+    const value = await evaluate("window.__ctl.knotDeleteSelection()", session);
+    console.log(JSON.stringify(value, null, 2));
+    return;
+  }
+
   if (command === "pick") {
     // pick <nx> <ny> [--model] -- place a point at a normalised device coordinate.
     const [nx, ny] = [Number(rest[0]), Number(rest[1])];

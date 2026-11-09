@@ -161,3 +161,93 @@ export function moveKnot(knots, index, point) {
 export function joinCount(path) {
   return (path?.segments ?? []).length;
 }
+
+// ------------------------------------------------------------------ selection
+//
+// The knot editor acts on a REGION of an outline as one object: a rectangle picks a set of knots, a
+// vector moves the whole set, and a delete removes it. All four readings are arithmetic on a list
+// of points, so they live here, pure: they return new arrays and never mutate an argument. The
+// editor, the `__ctl` commands and the unit tests call the same functions, so the gesture and the
+// check cannot disagree about what a selection is.
+
+/**
+ * Indices of the knots inside a rectangle, inclusive, in the plate's own metres.
+ *
+ * `rect` is `[u0, v0, u1, v1]` in any corner order: the two corners are normalized first. A knot
+ * exactly on an edge is inside. A degenerate rectangle (zero width or zero height) selects nothing:
+ * a `Shift` click with no movement is not a selection of the line it landed on.
+ */
+export function indicesInRect(knots, rect) {
+  const list = knots ?? [];
+  if (list.length === 0 || !Array.isArray(rect) || rect.length < 4) return [];
+  const [u0, v0, u1, v1] = rect;
+  const uMin = Math.min(u0, u1);
+  const uMax = Math.max(u0, u1);
+  const vMin = Math.min(v0, v1);
+  const vMax = Math.max(v0, v1);
+  if (uMin === uMax || vMin === vMax) return [];
+  const out = [];
+  for (let i = 0; i < list.length; i += 1) {
+    const [u, v] = list[i];
+    if (u >= uMin && u <= uMax && v >= vMin && v <= vMax) out.push(i);
+  }
+  return out;
+}
+
+/**
+ * The union of a selection and a set of indices: ascending, no duplicate, out of range dropped.
+ *
+ * `count` is the current knot count. An index that is not an integer, is negative, or is `>= count`
+ * is ignored, so a stale selection cannot address a knot that a reduce has removed.
+ */
+export function addIndices(selection, indices, count) {
+  const max = Number.isInteger(count) ? count : Infinity;
+  const out = new Set();
+  const push = (value) => {
+    if (!Number.isInteger(value)) return;
+    if (value < 0 || value >= max) return;
+    out.add(value);
+  };
+  for (const value of selection ?? []) push(value);
+  for (const value of indices ?? []) push(value);
+  return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * A copy of the knot list with every selected knot moved by the same vector.
+ *
+ * One vector for the group, never a per-knot offset: the selection is one object, and the outline
+ * follows the pointer by the vector the pointer moved. An index outside the list is ignored, and
+ * every point is copied, so the caller's list is untouched.
+ */
+export function moveKnotsBy(knots, indices, delta) {
+  const out = (knots ?? []).map((p) => [p[0], p[1]]);
+  const [du, dv] = Array.isArray(delta) ? delta : [0, 0];
+  for (const index of new Set(indices ?? [])) {
+    if (!Number.isInteger(index) || index < 0 || index >= out.length) continue;
+    out[index] = [out[index][0] + du, out[index][1] + dv];
+  }
+  return out;
+}
+
+/**
+ * A copy of the knot list without every selected knot, or a refusal below `minCount`.
+ *
+ * The delete is atomic: when fewer than `minCount` knots would remain, nothing is removed and the
+ * call reports `refused: true` with `reason: "minimum"`. An empty set of indices is a no-op, not a
+ * refusal. An index outside the list and any duplicate are ignored.
+ */
+export function removeKnots(knots, indices, minCount = 3) {
+  const copy = (knots ?? []).map((p) => [p[0], p[1]]);
+  const drop = new Set();
+  for (const index of indices ?? []) {
+    if (!Number.isInteger(index) || index < 0 || index >= copy.length) continue;
+    drop.add(index);
+  }
+  const removed = [...drop].sort((a, b) => a - b);
+  if (removed.length === 0) return { knots: copy, removed: [], refused: false };
+  if (copy.length - removed.length < minCount) {
+    return { knots: copy, removed: [], refused: true, reason: "minimum" };
+  }
+  return { knots: copy.filter((_, i) => !drop.has(i)), removed, refused: false, reason: null };
+}

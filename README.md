@@ -184,6 +184,7 @@ produced, even when the method it describes has since been replaced.
 - **Ladder**: The sequence of fidelity stages in [the method document](./research/progressive-volume-modeling.md).
 - **Locked view**: A view folder that contains `reference.<ext>`. The generator skips a locked view.
 - **Loon**: The compact S-expression language of vcad.
+- **Marquee**: The selection rectangle the knot editor draws with `Shift` + left drag. Every knot of the view inside it joins the selection. It is transient, and it is never saved.
 - **Mass**: One named volume of an object.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
@@ -191,6 +192,7 @@ produced, even when the method it describes has since been replaced.
 - **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.
 - **Section**: The set of vertical columns of the body at one station along its length. It is the three-way intersection of one interval from each view.
+- **Selection**: The set of knots the knot editor acts on as one object. It is transient: it is never written to `contours.js` and never enters the save payload. A drag on a selected knot moves the whole set; `Delete` removes it, unless fewer than three knots would remain.
 - **Silhouette overlay**: A comparison image where red is present in the reference only, blue in the model only, and magenta in both.
 - **Skill**: A folder with a `SKILL.md` file, holding instructions and helper files that an agent loads on demand.
 - **Station**: One position along the length of the body, where a section is taken. The hull's lattice pitch is the distance between two stations.

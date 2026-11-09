@@ -107,6 +107,25 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
   only, and the volume on release, because the intersection costs about two seconds.
 - One reader of the file, one writer: `viewer/knots.js` joins; the viewer's `save` command writes
   through `POST /api/contours`. Never hand-edit `contours.js` and never let a second tool write it.
+- The knot editor acts on a **selection** of knots, not one at a time. The selection is **transient**:
+  it is never saved, and it never enters the `POST /api/contours` payload. Only the knots it moves or
+  removes are.
+- No pointer gesture inserts or removes a knot. `Shift` + left drag draws a selection rectangle; a
+  drag that starts on a selected knot moves the whole selection by one vector; `Delete` removes it,
+  unless fewer than three knots would remain.
+- The editor does not own the left button: a left drag pans. The press claim is a capture-phase
+  listener on `window`, because `OrbitControls` owns the canvas `pointerdown` and a canvas-level
+  claim runs after it. `Ctrl` belongs to the measurement tool; the two claims are disjoint by
+  modifier, so the order the listeners are registered never matters.
+- The selection state, the marquee, the group drag, the keys and the cursor class live in **one**
+  module, `viewer/knot-editor.js`. `main.js` composes it and exposes `__ctl`; `viewer/knots.js` stays
+  pure (no DOM, no THREE, no state).
+- The knot handles and the contour line draw in the **same render pass** as the plate, and after it
+  (a higher `renderOrder`). The plate is a transparent `MeshBasicMaterial`, so a handle without
+  `transparent: true` draws in the opaque pass and the plate paints over it. Keep the handles
+  `transparent: true`, `depthTest: false`, `depthWrite: false`, `renderOrder` 31 (base) / 32
+  (selected), all above the plate's `-1` behind and `10` front. `tools/check_knot_selection.ts`
+  asserts it (AC13).
 
 ## Evidence rules
 

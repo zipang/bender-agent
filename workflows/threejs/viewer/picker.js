@@ -154,14 +154,60 @@ export function createPicker({
     render();
   }
 
-  element.addEventListener("pointerdown", (event) => {
-    if (!measurement.active) return;
-    if (event.button !== 0) return;
+  // One press, one possible point.
+  //
+  // T0003 gives the left button to the camera: a left drag pans, on the flat views and the free
+  // views alike. A record on the press would therefore drop a point on every pan, and a plain left
+  // click is the pan's resting gesture, not a measurement. A point is invoked by `Ctrl` + left
+  // click, and it lands on the RELEASE, under 3 px of movement.
+  //
+  // The claim is a capture-phase listener on `window`, not on the canvas. On a free view
+  // `Ctrl` + left is `OrbitControls`' own rotate -- the modifier swap T0003 pins to r187 -- so the
+  // measurement chord must be taken before the canvas sees it. When the chord matches and the tool
+  // is on, the event is stopped here and never reaches `OrbitControls`. When it does not match, the
+  // handler returns without touching the event, so the camera keeps the plain left press.
+  const DRAG_PX = 3;   // the same threshold T0004 uses for a degenerate marquee rectangle
+  let pending = null;  // { pointerId, clientX, clientY, source } | null
+
+  window.addEventListener("pointerdown", (event) => {
+    // A press that is not the chord abandons any point the previous press was carrying.
+    if (!measurement.active || event.button !== 0 || !event.ctrlKey) {
+      pending = null;
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    // `ctrlKey` only: on macOS a `Meta` click is the secondary-click gesture, and the art director
+    // asked for `Ctrl`. The source is decided at the PRESS, so releasing `Shift` a moment early
+    // cannot change which surface the point lands on.
+    pending = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      source: event.shiftKey ? "model" : "calque",
+    };
+  }, { capture: true });
+
+  // The release stays on the canvas, where the press handler used to be. `OrbitControls` captures
+  // the pointer on the same element, so a `pointerup` reaches the canvas even when the press was
+  // the camera's.
+  element.addEventListener("pointerup", (event) => {
+    if (!pending || event.pointerId !== pending.pointerId) return;
+    const moved = Math.hypot(event.clientX - pending.clientX, event.clientY - pending.clientY);
+    const source = pending.source;
+    pending = null;
+    if (moved >= DRAG_PX) return;
     const rect = element.getBoundingClientRect();
     const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     const ny = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    point(nx, ny, event.shiftKey ? "model" : "calque");
+    point(nx, ny, source);
   });
+
+  // A cancel and a lost focus abandon the point, and a fresh press of another button is handled
+  // above. A `pointerup` with no pending press records nothing: that is what makes T0004's press
+  // claim safe, because a press the knot editor consumes never reaches this picker.
+  element.addEventListener("pointercancel", () => { pending = null; });
+  window.addEventListener("blur", () => { pending = null; });
 
   function state() {
     return {

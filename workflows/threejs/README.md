@@ -364,6 +364,34 @@ registers its waiter, so a caller that arrives while the page sleeps still gets 
 bun run workflows/threejs/tools/check_idle.ts                  # the idle rule, on the live page
 ```
 
+### 7.4 The measurement point
+
+A measurement point is invoked by `Ctrl` + left click, and it lands on the **release**, not the
+press. T0003 gives the left button to the camera -- a left drag pans on both families -- so a record
+on the press would drop a point on every pan. A drag records nothing, and a plain left click records
+nothing: that click is the pan's resting gesture.
+
+| Chord | `source` | Records |
+| :--- | :--- | :--- |
+| `Ctrl` + left click | `calque` | one point, on release, under 3 px of movement |
+| `Ctrl` + `Shift` + left click | `model` | one point, on release, under 3 px of movement |
+| `Ctrl` + left drag | -- | nothing |
+| plain left click or drag | -- | nothing |
+
+`ctrlKey` only. `metaKey` is not accepted: on macOS a `Meta` click is the secondary-click gesture,
+and the art director asked for `Ctrl`. The `source` is decided at the **press**, so releasing `Shift`
+a moment early cannot change the surface the point lands on. The `mmPerScreenPx` and the panel are
+read at the moment of the record, as before.
+
+The chord is claimed by a capture-phase `pointerdown` on `window`, so it is taken before the canvas.
+On a free view `Ctrl` + left is `OrbitControls`' own rotate (the modifier swap of §7.2); the claim
+stops the event there, so the camera never sees it while the tool is on. When the tool is off, the
+handler returns without touching the event, and the free view keeps its `Ctrl` + left rotate.
+
+```bash
+bun run workflows/threejs/tools/check_measure.ts               # the chord and the release, on the live page
+```
+
 ## 8. The tools
 
 Every row states what the tool reads, what it writes, and how it is called.
@@ -375,6 +403,7 @@ Every row states what the tool reads, what it writes, and how it is called.
 | `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `eval`, `stats` |
 | `tools/check_zoom.ts` | the live page, through `__ctl` and real input | a report; non-zero on the first failed assertion | `check_zoom.ts` |
 | `tools/check_idle.ts` | the live page, through `__ctl.frames()` | a report; non-zero on the first failed assertion | `check_idle.ts` |
+| `tools/check_measure.ts` | the live page, through `__ctl` and synthetic pointer events | a report; non-zero on the first failed assertion | `check_measure.ts` |
 | `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp`; its scratch under `test-reports/` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
 | `tools/check.ts` | the captures, the references | one report, and the overlays under `test-reports/silhouette/` | `bun run check`. It prints a timestamped line per step (coloured on a TTY), streams each child's output, and exits 1 when the model is outside the tolerance |
 | `tools/session.ts` | nothing | nothing. It owns a browser session: open, close in a `finally` and on `SIGINT`/`SIGTERM`, a stale-session sweep, and a timeout on every `agent-browser` call | imported |

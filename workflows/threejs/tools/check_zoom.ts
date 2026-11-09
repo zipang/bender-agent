@@ -237,18 +237,18 @@ async function run(): Promise<void> {
       close(z200.mmPerPx * 2, z100.mmPerPx, 1e-9),
       { at100: z100.mmPerPx, at200: z200.mmPerPx },
     );
-    const z400 = await zoom(400);
-    ok("2", "zoom(400) reports 400", z400.percent === 400, z400);
+    const z1000 = await zoom(1000);
+    ok("2", "zoom(1000) reports 1000", z1000.percent === 1000, z1000);
     ok(
       "2",
-      "mmPerPx is a quarter at 400 %",
-      close(z400.mmPerPx * 4, z100.mmPerPx, 1e-9),
-      { at100: z100.mmPerPx, at400: z400.mmPerPx },
+      "mmPerPx is a tenth at 1000 %",
+      close(z1000.mmPerPx * 10, z100.mmPerPx, 1e-9),
+      { at100: z100.mmPerPx, at1000: z1000.mmPerPx },
     );
 
     // --- 3. the documented range is the floor and the cap.
-    const z500 = await zoom(500);
-    ok("3", "zoom(500) stays 400", z500.percent === 400, z500);
+    const z2000 = await zoom(2000);
+    ok("3", "zoom(2000) stays 1000", z2000.percent === 1000, z2000);
     const z50 = await zoom(50);
     ok("3", "zoom(50) stays 100", z50.percent === 100, z50);
 
@@ -486,7 +486,7 @@ async function run(): Promise<void> {
 
     // --- 13. a capture is always prepared at 100 %.
     await view("left");
-    await zoom(400);
+    await zoom(1000);
     await runCommand(["bun", "run", join(TOOLS, "ctl.ts"), "shot", SHOT_PATH, "--session", SESSION]);
     const statsZoom = (await evaluate("window.__stats()")).zoom as number;
     ok("13", "a capture prepared by ctl.ts shot reports zoom 1", statsZoom === 1, { statsZoom });

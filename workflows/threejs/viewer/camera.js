@@ -57,7 +57,7 @@ const SHARED = {
   zoomSpeed: 1,          panSpeed: 1,           rotateSpeed: 1,
   zoomToCursor: true,
   screenSpacePanning: true,
-  minZoom: 1,            maxZoom: 4,            // orthographic only: the 100 % floor, the 400 % cap
+  minZoom: 1,            maxZoom: 10,           // orthographic only: the 100 % floor, the 1000 % cap
   minDistance: 3,        maxDistance: 24,       // perspective only
   maxPolarAngle: Math.PI / 2,
   mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: null },
@@ -253,7 +253,7 @@ export function createCameraRig({ views, frame, element, onManual }) {
 
   // ------------------------------------------------------------------ zoom and pan
 
-  /** The zoom as an integer percentage, 100..400. */
+  /** The zoom as an integer percentage, 100..1000. */
   function zoomPercent() {
     return Math.round(ortho.zoom * 100);
   }

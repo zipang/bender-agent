@@ -306,7 +306,7 @@ the single difference: `true` on the free view, `false` on the flat one.
 
 | Gesture | Effect |
 | :--- | :--- |
-| wheel | zoom, anchored on the point under the cursor, 100 % to 400 % |
+| wheel | zoom, anchored on the point under the cursor, 100 % to 1000 % |
 | left drag | pan, on both families |
 | middle drag | dolly, on both families |
 | `Shift` + left drag | orbit on a free view, inert on a flat one |

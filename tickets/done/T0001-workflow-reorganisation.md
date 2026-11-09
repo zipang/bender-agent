@@ -1,7 +1,14 @@
-# Workflow reorganisation plan
+# T0001 — Workflow reorganisation
 
-Status: **complete.** All seven steps passed their gates. This document records what was coupled,
-what moved, and what each gate measured. The layout it describes is the one in place.
+- **Track**: repository layout, shared by every workflow
+- **Wave**: 1 (independent)
+- **Depends on**: nothing
+- **Blocks**: T0002
+- **Status**: done, closed 2026-11-09
+- **References**: `tickets/done/reorg-baseline.json`, `README.md`, each workflow's `README.md` and `AGENTS.md`
+
+All seven steps passed their gates. This document records what was coupled, what moved, and what
+each gate measured. The layout it describes is the one in place.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
@@ -194,7 +201,7 @@ every step, so a failure is visible at once.
 
 | # | Step | Content |
 | :--- | :--- | :--- |
-| 0 | Inventory | Record the scene list, the view table hash, and one capture per named view as the baseline. Gate: the baseline renders and the IoU is recorded. **Done.** `tickets/reorg-baseline.json` holds the nine sha256, the model numbers, the five IoU values, the five API answers, and the four guards. |
+| 0 | Inventory | Record the scene list, the view table hash, and one capture per named view as the baseline. Gate: the baseline renders and the IoU is recorded. **Done.** `tickets/done/reorg-baseline.json` holds the nine sha256, the model numbers, the five IoU values, the five API answers, and the four guards. |
 | 1 | Workflow folders | Create `workflows/threejs`, `workflows/blender`, `workflows/vcad` with an empty `README.md` and `AGENTS.md` each. Gate: nothing else changes, and the server still runs. **Done.** The documents were placeholders that named step 5, so an empty heading could not pass for a finished document. |
 | 2 | Three.js move | `git mv viewer scenes` under `workflows/threejs/`, then `git mv scripts/scene` to `workflows/threejs/tools`, then split the five stage-1 tools into `scripts/blueprint/`. Gate: the files are at their new paths and no content has changed. **Done.** Thirty-four pure renames, 0 insertions, 0 deletions. |
 | 3 | Path repair | Fix the root resolution, the view-table path, the scene-folder resolution, and the two `package.json` commands. Gate: `bun run serve` starts, `?scene=r5-tl-1972` opens, and all nine views capture byte-identical to the baseline. **Done.** `tools/paths.ts` holds the root once. Nine views identical, five IoU identical, `bun run check` runs end to end. |

@@ -47,7 +47,7 @@ everything more than one workflow reads.**
 │   └── vcad/              README, AGENTS, and the session export tool
 ├── scripts/               tools more than one workflow reads, plus the generator
 ├── research/              method documents, and what each experiment taught
-├── tickets/               work to be done: one plan per ticket
+├── tickets/               the Kanban board: planned, in_progress, review, done
 ├── opencode.jsonc         project configuration and MCP servers
 ├── AGENTS.md              the rules that hold for every workflow
 └── README.md              this file
@@ -133,13 +133,20 @@ that says otherwise. Setup: [`workflows/blender/README.md`](./workflows/blender/
 
 ## Tickets
 
-Work to be done, in `tickets/`. A ticket is a plan with steps and gates. It is not research, and it
-is not a record of what the project does.
+Work is a Kanban board, in `tickets/`. The board is [`tickets/README.md`](./tickets/README.md): the
+folders, the ID rules, the ticket template, and the status of every ticket.
+
+| Folder | Meaning |
+| :--- | :--- |
+| `tickets/planned/` | specified, and ready to pick up |
+| `tickets/in_progress/` | being implemented |
+| `tickets/review/` | implemented, and every gate green. Waits for the art director |
+| `tickets/done/` | accepted and closed. The evidence stays beside the ticket |
 
 | Ticket | Content |
 | :--- | :--- |
-| [`tickets/workflow-reorg-plan.md`](./tickets/workflow-reorg-plan.md) | One folder per workflow, each with its documents and tools. What was coupled, what moved, and the gates |
-| [`tickets/contour-smoothing-plan.md`](./tickets/contour-smoothing-plan.md) | The contour staircase: the subpixel edge, the float opening, two emit modes, and the contact sheet that chooses their parameters at render |
+| [`T0001`](./tickets/done/T0001-workflow-reorganisation.md) | One folder per workflow, each with its documents and tools. What was coupled, what moved, and the gates |
+| [`T0002`](./tickets/done/T0002-contour-smoothing.md) | The contour staircase: the subpixel edge, the float opening, two emit modes, the contact sheet, and the knot editor |
 
 ## Research
 
@@ -183,6 +190,6 @@ produced, even when the method it describes has since been replaced.
 - **Skill**: A folder with a `SKILL.md` file, holding instructions and helper files that an agent loads on demand.
 - **Station**: One position along the length of the body, where a section is taken. The hull's lattice pitch is the distance between two stations.
 - **STE**: Simplified Technical English. It is the writing standard of every document in this repository.
-- **Ticket**: A plan for work to be done, in `tickets/`. It holds numbered steps, a gate per step, and the failure modes the work must keep.
+- **Ticket**: One unit of work on the Kanban board in `tickets/`. It has an ID `TNNNN`, a scope boundary, a contract, test-first tasks, and acceptance criteria. It moves through `planned/`, `in_progress/`, `review/`, and `done/`, and it never changes after it closes.
 - **Workflow**: One way to build an asset, from the shared inputs to the same deliverable. This project holds three, and one is active.
 - **Z-up / Y-up**: Blender and vcad use Z as the vertical axis. glTF and Three.js use Y.

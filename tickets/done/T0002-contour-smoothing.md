@@ -1,11 +1,20 @@
-# Contour smoothing plan
+# T0002 — Contour smoothing
 
-Status: in progress. Steps 0, 1a, 3, 4, 6 and 7 are done. Step 5 is open, and §6.6 holds the
-open defect. Step 8, the knot editor, is done: see §6.8.
+- **Track**: Three.js contour and volume
+- **Wave**: 1 (independent, after T0001)
+- **Depends on**: T0001
+- **Blocks**: nothing
+- **Status**: done, closed 2026-11-09. Step 5 is partial and §6.6 is an open defect; both carry
+  forward as follow-up tickets.
+- **References**: `workflows/threejs/README.md` §5.1 and §5.2, `workflows/threejs/AGENTS.md`
+  "Contour rules" and "Knot rules", `tickets/done/baseline-contour.json`
+
+Steps 0, 1a, 3, 4, 6, 7 and 8 are done: the path, the two joins, the viewer switch, the knot editor
+and its documentation. Step 5 is partial, and §6.6 holds an open defect.
 
 | Step | State | Commit |
 | :--- | :--- | :--- |
-| 0 Baseline | done | `tickets/baseline-contour.json` |
+| 0 Baseline | done | `tickets/done/baseline-contour.json` |
 | 1 Subpixel edge | attempted, reverted. See §6.3 | — |
 | 1a Boundary walk | done. See §6.4 | `7fa12a2` |
 | 2 Float opening | not done. The 1-D opening stays for the hull: a 2-D disc costs 80 mm of length | — |
@@ -22,7 +31,7 @@ The body surface carries a staircase along a diagonal line. The line is where tw
 silhouettes meet. It is a real feature of the shape, and it must stay. What must go is the way the
 surface draws it: as a run of steps instead of a straight line.
 
-`tickets/escaliers.png` shows the defect on a shaded render, circled at the meeting line of the roof
+`tickets/done/escaliers.png` shows the defect on a shaded render, circled at the meeting line of the roof
 profile and the side profile.
 
 This plan therefore does two things in one movement:
@@ -387,7 +396,7 @@ shared inputs under `blueprints/`, and the glossary.
 
 ### 5.1 `workflows/threejs/README.md`: the contour rows
 
-`tickets/workflow-reorg-plan.md` landed first and wrote this chapter, with its tool inventory and
+`tickets/done/T0001-workflow-reorganisation.md` landed first and wrote this chapter, with its tool inventory and
 its artifact map. What is left for this step is the contour:
 
 - the two new flags that decide the shape, and the one that caps it
@@ -533,7 +542,7 @@ drawing honest; it did not move the edge. §3.3 names the cause and step 2 is th
 
 ### 6.2 The step 0 baseline, measured
 
-`tickets/baseline-contour.json` holds the whole record. The numbers that later steps are compared
+`tickets/done/baseline-contour.json` holds the whole record. The numbers that later steps are compared
 to:
 
 | Quantity | Baseline |

@@ -38,6 +38,20 @@ blueprints/drafts/  ->  draft reference  ->  six views  ->  dimensions.json  -> 
 - A change that adds a tool, a flag, a file, or a gate updates the documents of its workflow in the
   same commit.
 
+## Ticket rules
+
+- Work is on a Kanban board in `tickets/`. The board, the ID rules, and the ticket template are in
+  [`tickets/README.md`](./tickets/README.md).
+- One ticket is one file, named `TNNNN-short-kebab-title.md`. An ID counts up and is never reused.
+- A ticket moves through `planned/`, `in_progress/`, `review/`, and `done/`, one folder at a time.
+- Start a ticket only when every ticket under its `Depends on` is in `review/` or `done/`.
+- A ticket in `planned/` names its files, its contract, its tests, and its gates. A ticket that names
+  a third-party API without the documented signature and the documentation URL is not ready.
+- A commit subject quotes the ticket ID: `✨ feat: <summary> (T0003)`.
+- A ticket in `done/` is a record. Never rewrite it. A later change is a new ticket that points at it.
+- Evidence stays beside its ticket in `done/`. Never delete it, and never move it to an archive.
+- Only the art director accepts a ticket, unless the art director delegates that decision.
+
 ## Blueprint rules
 
 - One subject is one folder: `blueprints/<category>/<subject>/`.

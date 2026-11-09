@@ -35,7 +35,7 @@ when the art director asks for a change.
 | :--- | :--- | :--- | :--- |
 | [T0005](./planned/T0005-measurement-pick-invocation.md) | How a measurement point is invoked: Ctrl + left click, on release | Three.js viewer | T0003 |
 | [T0004](./planned/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | T0003, T0005 |
-| [T0006](./planned/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools) | nothing |
+| [T0008](./planned/T0008-silhouette-report-presentation.md) | The silhouette report says what it means | Three.js viewer (tools) | T0006 |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they run in that order. T0003 gives the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
@@ -64,6 +64,7 @@ No ticket.
 | [T0002](./done/T0002-contour-smoothing.md) | Contour smoothing: the path, the two joins, and the knot editor | Three.js contour and volume | 2026-11-09 |
 | [T0003](./done/T0003-orthogonal-view-zoom.md) | Zoom on the orthogonal views, 100 % to 400 % | Three.js viewer | 2026-11-09 |
 | [T0007](./done/T0007-viewer-idles-at-zero.md) | The viewer idles at zero: draw on demand, not every frame | Three.js viewer | 2026-11-09 |
+| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools) | 2026-11-09 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 

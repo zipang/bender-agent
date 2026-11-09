@@ -48,6 +48,9 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
 - Calibrate a calque on the **subject box**, never on the cropped file: the crop keeps a margin.
 - Measure in model units, not pixels.
 - A distance is read from a tool, never estimated by eye.
+- The silhouette report applies the tolerance on every row: `ok` or `OUT`, never a number the reader
+  compares against a limit printed elsewhere. Its render is a pure function of the measurement,
+  tested from a recorded fixture, never from a full check.
 - A gate measured on one view is half-measured. Write `not measured` for the others and fail it.
 
 ## Camera rules

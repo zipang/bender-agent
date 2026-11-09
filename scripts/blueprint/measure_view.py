@@ -32,6 +32,27 @@ from PIL import Image
 # the figurine, so the scale anchor is the figurine's own length, not the R5's 3.52 m.
 DEFAULT_LENGTH_MM = 3520
 
+# The tolerance the standalone table applies to every row, in millimetres. `check.ts` uses the same
+# default, so the two tables agree on the verdict of every station.
+TOLERANCE_MM = 40
+
+# The bar: one mark per 5 mm of `|delta|`, over a field of 30 marks (150 mm). The tolerance mark is
+# drawn at a fixed column, over the bar, so a bar that reaches it visibly crosses it.
+BAR_FIELD = 30
+BAR_MM_PER_MARK = 5
+
+
+def bar_field(delta: float, tolerance: int = TOLERANCE_MM) -> tuple[str, bool]:
+    """The bar field, and whether `|delta|` was clamped to it."""
+    marks = round(abs(delta) / BAR_MM_PER_MARK)
+    clamped = marks > BAR_FIELD
+    width = min(marks, BAR_FIELD)
+    cells = ["-" if index < width else " " for index in range(BAR_FIELD)]
+    marker = round(tolerance / BAR_MM_PER_MARK)
+    if 1 <= marker <= BAR_FIELD:
+        cells[marker - 1] = "|"
+    return "".join(cells), clamped
+
 
 def reach(candidate: np.ndarray, seed: tuple[int, int]) -> np.ndarray:
     """The 4-connected component of `seed` in `candidate`, by run propagation.
@@ -223,12 +244,26 @@ def main() -> None:
         print(f"  {label:<12} " + "   ".join(
             f"@{w['centre_mm']:.0f} mm ⌀{w['diameter_mm']:.0f}" for w in wheels))
     print("")
-    print("roof height above the ground, sampled nose to tail")
-    print(f"  {'at':>7}  {'reference':>10}  {'render':>8}  {'delta':>7}")
+    print("Roof height above the ground, from the nose to the tail.  All values in millimetres.")
+    print("delta = model - reference.  A negative delta is a model that sits lower than the reference.")
+    print(f"The bar is one mark per 5 mm.  | is the tolerance limit, {TOLERANCE_MM} mm.  "
+          "A bar that reaches it fails.")
+    print("")
+    print("   station    reference       model       delta")
     for point in result["profile_mm"]:
-        bar = ("+" if point["delta"] > 0 else "-") * min(int(abs(point["delta"]) / 20), 30)
-        print(f"  {point['at_mm']:>7.0f}  {point['reference']:>10.0f}  "
-              f"{point['render']:>8.0f}  {point['delta']:>+7.0f}  {bar}")
+        field, clamped = bar_field(point["delta"])
+        verdict = "OVER" if clamped else ("ok" if abs(point["delta"]) <= TOLERANCE_MM else "OUT")
+        station = f"{point['at_mm']:.0f} mm"
+        reference = f"{point['reference']:.0f} mm"
+        render = f"{point['render']:.0f} mm"
+        delta = f"{point['delta']:+.0f} mm"
+        print(f"{station:>10}{reference:>12}{render:>13}{delta:>12}   {field}   {verdict}")
+    within = sum(1 for p in result["profile_mm"] if abs(p["delta"]) <= TOLERANCE_MM)
+    outside = len(result["profile_mm"]) - within
+    worst = max(result["profile_mm"], key=lambda p: abs(p["delta"]))
+    print("")
+    print(f"{len(result['profile_mm'])} stations   {within} within tolerance   {outside} outside   "
+          f"worst {worst['delta']:+.0f} mm at {worst['at_mm']:.0f} mm")
 
 
 if __name__ == "__main__":

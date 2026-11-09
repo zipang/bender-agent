@@ -448,6 +448,45 @@ The exit code says what the report says: **1** when the model is outside the tol
 orientation finding fires, and **0** when it is inside. `--tolerance <mm>` moves the threshold, so a
 loop can gate on `bun run check`.
 
+The report carries its meaning on every line. The block below is the real output for `r5-L3` on
+`left`:
+
+```text
+check     r5-L3   against blueprints/vehicules/r5-tl-1972
+side      left     length 3520 mm     tolerance ±40 mm
+
+silhouette   height            reference  1490.4 mm    model  1404.5 mm    delta  -85.9 mm   -5.8 %
+             height / length   reference    0.4234     model    0.3990     delta  -0.0244   -5.8 %
+
+Roof height above the ground, from the nose to the tail.  All values in millimetres.
+delta = model - reference.  A negative delta is a model that sits lower than the reference.
+The bar is one mark per 5 mm.  | is the tolerance limit, 40 mm.  A bar that reaches it fails.
+
+   station    reference       model       delta
+      0 mm      556 mm       527 mm      -29 mm   ------ |                         ok
+    176 mm      875 mm       830 mm      -46 mm   -------|-                        OUT
+   2112 mm     1485 mm      1400 mm      -85 mm   -------|---------                OUT
+   3520 mm      565 mm       535 mm      -29 mm   ------ |                         ok
+
+21 stations   2 within tolerance   19 outside   worst -85 mm at 2112 mm
+overlays      test-reports/silhouette/<view>.png    red = reference only, blue = model only
+renders       blueprints/vehicules/r5-tl-1972/model/r5-L3-<view>.webp
+status        NEEDS WORK
+```
+
+Every column carries its unit and its meaning: `station` is the distance from the nose in
+millimetres, `reference` and `model` are the roof height above the ground at that station, and
+`delta = model - reference`. `height / length` is the silhouette's height divided by its length.
+Every row carries a verdict against the 40 mm tolerance: `ok` when `|delta| <= tolerance`, `OUT`
+past it. The bar is one mark per 5 mm of `|delta|`; the tolerance mark `|` sits at a fixed column,
+drawn over the bar, so a bar that reaches it visibly crosses it. A delta past the field of 30 marks
+is clamped and its verdict says `OVER`. The count line states how many stations are within
+tolerance, how many are outside, and the worst one with its position. The render is a pure function
+of the measurement, so it is tested from a recorded fixture and not from a full run.
+
+`scripts/blueprint/measure_view.py` prints the same table from the same rules in its standalone
+mode, so the two never drift.
+
 ## 11. Failure modes this workflow keeps
 
 | Symptom | Cause | Rule |

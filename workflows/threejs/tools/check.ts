@@ -235,6 +235,116 @@ print("mass-left" if centre < 0.5 else "mass-right")
   throw new Error(`could not read the roof-mass side of ${path}: ${text.slice(0, 200)}`);
 }
 
+// ------------------------------------------------------------------ the report
+
+/** One sampled station of the roof profile, in millimetres. */
+export type ProfilePoint = { at_mm: number; reference: number; render: number; delta: number };
+
+/** The measured silhouette, as `measure_view.py --json` returns it. */
+export type Measurement = {
+  reference: { height_mm: number; ratio: number };
+  render: { height_mm: number; ratio: number };
+  delta: { height_mm: number };
+};
+
+/** Everything the report prints, so the render is a pure function of the measurement. */
+export type ReportInput = {
+  prefix: string;
+  subject: string;
+  side: string;
+  tolerance: number;
+  reference: { height_mm: number; ratio: number };
+  render: { height_mm: number; ratio: number };
+  delta: { height_mm: number };
+  profile: ProfilePoint[];
+  overlays: string;
+  renders: string;
+  problems?: string[];
+};
+
+// The bar: one mark per 5 mm of `|delta|`, over a field of 30 marks (150 mm). The tolerance mark
+// is drawn at a fixed column, over the bar, so a bar that reaches it visibly crosses it. A delta
+// past the field is clamped and its verdict says `OVER`, so a clamp is never read as an exact value.
+const BAR_MM_PER_MARK = 5;
+const BAR_FIELD = 30;
+
+/** A number that always carries a sign, so `+` and `-` are both explicit. */
+function signed(value: number, digits: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`;
+}
+
+/** The bar field: `|delta|` in marks, capped at the field, with the tolerance mark drawn over it. */
+function barField(delta: number, tolerance: number): { field: string; clamped: boolean } {
+  const marks = Math.round(Math.abs(delta) / BAR_MM_PER_MARK);
+  const clamped = marks > BAR_FIELD;
+  const width = Math.min(marks, BAR_FIELD);
+  const cells = Array.from({ length: BAR_FIELD }, (_, index) => (index < width ? "-" : " "));
+  const marker = Math.round(tolerance / BAR_MM_PER_MARK);
+  if (marker >= 1 && marker <= BAR_FIELD) cells[marker - 1] = "|";
+  return { field: cells.join(""), clamped };
+}
+
+/**
+ * The report, as one string.
+ *
+ * Every value carries its unit, every column carries its meaning, and the tolerance is applied on
+ * every row: `ok` when `|delta| <= tolerance`, `OUT` past it. The count line states both totals and
+ * repeats the worst station with its position. The bar's scale and the meaning of `|` are printed
+ * once, above the table.
+ */
+export function renderReport(input: ReportInput): string {
+  const { profile, tolerance } = input;
+  const length = profile.length > 0 ? profile[profile.length - 1].at_mm : 0;
+  const within = profile.filter((point) => Math.abs(point.delta) <= tolerance).length;
+  const outside = profile.length - within;
+  const worst = profile.reduce(
+    (acc, point) => (Math.abs(point.delta) > Math.abs(acc.delta) ? point : acc),
+    { at_mm: 0, reference: 0, render: 0, delta: 0 },
+  );
+  const outOfTolerance = Math.abs(worst.delta) > tolerance;
+  const heightPercent = ((input.delta.height_mm / input.reference.height_mm) * 100).toFixed(1);
+  const ratioDelta = input.render.ratio - input.reference.ratio;
+  const ratioPercent = ((ratioDelta / input.reference.ratio) * 100).toFixed(1);
+
+  const lines = [
+    `check     ${input.prefix}   against ${input.subject}`,
+    `side      ${input.side}     length ${length.toFixed(0)} mm     tolerance ±${tolerance} mm`,
+    "",
+    `silhouette   height            reference  ${input.reference.height_mm.toFixed(1)} mm    ` +
+      `model  ${input.render.height_mm.toFixed(1)} mm    delta  ${signed(input.delta.height_mm, 1)} mm   ${heightPercent} %`,
+    `             height / length   reference    ${input.reference.ratio.toFixed(4)}     ` +
+      `model    ${input.render.ratio.toFixed(4)}     delta  ${signed(ratioDelta, 4)}   ${ratioPercent} %`,
+    "",
+    "Roof height above the ground, from the nose to the tail.  All values in millimetres.",
+    "delta = model - reference.  A negative delta is a model that sits lower than the reference.",
+    `The bar is one mark per 5 mm.  | is the tolerance limit, ${tolerance} mm.  A bar that reaches it fails.`,
+    "",
+    "   station    reference       model       delta",
+  ];
+  for (const point of profile) {
+    const bar = barField(point.delta, tolerance);
+    const verdict = bar.clamped ? "OVER" : Math.abs(point.delta) <= tolerance ? "ok" : "OUT";
+    lines.push(
+      `${`${point.at_mm.toFixed(0)} mm`.padStart(10)}` +
+        `${`${point.reference.toFixed(0)} mm`.padStart(12)}` +
+        `${`${point.render.toFixed(0)} mm`.padStart(13)}` +
+        `${`${signed(point.delta, 0)} mm`.padStart(12)}   ${bar.field}   ${verdict}`,
+    );
+  }
+  lines.push("");
+  lines.push(
+    `${profile.length} stations   ${within} within tolerance   ${outside} outside   ` +
+      `worst ${signed(worst.delta, 0)} mm at ${worst.at_mm.toFixed(0)} mm`,
+  );
+  for (const problem of input.problems ?? []) lines.push(`WARNING   ${problem}`);
+  lines.push(`overlays      ${input.overlays}/<view>.png    red = reference only, blue = model only`);
+  lines.push(`renders       ${input.renders}/${input.prefix}-<view>.webp`);
+  lines.push(
+    `status        ${outOfTolerance || (input.problems?.length ?? 0) > 0 ? "NEEDS WORK" : "within tolerance"}`,
+  );
+  return lines.join("\n");
+}
+
 async function main(): Promise<void> {
   const options = readOptions(Bun.argv.slice(2));
   await mkdir(options.out, { recursive: true });
@@ -312,8 +422,8 @@ async function main(): Promise<void> {
   // 4. Measurements on the side view.
   const side = ["left", "right"].find((v) => options.views.includes(v)) ?? "left";
   const maybeline = `${options.subject}/${side}/reference.png`;
-  let profile: Array<{ at_mm: number; reference: number; render: number; delta: number }> = [];
-  let summary = "";
+  let profile: ProfilePoint[] = [];
+  let measurement: Measurement | null = null;
   if (await Bun.file(maybeline).exists()) {
     say("measure", side);
     const mark = Date.now();
@@ -323,60 +433,47 @@ async function main(): Promise<void> {
       "--json",
     ], "measure", { capture: true });
     say("measure", `done in ${since(mark)}`);
-    const data = JSON.parse(output) as {
-      reference: { height_mm: number; ratio: number };
-      render: { height_mm: number; ratio: number };
-      delta: { height_mm: number };
-      profile_mm: typeof profile;
-    };
+    const data = JSON.parse(output) as Measurement & { profile_mm: ProfilePoint[] };
+    measurement = data;
     profile = data.profile_mm;
-    summary = [
-      `height    ${data.reference.height_mm} mm reference   ${data.render.height_mm} mm render   ` +
-        `${data.delta.height_mm >= 0 ? "+" : ""}${data.delta.height_mm} mm`,
-      `ratio     ${data.reference.ratio.toFixed(4)} reference   ${data.render.ratio.toFixed(4)} render`,
-    ].join("\n");
   } else {
     say("measure", `skipped (no ${side} reference)`);
   }
 
   // 5. One report.
   console.log("");
-  console.log(`check     ${options.prefix}   against ${toRepoPath(options.subject)}`);
-  console.log("");
-  if (summary) console.log(summary);
-  console.log("");
+  if (measurement) {
+    console.log(renderReport({
+      prefix: options.prefix,
+      subject: toRepoPath(options.subject),
+      side,
+      tolerance: options.tolerance,
+      reference: measurement.reference,
+      render: measurement.render,
+      delta: measurement.delta,
+      profile,
+      overlays: toRepoPath(join(REPORTS, "silhouette")),
+      renders: toRepoPath(options.out),
+      problems,
+    }));
+  } else {
+    console.log(`check     ${options.prefix}   against ${toRepoPath(options.subject)}`);
+    console.log(`side      ${side}     no reference at ${toRepoPath(maybeline)}`);
+    for (const problem of problems) console.log(`WARNING   ${problem}`);
+    console.log(`status    ${problems.length > 0 ? "NEEDS WORK" : "within tolerance"}`);
+  }
 
   const worst = profile.reduce(
     (acc, p) => (Math.abs(p.delta) > Math.abs(acc.delta) ? p : acc),
     { at_mm: 0, reference: 0, render: 0, delta: 0 },
   );
-  if (profile.length > 0) {
-    console.log(`  ${"at mm".padStart(7)} ${"ref".padStart(7)} ${"model".padStart(7)} ${"delta".padStart(7)}`);
-    for (const point of profile) {
-      const bar = (point.delta > 0 ? "+" : "-").repeat(
-        Math.min(Math.round(Math.abs(point.delta) / 20), 28),
-      );
-      console.log(
-        `  ${point.at_mm.toFixed(0).padStart(7)} ${point.reference.toFixed(0).padStart(7)} ` +
-        `${point.render.toFixed(0).padStart(7)} ${(point.delta >= 0 ? "+" : "") + point.delta.toFixed(0)}`.padEnd(20) +
-        bar,
-      );
-    }
-  }
-
   const outOfTolerance = Math.abs(worst.delta) > options.tolerance;
-  console.log("");
-  console.log(`worst     ${worst.delta >= 0 ? "+" : ""}${worst.delta.toFixed(0)} mm at ${worst.at_mm.toFixed(0)} mm from the nose ` +
-    `(tolerance ${options.tolerance} mm)`);
-  for (const problem of problems) console.log(`WARNING   ${problem}`);
-  console.log("");
-  console.log(`images    ${toRepoPath(join(REPORTS, "silhouette"))}/<view>.png    red = reference only, blue = model only`);
-  console.log(`renders   ${toRepoPath(options.out)}/${options.prefix}-<view>.webp`);
-  console.log(outOfTolerance || problems.length > 0 ? "status    NEEDS WORK" : "status    within tolerance");
 
   // The header has always promised it: exit 1 when the model is outside the tolerance. The status
   // line says so, and the exit code now agrees. Orientation findings keep their exit 1 too.
   if (outOfTolerance || problems.length > 0) process.exit(1);
 }
 
-await main();
+// The report is a pure function of the measurement, so the module can be imported and tested
+// without running a capture. `import.meta.main` keeps the command a command.
+if (import.meta.main) await main();

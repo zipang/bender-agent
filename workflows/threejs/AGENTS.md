@@ -108,8 +108,15 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
 ## Evidence rules
 
 - A stage ends with the `.glb` and one WebP per named view. Numbers alone cannot be judged.
-- Every capture pass uses one browser session and closes it. `ctl.ts close` ends it. `shot.ts` and
-  `check.ts` close their own, even on failure.
+- A check writes what a human reads into `test-reports/` at the repository root: the overlays, the
+  scratches, the contact sheets. It is git-ignored and rebuilds from a check. A path the terminal
+  prints is relative to the root, never absolute. A caller may still pass an absolute `--out`.
+- Every capture pass uses one browser session and closes it. `ctl.ts close` ends it. `shot.ts`,
+  `check.ts`, `check_zoom.ts` and `check_idle.ts` close their own, even on failure, and on `Ctrl-C`
+  too. One helper owns the session: `tools/session.ts`. It closes in a `finally`, on `SIGINT` and on
+  `SIGTERM`, names the session with the process id, sweeps a session of a dead run at open, and
+  bounds every `agent-browser` call with a timeout. A wedged browser fails loudly, it never waits
+  forever.
 - Capture in capture mode (`?shot=1`). Without it the page draws the ground, the grid and the HUD,
   and a silhouette mask then reads the gradient background as subject.
 - Describe a render in one line, and say that it is a description, not a verdict.

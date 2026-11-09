@@ -18,7 +18,7 @@
 //   bun run workflows/threejs/tools/ctl.ts isolate Wheel_FL
 //   bun run workflows/threejs/tools/ctl.ts isolate --all
 //   bun run workflows/threejs/tools/ctl.ts nodes
-//   bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/three-quarter.webp --view rear-3q
+//   bun run workflows/threejs/tools/ctl.ts shot test-reports/three-quarter.webp --view rear-3q
 //   bun run workflows/threejs/tools/ctl.ts reset
 //
 // Every command prints the camera state and the frame statistics, so one call tells you where the
@@ -31,6 +31,8 @@
 // passes side by side, and close both.
 
 import { resolve } from "node:path";
+import { toRepoPath } from "./paths";
+import { ab, closeSession, evaluate } from "./session";
 
 type Options = { url: string; session: string; scene: string | null; argv: string[] };
 
@@ -57,31 +59,8 @@ function readOptions(argv: string[]): Options {
   };
 }
 
-// agent-browser prints one status line per command; a failure sets a non-zero exit code.
-async function ab(args: string[]): Promise<string> {
-  const proc = Bun.spawn(["agent-browser", ...args], { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  const code = await proc.exited;
-  if (code !== 0) {
-    throw new Error(
-      `agent-browser ${args[0]} failed (${code}): ${(stderr || stdout).trim().slice(0, 300)}`,
-    );
-  }
-  return stdout;
-}
-
-async function evaluate(script: string, session: string): Promise<unknown> {
-  const text = (await ab(["eval", script, "--session", session])).trim();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
+// agent-browser prints one status line per command; a failure sets a non-zero exit code. Every
+// call is bounded by the session helper, so a wedged browser fails loudly instead of hanging.
 
 async function waitForReady(session: string, tries = 40): Promise<void> {
   for (let i = 0; i < tries; i += 1) {
@@ -143,22 +122,23 @@ async function main(): Promise<void> {
     const suffix = query.size > 0 ? `?${query.toString()}` : "";
     const base = options.url.replace(/\/$/, "");
     const url = suffix ? `${base}${base.includes("?") ? "&" : "/?"}${suffix.slice(1)}` : base;
-    await ab(["open", url, "--session", session]);
+    await ab(["open", url, "--session", session], "open");
     await waitForReady(session);
     console.log(`open  ${url}  (session ${session})`);
     return;
   }
 
   if (command === "close") {
-    // A session is a live browser, not a file. Nothing else will stop it for you.
-    await ab(["close", "--session", session]);
+    // A session is a live browser, not a file. Nothing else will stop it for you. A close failure
+    // is a warning, not a throw: the message still says what was attempted.
+    await closeSession(session);
     console.log(`close  session ${session}`);
     return;
   }
 
   if (command === "shot") {
     const target = rest[0];
-    if (!target) throw new Error("shot needs a path, for example /tmp/opencode/side.webp");
+    if (!target) throw new Error("shot needs a path, for example test-reports/side.webp");
     const path = resolve(target);
     const scratch = `${path}.png`;
 
@@ -193,7 +173,7 @@ async function main(): Promise<void> {
     // sidecar records `zoom: 1`, which is the proof.
     await evaluate("window.__ctl.zoom(100)", session);
 
-    await ab(["screenshot", "canvas", scratch, "--session", session]);
+    await ab(["screenshot", "canvas", scratch, "--session", session], "screenshot");
     // The sidecar is what makes the picture measurable. It records the camera that drew it, so a
     // silhouette tool can convert pixels to millimetres instead of guessing a scale.
     const stats = (await evaluate("window.__stats()", session)) as Record<string, unknown>;
@@ -203,8 +183,8 @@ async function main(): Promise<void> {
       await Bun.write(path, await new Bun.Image(png).webp({ quality: 94 }).bytes());
       await Bun.file(scratch).delete();
     }
-    console.log(`shot  ${path}`);
-    console.log(`side  ${path}.json`);
+    console.log(`shot  ${toRepoPath(path)}`);
+    console.log(`side  ${toRepoPath(`${path}.json`)}`);
     return;
   }
 

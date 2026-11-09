@@ -10,7 +10,8 @@ Method, and why each choice matters:
 
   - Background is removed by a flood fill from the corners, never by a brightness threshold.
     The car carries light grey trim and dark tyres on a white field; a threshold eats one and
-    keeps the other.
+    keeps the other. The fill is run propagation, not a dilation that grows one pixel a pass, so
+    it reaches the same component in a few passes.
   - The two images are scaled by LENGTH, and anchored on the ground line. Fitting each subject
     to its own bounding box would stretch a too-tall model back into shape and hide the error.
   - The ground line is found from the lowest point of the tyres, not from the image border, so
@@ -32,6 +33,43 @@ from PIL import Image
 DEFAULT_LENGTH_MM = 3520
 
 
+def reach(candidate: np.ndarray, seed: tuple[int, int]) -> np.ndarray:
+    """The 4-connected component of `seed` in `candidate`, by run propagation.
+
+    One pass marks every pixel in the same contiguous candidate run as a seeded pixel, along each
+    axis, forward and backward. A running maximum on its own would carry a seed across a hole, so
+    the reach compares the last seed at or before a pixel with the last non-candidate at or before
+    it: a pixel is reachable when the seed is the more recent of the two, which is true exactly when
+    a seed sits in the pixel's own run. Alternating the two axes converges to the same component the
+    old one-pixel-per-iteration dilation reached, in a few passes instead of one per pixel of
+    distance. The loop stops on the fixed point, and raises rather than spin if it has not.
+    """
+    height, width = candidate.shape
+    columns = np.arange(width)
+    rows = np.arange(height).reshape(height, 1)
+    region = np.zeros((height, width), dtype=bool)
+    region[seed] = True
+    for _ in range(height + width):
+        previous = region
+        # Horizontal runs, forward and backward.
+        blocker = np.maximum.accumulate(np.where(candidate, -1, columns), axis=1)
+        seed_at = np.maximum.accumulate(np.where(region, columns, -1), axis=1)
+        forward = seed_at > blocker
+        blocker = np.maximum.accumulate(np.where(candidate[:, ::-1], -1, columns), axis=1)[:, ::-1]
+        seed_at = np.maximum.accumulate(np.where(region[:, ::-1], columns, -1), axis=1)[:, ::-1]
+        region = (forward | (seed_at > blocker)) & candidate
+        # Vertical runs, forward and backward.
+        blocker = np.maximum.accumulate(np.where(candidate, -1, rows), axis=0)
+        seed_at = np.maximum.accumulate(np.where(region, rows, -1), axis=0)
+        forward = seed_at > blocker
+        blocker = np.maximum.accumulate(np.where(candidate[::-1, :], -1, rows), axis=0)[::-1, :]
+        seed_at = np.maximum.accumulate(np.where(region[::-1, :], rows, -1), axis=0)[::-1, :]
+        region = (forward | (seed_at > blocker)) & candidate
+        if np.array_equal(region, previous):
+            return region
+    raise RuntimeError("run propagation did not converge within w + h passes")
+
+
 def load_mask(path: str, tolerance: int = 26) -> np.ndarray:
     """True where the picture holds the subject, False on the flat background."""
     pixels = np.asarray(Image.open(path).convert("RGB")).astype(np.int16)
@@ -42,19 +80,7 @@ def load_mask(path: str, tolerance: int = 26) -> np.ndarray:
         if background[seed]:
             continue
         candidate = np.abs(pixels - pixels[seed]).max(axis=2) < tolerance
-        region = np.zeros((height, width), dtype=bool)
-        region[seed] = True
-        while True:
-            grown = region.copy()
-            grown[1:, :] |= region[:-1, :]
-            grown[:-1, :] |= region[1:, :]
-            grown[:, 1:] |= region[:, :-1]
-            grown[:, :-1] |= region[:, 1:]
-            grown &= candidate
-            if grown.sum() == region.sum():
-                break
-            region = grown
-        background |= region
+        background |= reach(candidate, seed)
 
     return ~background
 

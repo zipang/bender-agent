@@ -40,6 +40,10 @@ blueprints/drafts/
 .DS_Store
 Thumbs.db
 
+# Generated reports: the overlays, the scratches and the contact sheets a check writes for a human.
+# Local evidence, rebuilt at any time; never committed.
+test-reports/
+
 # Blender backup files.
 *.blend1
 

@@ -48,10 +48,15 @@ everything more than one workflow reads.**
 ├── scripts/               tools more than one workflow reads, plus the generator
 ├── research/              method documents, and what each experiment taught
 ├── tickets/               the Kanban board: planned, in_progress, review, done
+├── test-reports/          what a check writes for a human: overlays and scratches. Git-ignored
 ├── opencode.jsonc         project configuration and MCP servers
 ├── AGENTS.md              the rules that hold for every workflow
 └── README.md              this file
 ```
+
+`test-reports/` is where a check writes what a human reads: the silhouette overlays, the scratch
+captures, and the contact sheets. The Three.js workflow writes it, and no workflow commits it: it
+rebuilds from a check at any time. `workflows/threejs/README.md` names each file it holds.
 
 ## Blueprints
 

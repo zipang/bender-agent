@@ -225,7 +225,7 @@ to look from another angle.
 ```bash
 bun run serve                                   # http://127.0.0.1:5180
 bun run workflows/threejs/tools/ctl.ts open --shot --scene <name>
-bun run workflows/threejs/tools/ctl.ts shot /tmp/opencode/left.webp --view left
+bun run workflows/threejs/tools/ctl.ts shot test-reports/left.webp --view left
 bun run workflows/threejs/tools/ctl.ts close
 ```
 
@@ -375,9 +375,10 @@ Every row states what the tool reads, what it writes, and how it is called.
 | `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `eval`, `stats` |
 | `tools/check_zoom.ts` | the live page, through `__ctl` and real input | a report; non-zero on the first failed assertion | `check_zoom.ts` |
 | `tools/check_idle.ts` | the live page, through `__ctl.frames()` | a report; non-zero on the first failed assertion | `check_idle.ts` |
-| `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
-| `tools/check.ts` | the captures, the references | one report, and the overlays | `bun run check` |
-| `tools/silhouette.ts` | a render, a reference | an overlay PNG: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |
+| `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp`; its scratch under `test-reports/` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
+| `tools/check.ts` | the captures, the references | one report, and the overlays under `test-reports/silhouette/` | `bun run check`. It prints a timestamped line per step (coloured on a TTY), streams each child's output, and exits 1 when the model is outside the tolerance |
+| `tools/session.ts` | nothing | nothing. It owns a browser session: open, close in a `finally` and on `SIGINT`/`SIGTERM`, a stale-session sweep, and a timeout on every `agent-browser` call | imported |
+| `tools/silhouette.ts` | a render, a reference | an overlay PNG under `test-reports/silhouette/`: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |
 | `tools/compare_silhouette.py` | a render, its sidecar, a reference, `dimensions.json` | an overlay, and a station table in millimetres | `--subject <s> --view <v> --render <file>` |
 | `tools/trace_hull.py` | the cropped views, `dimensions.json` | `body-hull.js`: sections, contours, gate numbers | `--subject <s> --out <file> --step 20 --mode bezier --pitch 20 --tolerance 3` |
 | `tools/paths.ts` | nothing | nothing. It holds the root, the viewer, the scenes and the tool folder | imported |
@@ -407,6 +408,7 @@ not under this folder.
 | `scenes/<sub>/model.js` | a person or an agent | the authority for the shape |
 | `scenes/<sub>/accessories.js` | a person or an agent | the stage-3 work list |
 | `blueprints/<cat>/<sub>/model/*.webp` | `shot.ts` and `check.ts` | local, gitignored |
+| `test-reports/**` | `silhouette.ts`, `shot.ts`, `check_zoom.ts` | local, gitignored. The overlays and the scratches a check writes for a human |
 | `*.glb` | the export | local, gitignored |
 
 ## 10. Gates
@@ -422,6 +424,29 @@ not under this folder.
 
 A gate measured on one view is half-measured. Write `not measured` for the others and treat the gate
 as failed.
+
+### 10.1 The check run
+
+`bun run check` runs the whole chain — capture, overlay, the orientation guard, the measure — and
+prints one report. It prints a timestamped line as it enters every step, and each child's own output
+reaches the terminal as it is written, so a slow step is visible where it happens instead of reading
+as a hang. The progress lines carry **colour**, one per step kind, but only on a terminal: a pipe or
+a log file stays plain, and `NO_COLOR` turns it off. Every path the report prints is **relative to
+the repository root**.
+
+The orientation guard fills the background by **run propagation**, not by a dilation that grows one
+pixel a pass: it reaches the same 4-connected component, and the same `mass-left` / `mass-right`
+verdict for every image, in a few passes instead of `w + h - 1`. `scripts/blueprint/measure_view.py`
+uses the same primitive for the same reason, and returns the same `profile_mm`, `height_mm` and
+`ratio` to the last digit it prints.
+
+The check writes what a human reads under `test-reports/`: `test-reports/silhouette/<view>.png` is
+the overlay, red = reference only, blue = model only, magenta = both. The directory is git-ignored;
+it rebuilds from a check at any time. A caller may still pass an absolute `--out`.
+
+The exit code says what the report says: **1** when the model is outside the tolerance, or when an
+orientation finding fires, and **0** when it is inside. `--tolerance <mm>` moves the threshold, so a
+loop can gate on `bun run check`.
 
 ## 11. Failure modes this workflow keeps
 

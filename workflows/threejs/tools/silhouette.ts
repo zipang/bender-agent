@@ -13,10 +13,11 @@
 //     --render blueprints/vehicules/r5-tl-1972/model \
 //     --prefix r5-L3
 //
-// It writes /tmp/opencode/silhouette/<view>.png.
+// It writes test-reports/silhouette/<view>.png.
 
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
+import { REPORTS, toRepoPath } from "./paths";
 
 const DEFAULT_VIEWS = ["front", "back", "left", "right"];
 
@@ -46,7 +47,7 @@ function readOptions(argv: string[]): Options {
     views: (value("views") ?? DEFAULT_VIEWS.join(",")).split(",").map((v) => v.trim()).filter(Boolean),
     width: Number(value("width") ?? 900),
     height: Number(value("height") ?? 620),
-    out: resolve(value("out") ?? "/tmp/opencode/silhouette"),
+    out: resolve(value("out") ?? `${REPORTS}/silhouette`),
   };
 }
 
@@ -100,7 +101,7 @@ async function findReference(subject: string, view: string): Promise<string | nu
 async function main(): Promise<void> {
   const options = readOptions(Bun.argv.slice(2));
   await mkdir(options.out, { recursive: true });
-  const scratch = "/tmp/opencode/silhouette-tmp";
+  const scratch = `${REPORTS}/silhouette-tmp`;
   await rm(scratch, { recursive: true, force: true });
   await mkdir(scratch, { recursive: true });
 
@@ -127,7 +128,7 @@ async function main(): Promise<void> {
 
     const out = `${options.out}/${view}.png`;
     await magick([refRed, rndBlue, "-compose", "screen", "-composite", out]);
-    console.log(`overlay  ${out}    red = reference only, blue = render only, magenta = both`);
+    console.log(`overlay  ${toRepoPath(out)}    red = reference only, blue = render only, magenta = both`);
   }
 
   // A legend, once, so the colours are never guessed.

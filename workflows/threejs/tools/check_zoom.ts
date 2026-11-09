@@ -19,13 +19,18 @@
 // It closes its own browser session, including on failure.
 
 import { join } from "node:path";
-import { TOOLS } from "./paths";
+import { REPORTS, TOOLS } from "./paths";
+import { Session, ab, evaluate as evaluateIn } from "./session";
 
 const SCENE = "r5-tl-1972";
 const VIEWER_URL = `http://127.0.0.1:5180/?scene=${SCENE}`;
-const SESSION = "zoom-check";
 const VIEWPORT = { width: 1400, height: 1000 };
-const SHOT_PATH = "/tmp/opencode/zoom-check.webp";
+const SHOT_PATH = `${REPORTS}/zoom-check.webp`;
+
+// The session name carries the process id, so two checks cannot collide, and a leftover of an
+// interrupted run is swept at open and closed on Ctrl-C.
+const session = new Session("zoom-check");
+const SESSION = session.name;
 
 // The CDP modifier bit for Shift. The library reads `event.shiftKey`, and a mouse event carries
 // that bit only when the dispatch includes it.
@@ -44,29 +49,8 @@ class CheckFailure extends Error {
 
 // ------------------------------------------------------------------ agent-browser
 
-async function ab(args: string[]): Promise<string> {
-  const proc = Bun.spawn(["agent-browser", ...args], { stdout: "pipe", stderr: "pipe" });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  const code = await proc.exited;
-  if (code !== 0) {
-    throw new Error(
-      `agent-browser ${args[0]} failed (${code}): ${(stderr || stdout).trim().slice(0, 300)}`,
-    );
-  }
-  return stdout;
-}
-
 async function evaluate(script: string): Promise<unknown> {
-  const text = (await ab(["eval", script, "--session", SESSION])).trim();
-  if (!text) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
+  return evaluateIn(script, SESSION);
 }
 
 async function waitForReady(tries = 60): Promise<void> {
@@ -85,7 +69,7 @@ async function waitForReady(tries = 60): Promise<void> {
 type Cdp = { send: (method: string, params: unknown) => Promise<unknown>; close: () => void };
 
 async function connectCdp(): Promise<Cdp> {
-  const raw = await ab(["get", "cdp-url", "--session", SESSION]);
+  const raw = await ab(["get", "cdp-url", "--session", SESSION], "get cdp-url");
   const url = raw.split("\n").map((line) => line.trim()).find((line) => line.startsWith("ws://"));
   if (!url) throw new Error(`could not read the CDP socket url from: ${raw.trim().slice(0, 200)}`);
   const port = new URL(url).port;
@@ -208,21 +192,24 @@ function sameTarget(a: number[], b: number[], epsilon = 1e-6): boolean {
 }
 
 async function run(): Promise<void> {
-  await ab(["open", VIEWER_URL, "--session", SESSION]);
-  await ab(["set", "viewport", String(VIEWPORT.width), String(VIEWPORT.height), "1", "--session", SESSION]);
-  await waitForReady();
-
-  const size = (await evaluate("[window.innerWidth, window.innerHeight]")) as number[];
-  const center = { x: size[0] / 2, y: size[1] / 2 };
-  const MOUSE = (await evaluate(
-    "(async () => { const T = await import('/vendor/three/build/three.module.js'); " +
-      "return { PAN: T.MOUSE.PAN, DOLLY: T.MOUSE.DOLLY, ROTATE: T.MOUSE.ROTATE }; })()",
-  )) as { PAN: number; DOLLY: number; ROTATE: number };
-
-  const frameTarget = (await evaluate("window.__stats()")).frame.target as number[];
-  const cdp = await connectCdp();
-
+  let cdpForClose: Cdp | null = null;
+  // The session opens inside the guard, so a failure while opening still closes it. The helper
+  // installs the SIGINT and SIGTERM guards in its constructor.
   try {
+    await session.open(VIEWER_URL);
+    await session.ab(["set", "viewport", String(VIEWPORT.width), String(VIEWPORT.height), "1", "--session", SESSION], "set viewport");
+    await waitForReady();
+
+    const size = (await evaluate("[window.innerWidth, window.innerHeight]")) as number[];
+    const center = { x: size[0] / 2, y: size[1] / 2 };
+    const MOUSE = (await evaluate(
+      "(async () => { const T = await import('/vendor/three/build/three.module.js'); " +
+        "return { PAN: T.MOUSE.PAN, DOLLY: T.MOUSE.DOLLY, ROTATE: T.MOUSE.ROTATE }; })()",
+    )) as { PAN: number; DOLLY: number; ROTATE: number };
+
+    const frameTarget = (await evaluate("window.__stats()")).frame.target as number[];
+    const cdp = await connectCdp();
+    cdpForClose = cdp;
     // --- 1. the 100 % frame on a flat view, and its millimetres per pixel.
     await view("left");
     // The instrument itself is the first thing the check proves: a page without `__ctl.zoom` must
@@ -520,12 +507,8 @@ async function run(): Promise<void> {
 
     console.log("\ncheck_zoom  all assertions passed");
   } finally {
-    cdp.close();
-    try {
-      await ab(["close", "--session", SESSION]);
-    } catch (error) {
-      console.warn(`warning: could not close session ${SESSION}: ${String(error).slice(0, 160)}`);
-    }
+    cdpForClose?.close();
+    await session.close();
   }
 }
 

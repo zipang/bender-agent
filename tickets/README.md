@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0004`.**
+- **The next free ID is `T0008`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -33,7 +33,21 @@ when the art director asks for a change.
 
 | ID | Title | Track | Depends on |
 | :--- | :--- | :--- | :--- |
-| [T0003](./planned/T0003-orthogonal-view-zoom.md) | Zoom on the orthogonal views, 100 % to 400 % | Three.js viewer | T0002 |
+| [T0005](./planned/T0005-measurement-pick-invocation.md) | How a measurement point is invoked: Ctrl + left click, on release | Three.js viewer | T0003 |
+| [T0004](./planned/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | T0003, T0005 |
+| [T0007](./planned/T0007-viewer-idles-at-zero.md) | The viewer idles at zero: draw on demand, not every frame | Three.js viewer | T0003 |
+| [T0006](./planned/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools) | nothing |
+
+T0003, T0005, and T0004 all touch `picker.js`, so they run in that order. T0003 gives the left button
+to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
+what forces the two tickets after it: T0005 moves the measurement point to `Ctrl` + left click on
+release, so a pan cannot drop one, and T0004 lets the knot editor borrow the left button inside a
+knot's grab threshold.
+
+T0006 and T0007 were opened by the same diagnosis, and neither is on the critical path of the three
+above. T0007 comes first because it is the one that makes the machine usable: the page renders every
+frame unconditionally, so an idle tab burns nine of sixteen cores, every headless run pegs the box,
+and a browser session that outlives its run keeps burning forever.
 
 ### In progress
 
@@ -49,6 +63,7 @@ No ticket.
 | :--- | :--- | :--- | :--- |
 | [T0001](./done/T0001-workflow-reorganisation.md) | Workflow reorganisation: one folder per workflow | repository layout, all workflows | 2026-11-09 |
 | [T0002](./done/T0002-contour-smoothing.md) | Contour smoothing: the path, the two joins, and the knot editor | Three.js contour and volume | 2026-11-09 |
+| [T0003](./done/T0003-orthogonal-view-zoom.md) | Zoom on the orthogonal views, 100 % to 400 % | Three.js viewer | 2026-11-09 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 
@@ -63,8 +78,8 @@ A subject the art director raised, and no ticket holds it:
 
 - The `front` witness disagrees with the volume (IoU 0.918 on the traced contour, 0.796 on a reduced
   one). The model sits outside the reference along both shoulders.
-- The knot editor is hard to use, beyond the missing zoom that T0003 adds: one view at a time, 9 px
-  handles with no hover, no live count while dragging, and no undo.
+- The knot editor is hard to use, beyond the missing zoom that T0003 adds and the marquee selection
+  that T0004 adds: one view at a time, 9 px handles with no hover, and no undo.
 
 ## Ticket template
 

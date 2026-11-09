@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0003`.**
+- **The next free ID is `T0004`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -31,7 +31,9 @@ when the art director asks for a change.
 
 ### Planned
 
-No ticket.
+| ID | Title | Track | Depends on |
+| :--- | :--- | :--- | :--- |
+| [T0003](./planned/T0003-orthogonal-view-zoom.md) | Zoom on the orthogonal views, 100 % to 400 % | Three.js viewer | T0002 |
 
 ### In progress
 
@@ -61,8 +63,8 @@ A subject the art director raised, and no ticket holds it:
 
 - The `front` witness disagrees with the volume (IoU 0.918 on the traced contour, 0.796 on a reduced
   one). The model sits outside the reference along both shoulders.
-- The knot editor is hard to use: one view at a time, 9 px handles with no hover, no live count, and
-  no undo.
+- The knot editor is hard to use, beyond the missing zoom that T0003 adds: one view at a time, 9 px
+  handles with no hover, no live count while dragging, and no undo.
 
 ## Ticket template
 

@@ -6,12 +6,12 @@ project does.
 
 ## The board
 
-| Folder | Meaning |
-| :--- | :--- |
-| `planned/` | specified, and ready to pick up |
-| `in_progress/` | being implemented. One owner per ticket |
-| `review/` | implemented, reviewed, and every gate green. Waits for the art director |
-| `done/` | accepted, committed, and closed. The evidence stays beside the ticket |
+| Folder         | Meaning                                                                 |
+| :------------- | :---------------------------------------------------------------------- |
+| `planned/`     | specified, and ready to pick up                                         |
+| `in_progress/` | being implemented. One owner per ticket                                 |
+| `review/`      | implemented, reviewed, and every gate green. Waits for the art director |
+| `done/`        | accepted, committed, and closed. The evidence stays beside the ticket   |
 
 A ticket moves forward one folder at a time. It moves back to `in_progress/` when a gate fails, or
 when the art director asks for a change.
@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0010`.**
+- **The next free ID is `T0013`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -31,9 +31,12 @@ when the art director asks for a change.
 
 ### Planned
 
-| ID | Title | Track | Depends on |
-| :--- | :--- | :--- | :--- |
-| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length | Three.js viewer (measurement) | T0004, T0005 — **draft, specification settled, awaits validation** |
+| ID                                                         | Title                                                                   | Track                                              | Depends on                                                            |
+| :--------------------------------------------------------- | :---------------------------------------------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------- |
+| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)                      | T0004, T0005 — **draft, specification settled, awaits validation**    |
+| [T0010](./planned/T0010-check-runs-on-fixtures.md)         | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                            | nothing — **draft, specification settled (D1–D5), awaits validation** |
+| [T0011](./planned/T0011-qwen3d-coder-workflow.md)          | A fourth workflow: Qwen 3D Coder, llama.cpp, and the scene drafter      | Repository layout, then the Qwen 3D Coder workflow | nothing                                                               |
+| [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation)          | T0011                                                                 |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
@@ -52,35 +55,42 @@ decisions (D1–D8) are settled with the art director and its contract is comple
 draft: it awaits validation before it leaves `planned/`. It comes after T0004 because the two share
 `picker.js` and the canvas `pointerdown`.
 
+T0011 and T0012 open a second question: what a local 4B model is worth to this repository. They add
+a **fourth workflow**, `workflows/qwen3d-coder/`, beside Three.js, Blender, and vcad. It is its own
+tool: it starts where the other modelling workflows start, on a subject with reference images, and it
+holds its own rules and its own documents. T0011 drafts a **scene** as a standalone `.html`; T0012
+drafts an **asset** and exports it to `.glb`. Both produce unmeasured, stylized candidates that the
+art director judges by eye. Both have **no fidelity gate**, and neither replaces workflow D. T0012
+comes second because it needs the registry, the client, and the server starter that T0011 builds.
+
+The inference server is not a 3D tool, so it lives at the root, in `scripts/llama-server/`: it knows
+a repository name, a quantization, a port, and a context, and it reads no scene and no asset.
+
+The machine decides the cost of both: a Ryzen 7 5800H with 30 GiB of shared memory and no discrete
+GPU decodes a 4B `Q4_K_M` model at an estimated 8 to 11 tokens per second. T0011 measures that number
+before T0012 spends an hour on one asset.
+
 ### In progress
 
 No ticket.
 
 ### Review
 
-| ID | Title | Track | Note |
-| :--- | :--- | :--- | :--- |
+| ID                                                | Title                                                   | Track           | Note                                                                                           |
+| :------------------------------------------------ | :------------------------------------------------------ | :-------------- | :--------------------------------------------------------------------------------------------- |
 | [T0004](./review/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in |
-
-### Review
-
-No ticket.
-
-### Review
-
-No ticket.
 
 ### Done
 
-| ID | Title | Track | Closed |
-| :--- | :--- | :--- | :--- |
-| [T0001](./done/T0001-workflow-reorganisation.md) | Workflow reorganisation: one folder per workflow | repository layout, all workflows | 2026-11-09 |
-| [T0002](./done/T0002-contour-smoothing.md) | Contour smoothing: the path, the two joins, and the knot editor | Three.js contour and volume | 2026-11-09 |
-| [T0003](./done/T0003-orthogonal-view-zoom.md) | Zoom on the orthogonal views, 100 % to 400 % | Three.js viewer | 2026-11-09 |
-| [T0007](./done/T0007-viewer-idles-at-zero.md) | The viewer idles at zero: draw on demand, not every frame | Three.js viewer | 2026-11-09 |
-| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools) | 2026-11-09 |
-| [T0008](./done/T0008-silhouette-report-presentation.md) | The silhouette report says what it means | Three.js viewer (tools) | 2026-11-09 |
-| [T0005](./done/T0005-measurement-pick-invocation.md) | How a measurement point is invoked: Ctrl + left click, on release | Three.js viewer | 2026-11-09 |
+| ID                                                            | Title                                                                     | Track                            | Closed     |
+| :------------------------------------------------------------ | :------------------------------------------------------------------------ | :------------------------------- | :--------- |
+| [T0001](./done/T0001-workflow-reorganisation.md)              | Workflow reorganisation: one folder per workflow                          | repository layout, all workflows | 2026-11-09 |
+| [T0002](./done/T0002-contour-smoothing.md)                    | Contour smoothing: the path, the two joins, and the knot editor           | Three.js contour and volume      | 2026-11-09 |
+| [T0003](./done/T0003-orthogonal-view-zoom.md)                 | Zoom on the orthogonal views, 100 % to 400 %                              | Three.js viewer                  | 2026-11-09 |
+| [T0007](./done/T0007-viewer-idles-at-zero.md)                 | The viewer idles at zero: draw on demand, not every frame                 | Three.js viewer                  | 2026-11-09 |
+| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools)          | 2026-11-09 |
+| [T0008](./done/T0008-silhouette-report-presentation.md)       | The silhouette report says what it means                                  | Three.js viewer (tools)          | 2026-11-09 |
+| [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                  | 2026-11-09 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 
@@ -111,23 +121,28 @@ A subject the art director raised, and no ticket holds it:
   documentation URL of every third-party API the ticket calls
 
 ## Context & Goal
+
 Why this change is needed, and what "done" means for the product.
 
 ## Scope Boundary
+
 The exact files and directories the ticket may create or modify. What is out of scope. Which shared
 files are append-only.
 
 ## Contract
+
 The types, the interfaces, the payloads, the state transitions, and the invariants. Tests are written
 against this section. A third-party call quotes its documented signature and the URL it came from.
 
 ## TDD Tasks
+
 - [ ] **Tn.1 — <spec group>**: the failing tests first ...
 - [ ] **Tn.2 — <edge cases>**: the failing contract tests ...
 - [ ] **Tn.3 — Implementation**: the modules and the wiring ...
 - [ ] **Tn.4 — Gates**: the format, lint, typecheck, and test commands of `AGENTS.md` ...
 
 ## Acceptance Criteria
+
 Observable, testable outcomes. Never internal implementation detail.
 ```
 

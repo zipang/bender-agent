@@ -1,13 +1,14 @@
-// T1.9 — the entry point and its wiring.
+// T1.9 and T1.15 — the entry point and its wiring.
 //
-// The CLI is tested with an injected server starter and an injected request, so no server runs and
-// no model loads. The free `--ask` check sends nothing at all.
+// The CLI is tested with an injected preflight and an injected request, so no service runs and no
+// model loads. The free `--ask` check runs the preflight and sends no completion.
 
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runCli, type SceneDraftDeps } from "./scene-draft";
+import { DEFAULT_BASE_URL, DEFAULT_MODEL, runCli, type SceneDraftDeps } from "./scene-draft";
+import type { PreflightOptions, PreflightResult } from "./lib/endpoint";
 
 const roots: string[] = [];
 
@@ -45,21 +46,18 @@ function candidates(generatedDir: string): string[] {
 function deps(streamResults: Array<{ content: string } | Error> = [{ content: DOCUMENT }]) {
 	const lines: string[] = [];
 	const errors: string[] = [];
-	const calls = { ensure: 0, stop: 0, stream: [] as Array<Record<string, unknown>> };
+	const calls = {
+		preflight: [] as PreflightOptions[],
+		stream: [] as Array<Record<string, unknown>>,
+	};
 	let index = 0;
 	const d: SceneDraftDeps = {
 		out: (line) => lines.push(line),
 		err: (line) => errors.push(line),
 		systemPrompt: "the system prompt",
-		ensure: async () => {
-			calls.ensure += 1;
-			return {
-				reused: false,
-				port: 9931,
-				stop: async () => {
-					calls.stop += 1;
-				},
-			};
+		preflight: async (options): Promise<PreflightResult> => {
+			calls.preflight.push(options);
+			return { ok: true, id: options.model };
 		},
 		stream: async (options) => {
 			calls.stream.push(options as unknown as Record<string, unknown>);
@@ -77,7 +75,7 @@ afterEach(() => {
 });
 
 describe("--ask", () => {
-	test("lists every missing gap and sends nothing", async () => {
+	test("lists every missing gap, checks the endpoint, and sends nothing", async () => {
 		const dir = subjectDir({ reference: false, notes: null });
 		const { d, lines, calls } = deps();
 		const code = await runCli(["--subject", dir, "--ask"], d);
@@ -86,7 +84,7 @@ describe("--ask", () => {
 		expect(output).toContain("reference");
 		expect(output).toContain("subject note");
 		expect(output).toContain("style");
-		expect(calls.ensure).toBe(0);
+		expect(calls.preflight).toHaveLength(1);
 		expect(calls.stream).toHaveLength(0);
 	});
 
@@ -96,7 +94,115 @@ describe("--ask", () => {
 		const code = await runCli(["--subject", dir, "--style", "clay render", "--ask"], d);
 		expect(code).toBe(0);
 		expect(lines.join("\n")).toContain("No gap");
-		expect(calls.ensure).toBe(0);
+		expect(calls.preflight).toHaveLength(1);
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("an unreachable endpoint exits 2 before it lists a gap", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors } = deps();
+		d.preflight = async () => ({
+			ok: false,
+			exitCode: 2,
+			message: `The endpoint at ${DEFAULT_BASE_URL}/models is unreachable.`,
+		});
+		const code = await runCli(["--subject", dir, "--style", "clay render", "--ask"], d);
+		expect(code).toBe(2);
+		expect(errors.join("\n")).toContain(DEFAULT_BASE_URL);
+	});
+});
+
+describe("the endpoint flags", () => {
+	test("the defaults are the documented base URL and model", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, calls } = deps();
+		await runCli(["--subject", dir, "--style", "clay render"], d);
+		expect(calls.preflight[0]!.baseUrl).toBe(DEFAULT_BASE_URL);
+		expect(calls.preflight[0]!.model).toBe(DEFAULT_MODEL);
+	});
+
+	test("--base-url and --model reach the preflight and the request", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, calls } = deps();
+		await runCli(
+			[
+				"--subject",
+				dir,
+				"--style",
+				"clay render",
+				"--base-url",
+				"https://gateway.example/api/v1",
+				"--model",
+				"another-3d-model",
+			],
+			d,
+		);
+		expect(calls.preflight[0]!.baseUrl).toBe("https://gateway.example/api/v1");
+		expect(calls.preflight[0]!.model).toBe("another-3d-model");
+		expect(calls.stream[0]!.model).toBe("another-3d-model");
+		expect(calls.stream[0]!.baseUrl).toBe("https://gateway.example/api/v1");
+	});
+
+	test("the first line names the endpoint and the resolved model", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, lines } = deps();
+		await runCli(["--subject", dir, "--style", "clay render"], d);
+		expect(lines[0]).toBe(`endpoint: ${DEFAULT_BASE_URL}  model: ${DEFAULT_MODEL}`);
+	});
+
+	test("a base URL with a trailing slash returns 1 before any check", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--base-url", `${DEFAULT_BASE_URL}/`],
+			d,
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("--base-url");
+		expect(calls.preflight).toHaveLength(0);
+	});
+
+	test("a base URL that does not parse returns 1", async () => {
+		const { d, errors, calls } = deps();
+		const code = await runCli(["--subject", "x", "--base-url", "not a url"], d);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("--base-url");
+		expect(calls.preflight).toHaveLength(0);
+	});
+
+	test("a non-http base URL returns 1", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--base-url", "ftp://example.test/v1"],
+			d,
+		);
+		expect(code).toBe(1);
+	});
+
+	test("an endpoint that does not publish the model exits 2 and sends no completion", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		d.preflight = async () => ({
+			ok: false,
+			exitCode: 2,
+			message: 'does not publish the requested model "gone". Available ids: other.',
+		});
+		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		expect(code).toBe(2);
+		expect(errors.join("\n")).toContain("does not publish");
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a thrown preflight is a failure with exit code 2", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		d.preflight = async () => {
+			throw new Error("socket closed");
+		};
+		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		expect(code).toBe(2);
+		expect(errors.join("\n")).toContain("socket closed");
 		expect(calls.stream).toHaveLength(0);
 	});
 });
@@ -117,12 +223,19 @@ describe("invalid input", () => {
 		expect(errors.join("\n")).toContain("--nope");
 	});
 
+	test("--port and --profile are gone", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d } = deps();
+		expect(await runCli(["--subject", dir, "--port", "9931"], d)).toBe(1);
+		expect(await runCli(["--subject", dir, "--profile", "3d-coder"], d)).toBe(1);
+	});
+
 	test("a missing style returns 1 before any request", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, calls } = deps();
 		const code = await runCli(["--subject", dir], d);
 		expect(code).toBe(1);
-		expect(calls.ensure).toBe(0);
+		expect(calls.preflight).toHaveLength(0);
 	});
 
 	test("a missing reference returns 1 before any request", async () => {
@@ -130,12 +243,12 @@ describe("invalid input", () => {
 		const { d, calls } = deps();
 		const code = await runCli(["--subject", dir, "--style", "clay"], d);
 		expect(code).toBe(1);
-		expect(calls.ensure).toBe(0);
+		expect(calls.preflight).toHaveLength(0);
 	});
 });
 
 describe("a run", () => {
-	test("writes one candidate per variant, reports each one, and stops the server", async () => {
+	test("checks the endpoint once, writes one candidate per variant, and reports each one", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, lines, calls } = deps([{ content: DOCUMENT }]);
 		const code = await runCli(
@@ -146,8 +259,8 @@ describe("a run", () => {
 		const files = candidates(join(dir, "generated"));
 		expect(files).toEqual(["qwen3d-coder-scene--01.html", "qwen3d-coder-scene--02.html"]);
 		expect(readFileSync(join(dir, "generated", files[0]!), "utf8")).toBe(DOCUMENT);
+		expect(calls.preflight).toHaveLength(1);
 		expect(calls.stream).toHaveLength(2);
-		expect(calls.stop).toBe(1);
 		const output = lines.join("\n");
 		expect(output).toContain("qwen3d-coder-scene--01.html");
 		expect(output).toContain("qwen3d-coder-scene--02.html");
@@ -155,7 +268,7 @@ describe("a run", () => {
 		expect(output).toContain("tok/s");
 	});
 
-	test("the request carries the alias, the system prompt, the user prompt, and the guard", async () => {
+	test("the request carries the model, the system prompt, the user prompt, and the guard", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, calls } = deps();
 		await runCli(
@@ -174,7 +287,7 @@ describe("a run", () => {
 			d,
 		);
 		const sent = calls.stream[0]!;
-		expect(sent.alias).toBe("local/3d-coder");
+		expect(sent.model).toBe(DEFAULT_MODEL);
 		expect(sent.system).toBe("the system prompt");
 		expect(String(sent.user)).toContain("Subject: a 1972 Renault 5 TL, orange, three doors");
 		expect(String(sent.user)).toContain("shows the car on a turntable.");
@@ -206,17 +319,6 @@ describe("a run", () => {
 		expect(calls.stream).toHaveLength(2);
 		expect(candidates(join(dir, "generated"))).toEqual(["qwen3d-coder-scene--01.html"]);
 		expect(lines.join("\n")).toContain("failed");
-	});
-
-	test("a server that never becomes ready returns 2", async () => {
-		const dir = subjectDir({ notes: NOTES });
-		const { d, errors } = deps();
-		d.ensure = async () => {
-			throw new Error("Server did not become ready");
-		};
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
-		expect(code).toBe(2);
-		expect(errors.join("\n")).toContain("not become ready");
 	});
 
 	test("a request failure returns 3 when no variant is written", async () => {

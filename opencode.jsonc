@@ -3,14 +3,14 @@
 	// OpenCode project configuration for 3D-models (V2).
 	// The "bender" agent is the default agent for this project.
 	"default_agent": "bender",
-	// The local llama.cpp server, for a manual chat in /models. Bender calls the scene drafter
-	// script and never this provider. Start the server with scripts/llama-server/serve.ts.
+	// The OpenAI-compatible endpoint, for a manual chat in /models. The endpoint is external: this
+	// repository starts no server. Bender calls the scene drafter script and never this provider.
 	"providers": {
 		"local": {
-			"name": "llama.cpp (local)",
+			"name": "Local OpenAI-compatible endpoint",
 			"package": "@opencode/ai/providers/openai-compatible",
 			"settings": { "baseURL": "http://127.0.0.1:9931/v1" },
-			"models": { "3d-coder": { "name": "Qwen 3.5 4B 3D Coder" } },
+			"models": { "qwen3.5-4b-3d-coder": { "name": "Qwen 3.5 4B 3D Coder" } },
 		},
 	},
 	"mcp": {

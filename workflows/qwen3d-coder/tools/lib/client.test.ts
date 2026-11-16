@@ -31,9 +31,9 @@ const SSE_OK = [
 
 describe("buildRequestBody", () => {
 	test("holds every documented field and no absent key", () => {
-		const body = buildRequestBody({ alias: "local/3d-coder", system: SYSTEM, user: USER });
+		const body = buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER });
 		expect(body).toEqual({
-			model: "local/3d-coder",
+			model: "qwen3.5-4b-3d-coder",
 			messages: [
 				{ role: "system", content: SYSTEM },
 				{ role: "user", content: USER },
@@ -44,6 +44,7 @@ describe("buildRequestBody", () => {
 			repeat_penalty: 1.0,
 			max_tokens: DEFAULT_MAX_TOKENS,
 			stream: true,
+			chat_template_kwargs: { enable_thinking: false },
 		});
 		expect(DEFAULT_MAX_TOKENS).toBe(16384);
 		for (const key of [
@@ -61,9 +62,9 @@ describe("buildRequestBody", () => {
 	});
 
 	test("max_tokens changes alone", () => {
-		const base = buildRequestBody({ alias: "local/3d-coder", system: SYSTEM, user: USER });
+		const base = buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER });
 		const capped = buildRequestBody({
-			alias: "local/3d-coder",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			maxTokens: 512,
@@ -72,9 +73,9 @@ describe("buildRequestBody", () => {
 	});
 
 	test("--seed 42 adds seed and changes nothing else", () => {
-		const base = buildRequestBody({ alias: "local/3d-coder", system: SYSTEM, user: USER });
+		const base = buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER });
 		const seeded = buildRequestBody({
-			alias: "local/3d-coder",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			seed: 42,
@@ -85,7 +86,7 @@ describe("buildRequestBody", () => {
 
 	test("an image is an image_url content part with a data URL", () => {
 		const body = buildRequestBody({
-			alias: "local/3d-coder",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			image: { mime: "image/png", data: "QUJD" },
@@ -97,8 +98,13 @@ describe("buildRequestBody", () => {
 		]);
 	});
 
-	test("the endpoint is the loopback OpenAI-compatible path", () => {
-		expect(endpoint(9931)).toBe("http://127.0.0.1:9931/v1/chat/completions");
+	test("the endpoint is the chat route of the given base URL", () => {
+		expect(endpoint("http://127.0.0.1:9931/v1")).toBe(
+			"http://127.0.0.1:9931/v1/chat/completions",
+		);
+		expect(endpoint("https://gateway.example/api/v1")).toBe(
+			"https://gateway.example/api/v1/chat/completions",
+		);
 	});
 });
 
@@ -115,8 +121,8 @@ describe("the body on the wire", () => {
 		});
 		try {
 			const result = await streamChat({
-				port: server.port!,
-				alias: "local/3d-coder",
+				baseUrl: `http://127.0.0.1:${server.port}/v1`,
+				model: "qwen3.5-4b-3d-coder",
 				system: SYSTEM,
 				user: USER,
 				timeoutMs: 5000,
@@ -124,7 +130,7 @@ describe("the body on the wire", () => {
 			expect(result.content).toBe("<!DOCTYPE html><html></html>");
 			expect(captured).not.toBeNull();
 			expect(captured).toEqual(
-				buildRequestBody({ alias: "local/3d-coder", system: SYSTEM, user: USER }),
+				buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER }),
 			);
 		} finally {
 			server.stop(true);
@@ -135,8 +141,8 @@ describe("the body on the wire", () => {
 describe("streamChat", () => {
 	test("the deltas concatenate in order", async () => {
 		const result = await streamChat({
-			port: 9931,
-			alias: "local/3d-coder",
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
@@ -148,8 +154,8 @@ describe("streamChat", () => {
 
 	test("data: [DONE] ends the read", async () => {
 		const result = await streamChat({
-			port: 9931,
-			alias: "local/3d-coder",
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
@@ -171,8 +177,8 @@ describe("streamChat", () => {
 			"",
 		].join("\n");
 		const result = await streamChat({
-			port: 9931,
-			alias: "local/3d-coder",
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
@@ -191,14 +197,27 @@ describe("streamChat", () => {
 			},
 		});
 		const result = await streamChat({
-			port: 9931,
-			alias: "local/3d-coder",
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
 			fetchImpl: async () => new Response(stream),
 		});
 		expect(result.content).toBe("ab");
+	});
+
+	test("a last frame with no trailing blank line is still read", async () => {
+		const result = await streamChat({
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER,
+			timeoutMs: 1000,
+			fetchImpl: async () =>
+				new Response('data: {"choices":[{"delta":{"content":"<html></html>"}}]}'),
+		});
+		expect(result.content).toBe("<html></html>");
 	});
 
 	test("the server timings give the token count and the rate", async () => {
@@ -212,8 +231,8 @@ describe("streamChat", () => {
 			"",
 		].join("\n");
 		const result = await streamChat({
-			port: 9931,
-			alias: "local/3d-coder",
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
@@ -225,8 +244,8 @@ describe("streamChat", () => {
 
 	test("without server timings the content frames are counted", async () => {
 		const result = await streamChat({
-			port: 9931,
-			alias: "local/3d-coder",
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
@@ -250,8 +269,8 @@ describe("streamChat", () => {
 		let error: unknown;
 		try {
 			await streamChat({
-				port: 9931,
-				alias: "local/3d-coder",
+				baseUrl: "http://127.0.0.1:9931/v1",
+				model: "qwen3.5-4b-3d-coder",
 				system: SYSTEM,
 				user: USER,
 				timeoutMs: 25,
@@ -269,8 +288,8 @@ describe("streamChat", () => {
 		let error: unknown;
 		try {
 			await streamChat({
-				port: 9931,
-				alias: "local/3d-coder",
+				baseUrl: "http://127.0.0.1:9931/v1",
+				model: "qwen3.5-4b-3d-coder",
 				system: SYSTEM,
 				user: USER,
 				timeoutMs: 1000,
@@ -288,8 +307,8 @@ describe("streamChat", () => {
 		let error: unknown;
 		try {
 			await streamChat({
-				port: 9931,
-				alias: "local/3d-coder",
+				baseUrl: "http://127.0.0.1:9931/v1",
+				model: "qwen3.5-4b-3d-coder",
 				system: SYSTEM,
 				user: USER,
 				timeoutMs: 1000,

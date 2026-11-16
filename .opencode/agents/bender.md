@@ -546,14 +546,14 @@ the previous evidence.
 
 ## Workflow E: draft a scene with the Qwen 3D Coder
 
-Use this workflow when the art director wants a first look at a scene, not a measured asset. A local
-4B model drafts one standalone HTML file per variant. This workflow has **no gate**, it does not run
-G1, G2, or G3, and it does not replace workflow D.
+Use this workflow when the art director wants a first look at a scene, not a measured asset. A 4B
+model served by an OpenAI-compatible endpoint drafts one standalone HTML file per variant. This
+workflow has **no gate**, it does not run G1, G2, or G3, and it does not replace workflow D.
 
 ### E1. Read the material, then ask in one pass
 
 1. Read the subject's `reference.<ext>` with `read`, and read `notes.md`.
-2. Run the free check. It sends no request:
+2. Run the free check. It sends no completion and checks the endpoint:
 
 ```bash
 bun run workflows/qwen3d-coder/tools/scene-draft.ts \
@@ -575,7 +575,9 @@ bun run workflows/qwen3d-coder/tools/scene-draft.ts \
   --style "<style>" --variants <n> [--image] [--prompt "<request>"]
 ```
 
-The script starts the server through `scripts/llama-server/serve.ts`. Do not start a server yourself.
+The script checks the endpoint named by `--base-url` and `--model`, then sends the completion. This
+workflow starts no server: if the endpoint is down, the run exits `2` and the fix belongs to the
+endpoint's operator.
 
 ### E3. Hand the review back
 

@@ -6,11 +6,11 @@ images, and it keeps the evidence: the views, the numbers, and the renders.
 The project holds **four modelling workflows**, and one of them is active. A reader works in one, so
 each has its own folder, its own documents, and its own tools.
 
-| Workflow | Folder | State | Used for |
-| :--- | :--- | :--- | :--- |
-| **Three.js** | [`workflows/threejs/`](./workflows/threejs/README.md) | **active** | A stylized asset with a locked blueprint, judged by its silhouette |
-| **Blender** | [`workflows/blender/`](./workflows/blender/README.md) | inactive | Organic forms, a finished look, rigging, asset libraries |
-| **vcad** | [`workflows/vcad/`](./workflows/vcad/README.md) | archived | A part that must fit, a mechanical assembly, a fabrication export |
+| Workflow          | Folder                                                          | State        | Used for                                                                       |
+| :---------------- | :-------------------------------------------------------------- | :----------- | :----------------------------------------------------------------------------- |
+| **Three.js**      | [`workflows/threejs/`](./workflows/threejs/README.md)           | **active**   | A stylized asset with a locked blueprint, judged by its silhouette             |
+| **Blender**       | [`workflows/blender/`](./workflows/blender/README.md)           | inactive     | Organic forms, a finished look, rigging, asset libraries                       |
+| **vcad**          | [`workflows/vcad/`](./workflows/vcad/README.md)                 | archived     | A part that must fit, a mechanical assembly, a fabrication export              |
 | **Qwen 3D Coder** | [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md) | experimental | A first draft of a stylized scene, from a reference image, with no measurement |
 
 Start with the active one. The other three describe the paths beside it.
@@ -32,7 +32,9 @@ blueprints/drafts/<draft>/        subject/ and style/ images
 `scripts/blueprint-generate/`, `scripts/blueprint/`, and `scripts/measure/`.
 
 The rule that decides where a file lives: **a workflow owns everything it runs, and the root owns
-everything more than one workflow reads.**
+everything more than one workflow reads.** The Qwen 3D Coder workflow reads an external
+OpenAI-compatible endpoint. This repository starts no inference server: the endpoint is an input,
+named on the command line.
 
 ## The repository
 
@@ -48,7 +50,7 @@ everything more than one workflow reads.**
 │   ├── blender/           README and AGENTS
 │   └── vcad/              README, AGENTS, and the session export tool
 ├── scripts/               tools more than one workflow reads: the generator, the blueprint tools,
-│                          the measurement, and the local llama.cpp server
+│                          and the measurement
 ├── research/              method documents, and what each experiment taught
 ├── tickets/               the Kanban board: planned, in_progress, review, done
 ├── test-reports/          what a check writes for a human: overlays and scratches. Git-ignored
@@ -94,17 +96,17 @@ folder: there is no archive, because a rejected file is evidence about what the 
 
 ## Subjects
 
-| Subject | State |
-| :--- | :--- |
-| [`blueprints/vehicules/r5-tl-1972/`](./blueprints/vehicules/r5-tl-1972/) | Renault 5 TL 1972. Six views locked, dimensions from the manufacturer, body built in stage 2 |
+| Subject                                                                                                | State                                                                                        |
+| :----------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| [`blueprints/vehicules/r5-tl-1972/`](./blueprints/vehicules/r5-tl-1972/)                               | Renault 5 TL 1972. Six views locked, dimensions from the manufacturer, body built in stage 2 |
 | [`blueprints/vehicules/blue-and-white-minivan-01/`](./blueprints/vehicules/blue-and-white-minivan-01/) | Blue and white minivan with a roof surfboard. Reference and views generated, stage 1 not run |
 
 ## The Bender agent
 
-> *"Bite my shiny metal `.glb`!"*
+> _"Bite my shiny metal `.glb`!"_
 
 **Bender** is a double reference. It points to **Blender** and to **Bender Bending Rodríguez**, the
-robot in *Futurama*. It is the agent of this project, and the conversational entry point for the
+robot in _Futurama_. It is the agent of this project, and the conversational entry point for the
 blueprint and modelling workflows.
 
 - The definition: [`.opencode/agents/bender.md`](./.opencode/agents/bender.md).
@@ -113,14 +115,14 @@ blueprint and modelling workflows.
 
 The skills it loads are in [`.agents/skills/`](./.agents/skills):
 
-| Skill | Role |
-| :--- | :--- |
-| `volume-modelling` | The method: three gated stages, from the real dimensions to the accessories |
-| `blueprint-preparation` | The reference workflow: one draft image, then six orthographic views |
-| `threejs-web`, `threejs-*` | The Three.js API, and the glTF optimization rules |
-| `agent-browser` | The capture loop: one page, driven from the shell |
-| `blender-mcp`, `vcad` | The two inactive workflows |
-| `technical-writing` | Simplified Technical English |
+| Skill                      | Role                                                                        |
+| :------------------------- | :-------------------------------------------------------------------------- |
+| `volume-modelling`         | The method: three gated stages, from the real dimensions to the accessories |
+| `blueprint-preparation`    | The reference workflow: one draft image, then six orthographic views        |
+| `threejs-web`, `threejs-*` | The Three.js API, and the glTF optimization rules                           |
+| `agent-browser`            | The capture loop: one page, driven from the shell                           |
+| `blender-mcp`, `vcad`      | The two inactive workflows                                                  |
+| `technical-writing`        | Simplified Technical English                                                |
 
 ## MCP servers
 
@@ -131,9 +133,9 @@ paths, because the OpenCode service does not always inherit the shell `PATH`.
 opencode mcp list
 ```
 
-| Server | Command | Needs |
-| :--- | :--- | :--- |
-| `vcad` | `{env:HOME}/.bun/bin/bunx @vcad/mcp` | nothing else. The kernel is WASM |
+| Server    | Command                                     | Needs                                             |
+| :-------- | :------------------------------------------ | :------------------------------------------------ |
+| `vcad`    | `{env:HOME}/.bun/bin/bunx @vcad/mcp`        | nothing else. The kernel is WASM                  |
 | `blender` | `{env:HOME}/.local/bin/uvx mcp-for-blender` | a running Blender, with the add-on server started |
 
 The Blender server reports `connected` even when Blender is closed. The tool call is the first thing
@@ -144,30 +146,30 @@ that says otherwise. Setup: [`workflows/blender/README.md`](./workflows/blender/
 Work is a Kanban board, in `tickets/`. The board is [`tickets/README.md`](./tickets/README.md): the
 folders, the ID rules, the ticket template, and the status of every ticket.
 
-| Folder | Meaning |
-| :--- | :--- |
-| `tickets/planned/` | specified, and ready to pick up |
-| `tickets/in_progress/` | being implemented |
-| `tickets/review/` | implemented, and every gate green. Waits for the art director |
-| `tickets/done/` | accepted and closed. The evidence stays beside the ticket |
+| Folder                 | Meaning                                                       |
+| :--------------------- | :------------------------------------------------------------ |
+| `tickets/planned/`     | specified, and ready to pick up                               |
+| `tickets/in_progress/` | being implemented                                             |
+| `tickets/review/`      | implemented, and every gate green. Waits for the art director |
+| `tickets/done/`        | accepted and closed. The evidence stays beside the ticket     |
 
-| Ticket | Content |
-| :--- | :--- |
-| [`T0001`](./tickets/done/T0001-workflow-reorganisation.md) | One folder per workflow, each with its documents and tools. What was coupled, what moved, and the gates |
-| [`T0002`](./tickets/done/T0002-contour-smoothing.md) | The contour staircase: the subpixel edge, the float opening, two emit modes, the contact sheet, and the knot editor |
+| Ticket                                                     | Content                                                                                                             |
+| :--------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| [`T0001`](./tickets/done/T0001-workflow-reorganisation.md) | One folder per workflow, each with its documents and tools. What was coupled, what moved, and the gates             |
+| [`T0002`](./tickets/done/T0002-contour-smoothing.md)       | The contour staircase: the subpixel edge, the float opening, two emit modes, the contact sheet, and the knot editor |
 
 ## Research
 
 What an experiment taught, in `research/`. A research document records a measurement and the rule it
 produced, even when the method it describes has since been replaced.
 
-| Document | Content |
-| :--- | :--- |
-| [`research/progressive-volume-modeling.md`](./research/progressive-volume-modeling.md) | The fidelity ladder from a bounding envelope to a finished asset, and the gates between the stages |
-| [`research/threejs-modelling-loop.md`](./research/threejs-modelling-loop.md) | Why the CAD attempt failed, and the measured loop that replaced it |
-| [`research/viewer-refactor-plan.md`](./research/viewer-refactor-plan.md) | One reusable page driven by `?scene=`, with one shared view table |
-| [`research/blueprint-preparation-investigation.md`](./research/blueprint-preparation-investigation.md) | How an image model produces six consistent views from one reference |
-| [`scripts/blueprint-generate/README.md`](./scripts/blueprint-generate/README.md) | The generator: draft, clean, and views. Options, folder contract, prompt templates, and the model filter |
+| Document                                                                                               | Content                                                                                                  |
+| :----------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| [`research/progressive-volume-modeling.md`](./research/progressive-volume-modeling.md)                 | The fidelity ladder from a bounding envelope to a finished asset, and the gates between the stages       |
+| [`research/threejs-modelling-loop.md`](./research/threejs-modelling-loop.md)                           | Why the CAD attempt failed, and the measured loop that replaced it                                       |
+| [`research/viewer-refactor-plan.md`](./research/viewer-refactor-plan.md)                               | One reusable page driven by `?scene=`, with one shared view table                                        |
+| [`research/blueprint-preparation-investigation.md`](./research/blueprint-preparation-investigation.md) | How an image model produces six consistent views from one reference                                      |
+| [`scripts/blueprint-generate/README.md`](./scripts/blueprint-generate/README.md)                       | The generator: draft, clean, and views. Options, folder contract, prompt templates, and the model filter |
 
 ## Glossary
 
@@ -193,7 +195,7 @@ produced, even when the method it describes has since been replaced.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
 - **Pivot**: The origin of a node. It is the centre of rotation for animation.
-- **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A local 4B model drafts one stylized scene as a standalone HTML file from a reference image. It has no gate, and the art director judges every candidate by eye.
+- **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A 4B model served by an external OpenAI-compatible endpoint drafts one stylized scene as a standalone HTML file from a reference image. It has no gate, and the art director judges every candidate by eye.
 - **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.
 - **Section**: The set of vertical columns of the body at one station along its length. It is the three-way intersection of one interval from each view.

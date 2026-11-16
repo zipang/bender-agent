@@ -1,7 +1,8 @@
-// The `/v1/chat/completions` call of the local llama.cpp server, streamed.
+// The `/chat/completions` call of the OpenAI-compatible endpoint, streamed.
 //
 // The model is not an agent. This module sends one request and reads one SSE stream. Every sampling
-// value comes from the model card, and the fields that are absent stay absent.
+// value comes from the model card, the fields that are absent stay absent, and the thinking toggle is
+// always sent because the extractor reads `content`.
 
 /** The output guard of decision D5. `--max-tokens -1` removes the cap. */
 export const DEFAULT_MAX_TOKENS = 16384;
@@ -22,7 +23,8 @@ export type ChatImage = {
 };
 
 export type BuildRequestOptions = {
-	alias: string;
+	/** The exact `id` that `GET <base-url>/models` published. */
+	model: string;
 	system: string;
 	user: string;
 	maxTokens?: number;
@@ -31,7 +33,8 @@ export type BuildRequestOptions = {
 };
 
 export type StreamChatOptions = BuildRequestOptions & {
-	port: number;
+	/** The root of the OpenAI-compatible API, without a trailing slash. */
+	baseUrl: string;
 	/** The wall-clock budget of the whole call, in milliseconds. */
 	timeoutMs: number;
 	fetchImpl?: typeof fetch;
@@ -67,9 +70,9 @@ export class TimeoutError extends RequestError {
 
 class DeadlineReached extends Error {}
 
-/** The documented loopback endpoint of the OpenAI-compatible API. */
-export function endpoint(port: number, path = "/v1/chat/completions"): string {
-	return `http://127.0.0.1:${port}${path}`;
+/** The documented chat route of the OpenAI-compatible API. */
+export function endpoint(baseUrl: string, path = "/chat/completions"): string {
+	return `${baseUrl}${path}`;
 }
 
 /**
@@ -78,6 +81,9 @@ export function endpoint(port: number, path = "/v1/chat/completions"): string {
  * `min_p`, `typical_p`, the XTC pair, `dynatemp_range`, the two OpenAI penalties, and `seed` are
  * absent on purpose. The server default applies to each one, and the effective values are recorded
  * in the workflow `README.md`.
+ *
+ * `chat_template_kwargs.enable_thinking` is `false` and is mandatory: without it the model answers in
+ * `reasoning_content`, `content` can stay empty, and the extractor exits 4.
  */
 export function buildRequestBody(options: BuildRequestOptions): Record<string, unknown> {
 	const content = options.image
@@ -91,7 +97,7 @@ export function buildRequestBody(options: BuildRequestOptions): Record<string, u
 		: options.user;
 
 	const body: Record<string, unknown> = {
-		model: options.alias,
+		model: options.model,
 		messages: [
 			{ role: "system", content: options.system },
 			{ role: "user", content },
@@ -102,6 +108,7 @@ export function buildRequestBody(options: BuildRequestOptions): Record<string, u
 		repeat_penalty: SAMPLING.repeat_penalty,
 		max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
 		stream: true,
+		chat_template_kwargs: { enable_thinking: false },
 	};
 
 	if (options.seed !== undefined && options.seed !== null) body.seed = options.seed;
@@ -187,7 +194,7 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 	try {
 		let response: Response;
 		try {
-			response = await fetchImpl(endpoint(options.port), {
+			response = await fetchImpl(endpoint(options.baseUrl), {
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify(buildRequestBody(options)),
@@ -198,7 +205,7 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 				throw new TimeoutError(options.timeoutMs);
 			}
 			throw new RequestError(
-				`The request to ${endpoint(options.port)} failed: ${(error as Error).message}`,
+				`The request to ${endpoint(options.baseUrl)} failed: ${(error as Error).message}`,
 			);
 		}
 
@@ -219,6 +226,18 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 		let timings: Timings | null = null;
 		let finished = false;
 
+		/** Apply one frame. Returns true when the frame ends the stream. */
+		const consume = (frameText: string): boolean => {
+			const parsed = parseFrame(frameText);
+			if (parsed.timings) timings = parsed.timings;
+			if (parsed.delta) {
+				content += parsed.delta;
+				frames += 1;
+				options.onDelta?.(parsed.delta);
+			}
+			return parsed.done;
+		};
+
 		while (!finished) {
 			const { value, done } = await readWithin(reader, deadline);
 			if (value) buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
@@ -228,15 +247,7 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 				if (separator < 0) break;
 				const frame = buffer.slice(0, separator);
 				buffer = buffer.slice(separator + 2);
-
-				const parsed = parseFrame(frame);
-				if (parsed.timings) timings = parsed.timings;
-				if (parsed.delta) {
-					content += parsed.delta;
-					frames += 1;
-					options.onDelta?.(parsed.delta);
-				}
-				if (parsed.done) {
+				if (consume(frame)) {
 					finished = true;
 					break;
 				}
@@ -245,9 +256,12 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 			if (done) break;
 		}
 
+		// A last frame that the stream closes without a trailing blank line must not be lost.
+		if (!finished && buffer.trim()) consume(buffer);
+
 		const seconds = Math.max((performance.now() - started) / 1000, 0);
-		// Without `timings`, the count is the non-empty delta frames, not tokens. The documented
-		// request asks for `timings`; only a server that omits it falls back to the frame count.
+		// The body never asks for `timings`. llama.cpp appends it to the last chunk; a plain
+		// OpenAI-compatible gateway does not, so the fallback is the non-empty delta frame count.
 		const count = timings?.predicted_n ?? frames;
 		const rate = timings?.predicted_per_second ?? (seconds > 0 ? count / seconds : 0);
 		return { content, tokens: count, tokensPerSecond: rate, seconds };

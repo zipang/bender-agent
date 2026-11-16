@@ -9,7 +9,7 @@ or G3, and it does not replace workflow D. The art director judges every candida
 ## The pass, in order
 
 1. Read the subject's `reference.<ext>` with `read`, and read `notes.md`.
-2. Run the free check, `--ask`. It sends no request and lists the gaps.
+2. Run the free check, `--ask`. It sends no completion, checks the endpoint, and lists the gaps.
 3. Ask the art director everything in one call. Never invent a choice that belongs to the art
    director: the style, the number of variants, the request.
 4. Report the answers, the command, and the cost in time. Then run it.
@@ -39,11 +39,15 @@ or G3, and it does not replace workflow D. The art director judges every candida
 
 ## Files and runtime
 
-- The drafters live in `tools/`. The server lives in `scripts/llama-server/`.
-- The runtime is loopback only. No host outside `127.0.0.1` is reached.
-- The model is not downloaded by a script. llama.cpp fetches it through `-hf`, into its own cache.
+- The drafters live in `tools/`. **This workflow starts no server and installs nothing.** The model
+  is served by an OpenAI-compatible endpoint that the operator provides, and the endpoint is named by
+  `--base-url` and `--model`.
+- The endpoint is a prerequisite, not a deliverable. A run against an unreachable endpoint fails with
+  exit code `2`; the fix is the operator's, never a script in this repository.
+- The model is not downloaded by a script, and no model path, cache directory, or process belongs to
+  this repository.
 - The cost is the machine's. The decode rate is measured, never assumed. Until ticket `T1.13`
-  measures it, the figures in `README.md` are marked as estimates.
+  measures it, `README.md` states no number.
 
 ## Document rules
 

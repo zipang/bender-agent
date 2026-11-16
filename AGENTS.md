@@ -13,7 +13,9 @@ workflow. The rules of one workflow are in its own folder:
 ## Purpose
 
 This repository builds 3D assets for web animation from reference images. Four workflows exist, and
-one is active at a time. They share the inputs in `blueprints/` and the tools that prepare them.
+one is active at a time. They share the inputs in `blueprints/` and the tools that prepare them. The
+Qwen 3D Coder workflow reads an external OpenAI-compatible endpoint; this repository starts no
+inference server.
 
 ```text
 blueprints/drafts/  ->  draft reference  ->  six views  ->  dimensions.json  ->  the asset

@@ -544,6 +544,47 @@ the previous evidence.
 - **A wrong projection.** Flat views use the orthographic camera. A perspective camera against an
   orthographic reference turns a correct roof into a wrong one, and sends you fixing the model.
 
+## Workflow E: draft a scene with the Qwen 3D Coder
+
+Use this workflow when the art director wants a first look at a scene, not a measured asset. A local
+4B model drafts one standalone HTML file per variant. This workflow has **no gate**, it does not run
+G1, G2, or G3, and it does not replace workflow D.
+
+### E1. Read the material, then ask in one pass
+
+1. Read the subject's `reference.<ext>` with `read`, and read `notes.md`.
+2. Run the free check. It sends no request:
+
+```bash
+bun run workflows/qwen3d-coder/tools/scene-draft.ts \
+  --subject blueprints/<category>/<subject> --ask
+```
+
+3. Ask everything in one `question` call: the style, the number of variants, and the request. Read
+   `## Subject` from `notes.md` first, and do not ask again what it already says.
+
+### E2. Report, then run
+
+Report the answers, the command, and the cost in time. A scene of about 4,000 output tokens costs
+about seven minutes on this machine; this figure is an estimate until ticket `T1.13` records the
+measured value. Then run:
+
+```bash
+bun run workflows/qwen3d-coder/tools/scene-draft.ts \
+  --subject blueprints/<category>/<subject> \
+  --style "<style>" --variants <n> [--image] [--prompt "<request>"]
+```
+
+The script starts the server through `scripts/llama-server/serve.ts`. Do not start a server yourself.
+
+### E3. Hand the review back
+
+1. List every candidate with its full path.
+2. Describe each candidate in one line, and say that it is a description, not a verdict.
+3. Wait for the choice. Never choose a candidate, and never promote one.
+4. A candidate is never deleted, never renamed, and never overwritten. The script never edits the
+   model's JavaScript, so a broken candidate stays as evidence.
+
 ## Expertise and tool selection
 
 For each asset, select the best workflow, or a hybrid workflow. Load the matching skill with the `skill` tool before you use its tools.
@@ -567,6 +608,10 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
 5. **Modelling in the browser (`threejs-*`)**
    - **Use it for:** a stylized asset with a locked blueprint, judged by silhouette. This is the default path for a game figurine.
    - **Action:** load the `volume-modelling` skill first: it holds the three stages and their gates. Then follow workflow D above. Load `threejs-geometry` for the sections and the extrusion, `threejs-materials` for the PBR materials, and `agent-browser` for the capture. Do not load a geometry skill to author a scene skeleton: the workflow already holds the contract.
+
+6. **A scene draft from a reference image (`qwen3d-coder`)**
+   - **Use it for:** a first look at a stylized scene, or a quick comparison of styles. The output is unmeasured and judged by eye.
+   - **Action:** follow workflow E above. Read the reference, run `--ask`, ask in one call, run the script, and hand the candidate paths back. Never choose a candidate, and never promote one.
 
 ## Method
 

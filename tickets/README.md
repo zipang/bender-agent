@@ -31,12 +31,11 @@ when the art director asks for a change.
 
 ### Planned
 
-| ID                                                         | Title                                                                   | Track                                              | Depends on                                                            |
-| :--------------------------------------------------------- | :---------------------------------------------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------- |
-| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)                      | T0004, T0005 — **draft, specification settled, awaits validation**    |
-| [T0010](./planned/T0010-check-runs-on-fixtures.md)         | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                            | nothing — **draft, specification settled (D1–D5), awaits validation** |
-| [T0011](./planned/T0011-qwen3d-coder-workflow.md)          | A fourth workflow: Qwen 3D Coder, llama.cpp, and the scene drafter      | Repository layout, then the Qwen 3D Coder workflow | nothing                                                               |
-| [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation)          | T0011                                                                 |
+| ID                                                         | Title                                                                   | Track                                     | Depends on                                                            |
+| :--------------------------------------------------------- | :---------------------------------------------------------------------- | :---------------------------------------- | :-------------------------------------------------------------------- |
+| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)             | T0004, T0005 — **draft, specification settled, awaits validation**    |
+| [T0010](./planned/T0010-check-runs-on-fixtures.md)         | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                   | nothing — **draft, specification settled (D1–D5), awaits validation** |
+| [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation) | T0011                                                                 |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
@@ -72,7 +71,9 @@ before T0012 spends an hour on one asset.
 
 ### In progress
 
-No ticket.
+| ID                                                    | Title                                                              | Track                                              | Note               |
+| :---------------------------------------------------- | :----------------------------------------------------------------- | :------------------------------------------------- | :----------------- |
+| [T0011](./in_progress/T0011-qwen3d-coder-workflow.md) | A fourth workflow: Qwen 3D Coder, llama.cpp, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | started 2026-11-16 |
 
 ### Review
 

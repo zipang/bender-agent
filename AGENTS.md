@@ -8,10 +8,11 @@ workflow. The rules of one workflow are in its own folder:
 | Three.js, active | [`workflows/threejs/AGENTS.md`](./workflows/threejs/AGENTS.md) |
 | Blender, inactive | [`workflows/blender/AGENTS.md`](./workflows/blender/AGENTS.md) |
 | vcad, archived | [`workflows/vcad/AGENTS.md`](./workflows/vcad/AGENTS.md) |
+| Qwen 3D Coder, experimental | [`workflows/qwen3d-coder/AGENTS.md`](./workflows/qwen3d-coder/AGENTS.md) |
 
 ## Purpose
 
-This repository builds 3D assets for web animation from reference images. Three workflows exist, and
+This repository builds 3D assets for web animation from reference images. Four workflows exist, and
 one is active at a time. They share the inputs in `blueprints/` and the tools that prepare them.
 
 ```text

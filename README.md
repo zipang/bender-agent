@@ -3,7 +3,7 @@
 This repository is a test lab for 3D asset workflows. It builds one asset at a time from reference
 images, and it keeps the evidence: the views, the numbers, and the renders.
 
-The project holds **three modelling workflows**, and one of them is active. A reader works in one, so
+The project holds **four modelling workflows**, and one of them is active. A reader works in one, so
 each has its own folder, its own documents, and its own tools.
 
 | Workflow | Folder | State | Used for |
@@ -11,12 +11,13 @@ each has its own folder, its own documents, and its own tools.
 | **Three.js** | [`workflows/threejs/`](./workflows/threejs/README.md) | **active** | A stylized asset with a locked blueprint, judged by its silhouette |
 | **Blender** | [`workflows/blender/`](./workflows/blender/README.md) | inactive | Organic forms, a finished look, rigging, asset libraries |
 | **vcad** | [`workflows/vcad/`](./workflows/vcad/README.md) | archived | A part that must fit, a mechanical assembly, a fabrication export |
+| **Qwen 3D Coder** | [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md) | experimental | A first draft of a stylized scene, from a reference image, with no measurement |
 
-Start with the active one. The other two describe what the project does not do, and why.
+Start with the active one. The other three describe the paths beside it.
 
 ## The pipeline
 
-All three workflows share the same two first stages, because all three read the same inputs.
+All four workflows share the same two first stages, because all four read the same inputs.
 
 ```text
 blueprints/drafts/<draft>/        subject/ and style/ images
@@ -43,9 +44,11 @@ everything more than one workflow reads.**
 ├── blueprints/            the subject inputs and the generated views. Shared by every workflow
 ├── workflows/
 │   ├── threejs/           the active workflow: viewer, scenes, tools, README, AGENTS
+│   ├── qwen3d-coder/      the experimental workflow: scene drafter, prompts, README, AGENTS
 │   ├── blender/           README and AGENTS
 │   └── vcad/              README, AGENTS, and the session export tool
-├── scripts/               tools more than one workflow reads, plus the generator
+├── scripts/               tools more than one workflow reads: the generator, the blueprint tools,
+│                          the measurement, and the local llama.cpp server
 ├── research/              method documents, and what each experiment taught
 ├── tickets/               the Kanban board: planned, in_progress, review, done
 ├── test-reports/          what a check writes for a human: overlays and scratches. Git-ignored
@@ -179,6 +182,7 @@ produced, even when the method it describes has since been replaced.
 - **Design unit**: The unit of the numbers of a document. Metres for a game asset, millimetres for a machined part.
 - **Draft**: Raw material in `blueprints/drafts/`. A draft is not a subject.
 - **Envelope**: The coarse box that contains the target volume at the first step of the fidelity ladder.
+- **Experimental**: The state of a workflow that runs and produces candidates, but has no fidelity gate and may be closed. Qwen 3D Coder is the only experimental workflow.
 - **Fidelity gate**: A number and a render that a stage passes before the next stage starts.
 - **Knot**: A point of a contour that the outline passes through. The knots are the source of the contour, in `scenes/<subject>/contours.js`; two join modes, `poly` and `bezier`, read the same knots. A knot is not an off-curve handle.
 - **Ladder**: The sequence of fidelity stages in [the method document](./research/progressive-volume-modeling.md).
@@ -189,6 +193,7 @@ produced, even when the method it describes has since been replaced.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
 - **Pivot**: The origin of a node. It is the centre of rotation for animation.
+- **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A local 4B model drafts one stylized scene as a standalone HTML file from a reference image. It has no gate, and the art director judges every candidate by eye.
 - **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.
 - **Section**: The set of vertical columns of the body at one station along its length. It is the three-way intersection of one interval from each view.
@@ -198,5 +203,5 @@ produced, even when the method it describes has since been replaced.
 - **Station**: One position along the length of the body, where a section is taken. The hull's lattice pitch is the distance between two stations.
 - **STE**: Simplified Technical English. It is the writing standard of every document in this repository.
 - **Ticket**: One unit of work on the Kanban board in `tickets/`. It has an ID `TNNNN`, a scope boundary, a contract, test-first tasks, and acceptance criteria. It moves through `planned/`, `in_progress/`, `review/`, and `done/`, and it never changes after it closes.
-- **Workflow**: One way to build an asset, from the shared inputs to the same deliverable. This project holds three, and one is active.
+- **Workflow**: One way to build an asset, from the shared inputs to the same deliverable. This project holds four, and one is active.
 - **Z-up / Y-up**: Blender and vcad use Z as the vertical axis. glTF and Three.js use Y.

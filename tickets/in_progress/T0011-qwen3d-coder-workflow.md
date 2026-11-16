@@ -4,6 +4,8 @@
 - **Wave**: 1 (independent)
 - **Depends on**: nothing
 - **Blocks**: T0012
+- **Owner**: coding sub-agent, supervised by CTO
+- **Started**: 2026-11-16
 - **References**:
     - Model card, `ccore/Qwen3.5-4B-3D-Coder`: https://huggingface.co/ccore/Qwen3.5-4B-3D-Coder
     - Training dataset, `ccore/ThreeJS-3D-Scenes`: https://huggingface.co/datasets/ccore/ThreeJS-3D-Scenes
@@ -148,7 +150,9 @@ exit code `1`, and the message lists the known names.
 
 `--check` is the default and sends nothing. It reports three facts:
 
-1. `llama-server` is on `PATH`, and its `--version` output.
+1. `llama` — the unified llama.cpp launcher — is on `PATH`, and `llama version` reports its build.
+   A bare legacy `llama-server` on `PATH` is accepted as a fallback, and its `--version` is reported
+   instead.
 2. The two model artifact sizes, quoted from the card: `Q4_K_M` 2.71 GB, `mmproj` 0.68 GB.
 3. The exact command to install llama.cpp when it is missing.
 
@@ -179,7 +183,16 @@ llama-server \
   --ctx-size 65536 --parallel 1
 ```
 
-The script passes these documented flags, all quoted from the server README:
+**D9 — the runtime is `llama serve`, not a separate `llama-server`.** The documented install script
+(`https://llama.app/install.sh`, consulted on 2026-11-16) installs **one** binary,
+`~/.local/bin/llama` (build 12375), and its help lists `serve  HTTP API server`. It does not install
+a `llama-server` binary. `llama serve --help` prints the same server flags, from the same
+`common params` block. Therefore `install.ts` probes `llama` first and `llama-server` second, and
+`serve.ts` spawns `llama serve`. The flag table below is unchanged, and the llama.cpp server README
+stays the authority for every flag.
+
+The script starts the server with `llama serve` and passes these documented flags, all quoted from
+the server README:
 
 | Flag                     | Documented meaning                                                                                       | Value                            |
 | :----------------------- | :------------------------------------------------------------------------------------------------------- | :------------------------------- |
@@ -349,12 +362,12 @@ bun run workflows/qwen3d-coder/tools/scene-draft.ts --subject blueprints/<catego
 - `--ask` sends nothing. It lists the gaps: a missing `reference.<ext>`, a missing subject note, a
   missing style. It is the free check, as in `scripts/blueprint-generate`.
 - Exit codes: `0` written, `1` invalid input, `2` the server did not become ready, `3` a request
-  failed, `4` the response held no complete document.
+  failed, `4` the response held no complete document, `5` the candidate could not be written.
 - The script reports, per variant: the file path, the wall-clock seconds, the output tokens, and the
   decode rate. A failed variant does not stop the next one.
 
 The script imports `scripts/llama-server/profiles.ts` and `serve.ts`. It never spawns
-`llama-server` itself.
+the server itself.
 
 ### 12. The provider entry
 
@@ -391,51 +404,53 @@ Short, like the two other workflow rule files. It must state, at least:
 
 ## TDD Tasks
 
-- [ ] **T1.1 — The registry and its reader**: failing tests for `profiles.ts`. Assert that a known
+- [x] **T1.1 — The registry and its reader**: failing tests for `profiles.ts`. Assert that a known
       name returns the six fields, that an unknown name exits `1` and lists the known names. Then write
       `scripts/llama-server/profiles.ts`.
-- [ ] **T1.2 — The install check**: failing tests with an injected `PATH` probe and an injected
-      runner. Assert that `--check` spawns nothing, that a present `llama-server` reports its version,
+- [x] **T1.2 — The install check**: failing tests with an injected `PATH` probe and an injected
+      runner. Assert that `--check` spawns nothing, that a present `llama` reports its version,
       that an absent one reports the documented install command, and that `--yes` runs it once. Then
       write `scripts/llama-server/install.ts`.
-- [ ] **T1.3 — The server lifecycle**: failing tests with an injected spawn and an injected fetch.
+- [x] **T1.3 — The server lifecycle**: failing tests with an injected spawn and an injected fetch.
       Assert that a healthy port with the same alias is reused and not spawned, that a healthy port with
       a different alias exits `2`, that an unhealthy port is spawned once, that the poll gives up at
       120 s with exit code `2`, and that the child is stopped on exit. Never start a real
-      `llama-server` in a test.
-- [ ] **T1.4 — The system prompt and the user prompt**: failing tests. Assert
+      `llama serve` in a test.
+- [x] **T1.4 — The system prompt and the user prompt**: failing tests. Assert
       `prompts/3d-coder-system.txt` byte for byte against the model card. Assert the four-block output of
       `buildUserPrompt` against a fixture, and assert that an empty input throws. Then implement
       `lib/prompt.ts`.
-- [ ] **T1.5 — The extraction**: failing tests for the five fixtures of section 10, including the
+- [x] **T1.5 — The extraction**: failing tests for the five fixtures of section 10, including the
       truncated document that must throw `NoHtmlError`. Then implement `lib/extract.ts`.
-- [ ] **T1.6 — The candidate counter**: failing tests in a temporary directory. Assert `--01`, then
+- [x] **T1.6 — The candidate counter**: failing tests in a temporary directory. Assert `--01`, then
       `--02`, then `--03`. Assert that an existing file is never overwritten. Assert that no code path
       deletes a file. Then implement `lib/candidates.ts`.
-- [ ] **T1.7 — The request body**: a failing test that captures the JSON sent to an in-process
+- [x] **T1.7 — The request body**: a failing test that captures the JSON sent to an in-process
       `Bun.serve` on port `0`, and asserts every field of section 5, including the sampling values and
       `stream: true`. The same test asserts the **absent** keys of section 6: `min_p`, `typical_p`,
       `xtc_probability`, `xtc_threshold`, `dynatemp_range`, `presence_penalty`, `frequency_penalty`, and
       `seed` must not appear. A second test asserts that `--seed 42` adds `"seed": 42` and changes
       nothing else. Then implement `lib/client.ts`.
-- [ ] **T1.8 — The stream**: failing tests that feed recorded SSE fixtures through the client. Assert
+- [x] **T1.8 — The stream**: failing tests that feed recorded SSE fixtures through the client. Assert
       that the deltas concatenate in order, that `data: [DONE]` ends the read, that a broken frame is
       skipped, and that `--timeout` aborts the read with exit code `3`.
-- [ ] **T1.9 — Implementation and wiring**: `tools/scene-draft.ts`, the flags, the exit codes, the
+- [x] **T1.9 — Implementation and wiring**: `tools/scene-draft.ts`, the flags, the exit codes, the
       per-variant report.
-- [ ] **T1.10 — The fourth workflow**: create the folder, write `AGENTS.md` with every rule of
+- [x] **T1.10 — The fourth workflow**: create the folder, write `AGENTS.md` with every rule of
       section 13, and write `README.md`: the install, the two commands, the cache, the memory, and the
       expected rate. The README states the cost of one scene, not a range of hopes.
-- [ ] **T1.11 — The documents**: the append-only hunks of section "Scope Boundary". The root
+- [x] **T1.11 — The documents**: the append-only hunks of section "Scope Boundary". The root
       `README.md` gains its row, its sentence, its tree line, and its glossary entries for **Qwen 3D
       Coder** and for **experimental**. `bender.md` gains one row in the tool-selection table and
       workflow E: read the reference, run `--ask`, ask the art director in one call, run the script, hand
       back the candidate paths with one line of description each, and wait for the choice. Never choose,
       never promote.
-- [ ] **T1.12 — Gates**: `bun test` and `bun run check`. Both are green.
+- [x] **T1.12 — Gates**: `bun test` is green across the repository. Run `bun run check` once and
+      record its result, but do not touch `workflows/threejs/`: that command needs a live browser
+      capture, and it already fails with `capture failed (1)` on this machine before this ticket.
 - [ ] **T1.13 — The measurement**: one real run on a subject with a locked `reference.<ext>`, one
       candidate. Record in `## Implementation Notes`: the token rate, the wall-clock seconds, the output
-      tokens, the resident memory of `llama-server`, and the first-shot quality as one line of
+      tokens, the resident memory of the server process, and the first-shot quality as one line of
       description.
 
 ## Acceptance Criteria
@@ -459,4 +474,205 @@ Short, like the two other workflow rule files. It must state, at least:
 
 ## Implementation Notes
 
-Filled when work starts and completes.
+Implemented by the coding sub-agent on 2026-11-16. T1.1 to T1.12 are complete. T1.13, the real
+measurement run, is left to the CTO.
+
+### Files created
+
+`scripts/llama-server/`:
+
+- `profiles.ts` — the runtime registry, the name reader, and exit code 1.
+- `install.ts` — the `--check` probe and the `--yes` install, both injected.
+- `serve.ts` — the health probe, the reuse rule, the alias conflict, the 120 s poll, and the child
+  stop.
+- `README.md` — the commands, the lifecycle, the cache, and the memory.
+- `profiles.test.ts`, `install.test.ts`, `serve.test.ts`.
+
+`workflows/qwen3d-coder/`:
+
+- `AGENTS.md` — every rule of section 13.
+- `README.md` — the install, the two commands, the flags, the exit codes, the cost, the cache, the
+  memory, and the request table with the effective values.
+- `prompts/3d-coder-system.txt` — the model card text, byte for byte, with a final newline.
+- `tools/scene-draft.ts` — the CLI, the `--ask` check, the exit codes, and the per-variant report.
+- `tools/lib/prompt.ts`, `client.ts`, `extract.ts`, `candidates.ts`.
+- `tools/lib/prompt.test.ts`, `extract.test.ts`, `candidates.test.ts`, `client.test.ts`,
+  `tools/scene-draft.test.ts`.
+
+### Modified, append only
+
+- `AGENTS.md` — one workflow-table row, and "Three" becomes "Four".
+- `README.md` — the fourth row, the pipeline sentence, the tree, and the glossary entries
+  **Experimental** and **Qwen 3D Coder**. The **Workflow** entry now holds four.
+- `.opencode/agents/bender.md` — tool-selection item 6, and "Workflow E".
+- `opencode.jsonc` — the `providers.local` entry, with no `capabilities` key (D8). The file
+  parses with `Bun.JSONC.parse`.
+- `tickets/README.md` was already changed by the CTO to move T0011 to `in_progress/`. This work
+  did not touch it.
+
+No `.gitignore` change. No model weight enters the repository.
+
+### Tests
+
+`bun test` — 136 pass, 0 fail, 305 `expect()` calls, 13 files, about 93 ms. The 83 new tests:
+
+| File                                                  | Tests |
+| :---------------------------------------------------- | ----: |
+| `scripts/llama-server/profiles.test.ts`               |     6 |
+| `scripts/llama-server/install.test.ts`                |     9 |
+| `scripts/llama-server/serve.test.ts`                  |    13 |
+| `workflows/qwen3d-coder/tools/lib/prompt.test.ts`     |     8 |
+| `workflows/qwen3d-coder/tools/lib/extract.test.ts`    |     7 |
+| `workflows/qwen3d-coder/tools/lib/candidates.test.ts` |    11 |
+| `workflows/qwen3d-coder/tools/lib/client.test.ts`     |    15 |
+| `workflows/qwen3d-coder/tools/scene-draft.test.ts`    |    14 |
+
+All tests are hermetic. The only socket is an in-process `Bun.serve` on `127.0.0.1`, port 0, for
+the body capture of T1.7. No test starts `llama serve`, downloads a model, or writes outside a
+temporary folder. The slowest file is under 200 ms.
+
+### Gate results
+
+1. `bun test`
+
+```text
+ 136 pass
+ 0 fail
+ 305 expect() calls
+Ran 136 tests across 13 files. [93.00ms]
+```
+
+2. `bun run check` — run once, unchanged:
+
+```text
+error: capture failed (1)
+  at run (.../workflows/threejs/tools/check.ts:152:17)
+error: script "check" exited with code 1
+```
+
+The cause is `agent-browser open failed (1): net::ERR_CONNECTION_REFUSED`. It is the pre-existing
+failure that needs a live browser capture. `workflows/threejs/` is untouched.
+
+3. `bun run scripts/llama-server/install.ts --check` — exit 0:
+
+```text
+runtime:    llama  (/home/zipang/.local/bin/llama)
+version:    version: 1.0.0-dev (build 12375, commit 9d25e0014)
+artifact:   Qwen3.5-4B-3D-Coder-Q4_K_M.gguf  2.71 GB
+artifact:   mmproj-Qwen3.5-4B-BF16.gguf  0.68 GB
+check only: no command was run.
+```
+
+4. `bun run workflows/qwen3d-coder/tools/scene-draft.ts --subject blueprints/vehicules/r5-tl-1972 --ask`
+   — exit 0, two gaps: the subject note and the style. It sent nothing.
+
+5. `git status --short` shows only the allowed paths: the two new folders, the four documents, and
+   the ticket.
+
+There is no separate type-check or lint command in this repository. The gates are `bun test` and
+`bun run check`.
+
+### Decisions and deviations
+
+- **D9 holds on this machine.** `llama` is build 12375 at `~/.local/bin/llama`. There is no
+  `llama-server` binary. `llama serve --help` carries `-hf`, `-c`, `-np`, `-fa`, `-ngl`,
+  `--host`, `--port`, `-a`, and `--mmproj`. `install.ts` probes `llama` first and
+  `llama-server` second, and it accepts a binary in `~/.local/bin` when `PATH` does not hold it,
+  because the OpenCode service does not always inherit the shell `PATH`. `serve.ts` spawns
+  `llama serve`.
+- **Child `PATH`.** The documented installer writes `llama` to `~/.local/bin`, and that directory is
+  not always on the service `PATH` (it is absent in this session). `systemSpawn` puts `~/.local/bin`
+  at the front of the child `PATH` when it is absent, so the command stays `llama serve` and the
+  child still finds the binary. A unit test locks the helper.
+- **Alias detection.** `GET /v1/health` returns the status only. The alias is read from
+  `GET /v1/models` (`data[].id`), which the documented `-a` flag sets. A port that answers health
+  but not `/v1/models` is reused, because the workflow cannot prove a conflict. A port that names
+  another alias exits 2 and the message names both.
+- **Output tokens and rate.** The body of section 5 is sent exactly, so `stream_options` is not
+  added. The client takes `timings.predicted_n` and `timings.predicted_per_second` from the last
+  frame that carries them. Without `timings`, it counts the non-empty `delta.content` frames and
+  divides by the wall-clock seconds. T1.13 should quote the server figure when the stream carries it.
+- **Counter.** `nextNumber` is the maximum present plus one, not the first hole, so `--04` follows
+  `--03`. The module has no delete, no rename, and no truncate path, and the test asserts it. A
+  manual deletion of the highest file would free its number again: the tool itself never creates the
+  hole.
+- **Image part.** The text part comes first, then `image_url` with the
+  `data:<mime>;base64,<bytes>` URL. The reference is read only when `--image` is passed, but it is
+  always required as the subject input.
+- **Timeout.** `--timeout` is per request, in seconds, default 1800. The read is bounded by a
+  deadline, so a stream that never closes aborts with exit code 3.
+- **Failure code of a run.** A run exits 0 when at least one candidate is written. When every variant
+  fails, it exits with the first failure: 4 for an incomplete document, 3 for a request failure.
+- **A formatter detail.** The OpenCode `bun fmt` hook reformatted tables in edited Markdown. The
+  shared documents were restored and the hunks re-applied verbatim, so the diff of the shared files
+  is append only.
+
+### Polish round
+
+The independent reviewer returned `POLISH_REQUIRED` with 13 findings. All 13 are applied inside this
+ticket's scope. No finding was rejected.
+
+1. **Runnable draft example.** The `--subject --style --variants` example in
+   `workflows/qwen3d-coder/README.md` now passes `--prompt`, and one sentence states that a subject
+   without `## Subject` in `notes.md` needs `--prompt`.
+2. **No number reuse.** `tools/lib/candidates.ts` keeps `.qwen3d-coder-scene.counter` in the candidate
+   folder. The next number is `max(counter, maximum present) + 1`, the counter is written after a
+   successful write, and an unreadable or invalid counter falls back to the folder maximum. A test
+   writes `--01`, `--02`, `--03`, deletes `--03`, and asserts that the next write is `--04`. The
+   workflow `AGENTS.md` and `README.md` name the counter file and the no-reuse rule.
+3. **Root `README.md`.** The sentence is again `The other three describe the paths beside it.`
+4. **Crash instead of hang.** `serve.ts` exposes `ServerHandle.exited` and `ServerCrashedError`.
+   `ensureServer` stops the readiness poll as soon as the child exits and throws with the exit code,
+   pid, and port. `serveMain` races the stop signal against the child exit and returns `2` with a
+   message that names the exit code. The tests inject the exit promise, so no process starts.
+5. **Accepted details headings.** `parseNotes` reads `## Specific subject details`, then
+   `## Identity features that must not change`. The workflow `README.md` lists both, `## Subject`
+   stays mandatory, and the details heading stays optional. Two tests cover the second heading and
+   the order of preference.
+6. **Exit code `5`.** A candidate that cannot be written now exits `5`, separately from a request
+   failure (`3`) and an incomplete document (`4`). The write is injected through `SceneDraftDeps`, so
+   only a write error maps to `5`. The code, this ticket's section 11, and the workflow `README.md`
+   exit-code table all carry `5`.
+7. **`--profile`.** The workflow `README.md` flag table documents it, with `3d-coder` as the default.
+   The workflow `AGENTS.md` does not list flags, so it gains no entry.
+8. **Dead code.** The empty `afterEach` is gone from `client.test.ts`, the redundant
+   `timings as Timings | null` cast is gone from `client.ts`, and `serveCommand` no longer takes the
+   unused `bin` parameter.
+9. **Honest token count.** `client.ts` documents that without server `timings` the reported count is
+   the number of non-empty delta frames, not tokens. The workflow `README.md` request section says so
+   too. The request body is unchanged.
+10. **What the script reads.** The workflow `README.md` now says that the script reads `notes.md` and
+    `reference.<ext>`, and never `source.<ext>`.
+11. **Estimates until T1.13.** The decode rate and the seven-minute cost are marked as estimates in
+    the workflow `README.md` and in `.opencode/agents/bender.md`, and both name `T1.13` as the ticket
+    that replaces them with the measured value. No number was invented.
+12. **Alias source.** `scripts/llama-server/README.md` states that `/v1/health` carries no alias, and
+    that the alias is read from `GET /v1/models` after `GET /v1/health` returns 200. The lifecycle
+    rules stay, with one new rule for a child that exits before readiness.
+13. **One cache figure.** Both READMEs use `3.4 GB (3.2 GiB)`, and one clause explains that `GB` is
+    the decimal unit and `GiB` the binary unit.
+
+`bun test` after the polish round: 147 pass, 0 fail, 330 `expect()` calls, 13 files, about 127 ms.
+The round adds 11 tests: 4 in `candidates.test.ts`, 3 in `serve.test.ts`, 2 in `prompt.test.ts`, and
+2 in `scene-draft.test.ts`. Two older candidate tests and three scene-draft tests now ignore the
+counter file when they list a folder, which the new file makes necessary.
+
+### For T1.13
+
+1. `blueprints/vehicules/r5-tl-1972/notes.md` has no `## Subject` paragraph, so pass
+   `--prompt` with the subject in the art director's words.
+2. Run:
+
+    ```bash
+    bun run workflows/qwen3d-coder/tools/scene-draft.ts \
+      --subject blueprints/vehicules/r5-tl-1972 \
+      --style "<style>" --variants 1 --prompt "<request>"
+    ```
+
+    The script starts and stops the server itself. To keep the server resident for a second run,
+    start `bun run scripts/llama-server/serve.ts --profile 3d-coder` first.
+
+3. Record in this section: the candidate path, the wall-clock seconds, the output tokens, the decode
+   rate, the resident memory of the server process (`ps -o rss= -p <pid>`), and one line of
+   first-shot quality as a description, not a verdict.
+4. Check acceptance criterion 5: the second run writes `--02` and the first file is byte-identical.

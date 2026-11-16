@@ -54,32 +54,33 @@ decisions (D1–D8) are settled with the art director and its contract is comple
 draft: it awaits validation before it leaves `planned/`. It comes after T0004 because the two share
 `picker.js` and the canvas `pointerdown`.
 
-T0011 and T0012 open a second question: what a local 4B model is worth to this repository. They add
-a **fourth workflow**, `workflows/qwen3d-coder/`, beside Three.js, Blender, and vcad. It is its own
+T0011 and T0012 open a second question: what a 4B model is worth to this repository. They add a
+**fourth workflow**, `workflows/qwen3d-coder/`, beside Three.js, Blender, and vcad. It is its own
 tool: it starts where the other modelling workflows start, on a subject with reference images, and it
 holds its own rules and its own documents. T0011 drafts a **scene** as a standalone `.html`; T0012
 drafts an **asset** and exports it to `.glb`. Both produce unmeasured, stylized candidates that the
 art director judges by eye. Both have **no fidelity gate**, and neither replaces workflow D. T0012
-comes second because it needs the registry, the client, and the server starter that T0011 builds.
+comes second because it reads the client and the preflight that T0011 builds.
 
-The inference server is not a 3D tool, so it lives at the root, in `scripts/llama-server/`: it knows
-a repository name, a quantization, a port, and a context, and it reads no scene and no asset.
+The inference server is not part of this repository. T0011 first shipped one in
+`scripts/llama-server/` and removed it inside the same ticket: the workflow now reads an **external
+OpenAI-compatible endpoint**, named by `--base-url` and `--model`. The endpoint is a prerequisite of
+its operator, so no machine, unit, or path enters the documents.
 
-The machine decides the cost of both: a Ryzen 7 5800H with 30 GiB of shared memory and no discrete
-GPU decodes a 4B `Q4_K_M` model at an estimated 8 to 11 tokens per second. T0011 measures that number
-before T0012 spends an hour on one asset.
+The first real run generated 3 898 tokens at 32.0 tokens per second, over 125 s with the cold load
+included. The art director kept the output as a demo, and T1.13's acceptance run waits for a subject
+with a locked reference.
 
 ### In progress
 
-| ID                                                    | Title                                                              | Track                                              | Note               |
-| :---------------------------------------------------- | :----------------------------------------------------------------- | :------------------------------------------------- | :----------------- |
-| [T0011](./in_progress/T0011-qwen3d-coder-workflow.md) | A fourth workflow: Qwen 3D Coder, llama.cpp, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | started 2026-11-16 |
+No ticket is in progress.
 
 ### Review
 
-| ID                                                | Title                                                   | Track           | Note                                                                                           |
-| :------------------------------------------------ | :------------------------------------------------------ | :-------------- | :--------------------------------------------------------------------------------------------- |
-| [T0004](./review/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete | Three.js viewer | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in |
+| ID                                                | Title                                                                         | Track                                              | Note                                                                                                |
+| :------------------------------------------------ | :---------------------------------------------------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
+| [T0004](./review/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete                       | Three.js viewer                                    | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in      |
+| [T0011](./review/T0011-qwen3d-coder-workflow.md)  | A fourth workflow: Qwen 3D Coder, an external endpoint, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | all gates green; reviewed after polish; T1.13 deferred to the first subject with a locked reference |
 
 ### Done
 

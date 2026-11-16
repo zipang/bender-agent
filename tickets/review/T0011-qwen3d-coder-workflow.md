@@ -1,4 +1,4 @@
-# T0011 — A fourth workflow: Qwen 3D Coder, llama.cpp, and the scene drafter
+# T0011 — A fourth workflow: Qwen 3D Coder, an external endpoint, and the scene drafter
 
 - **Track**: repository layout (new workflow), then the Qwen 3D Coder workflow
 - **Wave**: 1 (independent)
@@ -490,10 +490,13 @@ Revision 2 tasks, after the checkpoint `f544140`:
 - [x] **T1.17 — Gates, second pass**: `bun test` green; `bun run check` recorded unchanged; one
       copyediting pass for stale words (`llama-server`, `llama serve`, `install.sh`, `-hf`,
       `local/3d-coder`, `--profile`, `--port`) in every file this ticket touched.
-- [ ] **T1.13 — The measurement**: one real run on a subject with a locked `reference.<ext>`, one
-      candidate. Record in `## Implementation Notes`: the token rate, the wall-clock seconds, the output
-      tokens, the resident memory of the server process, and the first-shot quality as one line of
-      description.
+- [ ] **T1.13 — The measurement — deferred**: one real run on a subject with a locked
+      `reference.<ext>`, one candidate. Record in `## Implementation Notes`: the token rate, the
+      wall-clock seconds, the output tokens, the resident memory of the server process, and the
+      first-shot quality as one line of description. **Not done in T0011.** The first real run had no
+      blueprint subject, and its figures are recorded under "The first successful run". The
+      acceptance run needs a subject with a locked reference, and the art director moved the ticket
+      to review without it on 2026-11-16.
 
 ## Acceptance Criteria
 
@@ -840,3 +843,16 @@ measurements in `demos/README.md`.
 **T1.13 stays open.** The ticket asks for a subject with a locked `reference.<ext>`, one candidate
 written through the CLI, and a second run that must write `--02` without touching `--01`. None of
 that happened here. The numbers above are the first decode-rate measurement, not the acceptance run.
+
+### Review
+
+Moved to `tickets/review/` on 2026-11-16 by decision of the art director, after the first real run
+whose output is `demos/voxel-christmas-tree.html`.
+
+- `bun test`: 136 pass, 0 fail, 291 `expect()` calls, 11 files.
+- `bun run check`: still `error: capture failed (1)` at `workflows/threejs/tools/check.ts:152:17`.
+  Pre-existing, and `workflows/threejs/` is untouched.
+- The independent reviewer returned `POLISH_REQUIRED` on revision 2; all 13 findings are applied.
+- **T1.13 is deferred, not done.** The acceptance run needs a subject with a locked
+  `reference.<ext>`, a candidate written through the CLI, and a second run that writes `--02` without
+  touching `--01`. The first run had no blueprint subject.

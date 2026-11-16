@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "format": "bun fmt",
     "serve": "bun run workflows/threejs/tools/serve.ts --scene r5-tl-1972 --port 5180",
     "check": "bun run workflows/threejs/tools/check.ts --subject blueprints/vehicules/r5-tl-1972 --prefix r5-L3"
   },

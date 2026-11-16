@@ -818,3 +818,25 @@ The independent reviewer returned `POLISH_REQUIRED`; all 13 findings are applied
 
 Portability grep over the touched files (`llama-swap`, `Skylab`, `NixOS`, `nixos`, `systemd`,
 `systemctl`, `/share`, `~/.local`, `/home/`): no occurrence.
+
+### The first successful run (T1.13, partial)
+
+On 2026-11-16 the model produced its first usable scene. The subject has no blueprint image, so the
+run used the workflow's own modules (`buildUserPrompt`, `buildRequestBody`, `streamChat`,
+`extractHtml`) from a throwaway script outside the repository: no image part was sent, and no
+candidate entered `blueprints/`.
+
+| Fact       | Value                                                                   |
+| :--------- | :---------------------------------------------------------------------- |
+| Prompt     | a Christmas tree in its pot, voxel style, cubes only                     |
+| Output     | 451 lines, 11 611 bytes, one `BoxGeometry`, no other primitive           |
+| Wall clock | 125.3 s, cold load included                                             |
+| Tokens     | 3 898 generated, 32.0 tok/s                                             |
+| Memory     | 871 MB resident for `llama-server`, weights in `mmap`                   |
+
+The art director kept it as a marker: `demos/voxel-christmas-tree.html`, with its prompt and its
+measurements in `demos/README.md`.
+
+**T1.13 stays open.** The ticket asks for a subject with a locked `reference.<ext>`, one candidate
+written through the CLI, and a second run that must write `--02` without touching `--01`. None of
+that happened here. The numbers above are the first decode-rate measurement, not the acceptance run.

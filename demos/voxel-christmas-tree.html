@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voxel Christmas Tree</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #101827;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #info {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      z-index: 2;
+      padding: 10px 13px;
+      color: #eef4ff;
+      background: rgba(12, 20, 35, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      user-select: none;
+    }
+
+    #info h1 {
+      margin: 0 0 4px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #info p {
+      margin: 0;
+      color: #aebcda;
+      font-size: 12px;
+    }
+
+    #hint {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 2;
+      color: rgba(225, 235, 255, 0.65);
+      font-size: 12px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h1>Voxel Christmas Tree</h1>
+    <p>Drag to orbit · Scroll to zoom</p>
+  </div>
+  <div id="hint">Drag to rotate · Scroll to zoom</div>
+
+  <script type="module">
+    import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js";
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x101827);
+    scene.fog = new THREE.Fog(0x101827, 18, 32);
+
+    const camera = new THREE.PerspectiveCamera(
+      42,
+      innerWidth / innerHeight,
+      0.1,
+      100
+    );
+
+    // Hand-built orbit controls. The camera stays above the target.
+    const target = new THREE.Vector3(0, 2.1, 0);
+    let azimuth = 0.62;
+    let polar = 1.18;
+    let radius = 10.5;
+    let dragging = false;
+    let previousX = 0;
+    let previousY = 0;
+
+    function updateCamera() {
+      polar = THREE.MathUtils.clamp(polar, 0.38, 1.48);
+      radius = THREE.MathUtils.clamp(radius, 6.2, 16);
+
+      camera.position.set(
+        target.x + radius * Math.sin(polar) * Math.sin(azimuth),
+        target.y + radius * Math.cos(polar),
+        target.z + radius * Math.sin(polar) * Math.cos(azimuth)
+      );
+
+      camera.lookAt(target);
+    }
+
+    updateCamera();
+
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: "high-performance"
+    });
+
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting: exactly one ambient and one directional light.
+    scene.add(new THREE.AmbientLight(0xbdd6ff, 0.72));
+
+    const keyLight = new THREE.DirectionalLight(0xfff0d4, 3.1);
+    keyLight.position.set(5, 10, 7);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -7;
+    keyLight.shadow.camera.right = 7;
+    keyLight.shadow.camera.top = 9;
+    keyLight.shadow.camera.bottom = -4;
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 25;
+    keyLight.shadow.bias = -0.0005;
+    scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x78aaff, 1.25);
+    rimLight.position.set(-6, 5, -7);
+    scene.add(rimLight);
+
+    // Materials are all flat colors. Every visible object is made from cubes.
+    const materials = {
+      trunk: new THREE.MeshStandardMaterial({
+        color: 0x6b4326,
+        roughness: 0.95
+      }),
+      bark: new THREE.MeshStandardMaterial({
+        color: 0x49301f,
+        roughness: 1
+      }),
+      green: new THREE.MeshStandardMaterial({
+        color: 0x2f8f3f,
+        roughness: 0.9
+      }),
+      greenLight: new THREE.MeshStandardMaterial({
+        color: 0x43ad4b,
+        roughness: 0.88
+      }),
+      greenDark: new THREE.MeshStandardMaterial({
+        color: 0x205f38,
+        roughness: 0.95
+      }),
+      red: new THREE.MeshStandardMaterial({
+        color: 0xe22b38,
+        roughness: 0.72
+      }),
+      gold: new THREE.MeshStandardMaterial({
+        color: 0xf4bd35,
+        roughness: 0.58,
+        metalness: 0.08
+      }),
+      white: new THREE.MeshStandardMaterial({
+        color: 0xf5f4e9,
+        roughness: 0.8
+      }),
+      pot: new THREE.MeshStandardMaterial({
+        color: 0x8f3936,
+        roughness: 0.88
+      }),
+      potRim: new THREE.MeshStandardMaterial({
+        color: 0xb6564d,
+        roughness: 0.82
+      })
+    };
+
+    const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+    function addCube(position, material, size = 1, parent = scene) {
+      const cube = new THREE.Mesh(cubeGeometry, material);
+      cube.position.copy(position);
+      cube.scale.setScalar(size);
+      cube.castShadow = true;
+      cube.receiveShadow = true;
+      parent.add(cube);
+      return cube;
+    }
+
+    // Ground platform made from a grid of cubes.
+    const groundMaterials = [
+      materials.greenDark,
+      materials.green,
+      materials.bark
+    ];
+
+    for (let x = -5; x <= 5; x++) {
+      for (let z = -5; z <= 5; z++) {
+        const edge = Math.max(Math.abs(x), Math.abs(z));
+        const material =
+          edge > 4
+            ? groundMaterials[2]
+            : groundMaterials[(x + z + 10) % 3];
+
+        addCube(
+          new THREE.Vector3(x, -0.15, z),
+          material,
+          0.94
+        );
+      }
+    }
+
+    // Pot: stepped voxel form, flat red and dark-red cubes.
+    const potY = 0.28;
+    const potSize = 1.2;
+
+    addCube(
+      new THREE.Vector3(0, potY, 0),
+      materials.pot,
+      potSize * 0.82
+    );
+
+    addCube(
+      new THREE.Vector3(0, potY + 0.25, 0),
+      materials.potRim,
+      potSize * 0.94
+    );
+
+    addCube(
+      new THREE.Vector3(0, potY + 0.51, 0),
+      materials.pot,
+      potSize * 0.72
+    );
+
+    // Short brown voxel trunk.
+    const trunkWidth = 0.48;
+    const trunkHeight = 1.35;
+
+    for (let y = 0; y < 4; y++) {
+      const width = y === 0 ? trunkWidth * 1.18 : trunkWidth;
+      const material = y === 0 ? materials.trunk : materials.bark;
+
+      addCube(
+        new THREE.Vector3(0, trunkHeight / 2 + y * 0.34, 0),
+        material,
+        width
+      );
+
+      addCube(
+        new THREE.Vector3(0, trunkHeight / 2 + y * 0.34, 0),
+        materials.bark,
+        width * 0.65
+      );
+    }
+
+    // Stacked green cube layers, each shifted slightly and tapered upward.
+    const layerData = [
+      { y: 1.65, size: 1.65, depth: 1.55, offset: 0.05 },
+      { y: 2.35, size: 1.42, depth: 1.32, offset: 0.08 },
+      { y: 3.05, size: 1.18, depth: 1.08, offset: -0.06 },
+      { y: 3.72, size: 0.91, depth: 0.84, offset: 0.04 },
+      { y: 4.35, size: 0.63, depth: 0.58, offset: -0.03 }
+    ];
+
+    for (const layer of layerData) {
+      const half = layer.size / 2;
+
+      for (let x = -Math.floor(half) - 1; x <= Math.floor(half) + 1; x++) {
+        for (let z = -Math.floor(half) - 1; z <= Math.floor(half) + 1; z++) {
+          const radialDistance = Math.sqrt(x * x + z * z);
+
+          // Keep the corners lower so the silhouette reads as stacked tiers.
+          const cornerCut = Math.max(0, radialDistance - 0.72) / 0.72;
+          const cornerFactor = Math.max(0, 1 - cornerCut);
+
+          if (radialDistance > half - 0.35) {
+            continue;
+          }
+
+          const material =
+            radialDistance > 0.72
+              ? materials.greenDark
+              : (x + z + layer.offset) % 3 === 0
+                ? materials.greenLight
+                : materials.green;
+
+          addCube(
+            new THREE.Vector3(
+              x + layer.offset,
+              layer.y,
+              z + layer.offset
+            ),
+            material,
+            0.94
+          );
+        }
+      }
+    }
+
+    // Top tip: a small red cube and a white/gold cube to finish the point.
+    addCube(
+      new THREE.Vector3(0, 4.72, 0),
+      materials.red,
+      0.36
+    );
+
+    addCube(
+      new THREE.Vector3(0, 5.02, 0),
+      materials.gold,
+      0.24
+    );
+
+    // Ornaments: yellow and white cubes attached to the upper branches.
+    const ornaments = [
+      { x: -0.62, y: 3.12, z: 0.12, size: 0.29 },
+      { x: 0.58, y: 3.28, z: 0.18, size: 0.29 },
+      { x: 0.05, y: 3.68, z: -0.55, size: 0.25 },
+      { x: -0.38, y: 4.08, z: -0.28, size: 0.22 },
+      { x: 0.36, y: 4.18, z: 0.28, size: 0.22 },
+      { x: 0.72, y: 3.62, z: -0.35, size: 0.20 }
+    ];
+
+    for (const ornament of ornaments) {
+      addCube(
+        new THREE.Vector3(
+          ornament.x,
+          ornament.y,
+          ornament.z
+        ),
+        ornament.size > 0.25 ? materials.white : materials.gold,
+        ornament.size
+      );
+
+      // Tiny dark cube behind each ornament suggests a branch connection.
+      addCube(
+        new THREE.Vector3(
+          ornament.x,
+          ornament.y - 0.16,
+          ornament.z - 0.18
+        ),
+        materials.bark,
+        0.11
+      );
+    }
+
+    // A few small white cubes near the top resemble snow on the tips.
+    addCube(
+      new THREE.Vector3(-0.42, 4.18, 0.34),
+      materials.white,
+      0.14
+    );
+
+    addCube(
+      new THREE.Vector3(0.43, 4.08, 0.36),
+      materials.white,
+      0.13
+    );
+
+    // A tiny white cube on the trunk suggests snow.
+    addCube(
+      new THREE.Vector3(0.18, 1.88, 0),
+      materials.white,
+      0.16
+    );
+
+    // Gentle animated camera orbit.
+    let elapsed = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      elapsed += 0.0015;
+
+      if (!dragging) {
+        azimuth += 0.0012;
+      }
+
+      updateCamera();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // Dragging controls.
+    renderer.domElement.addEventListener("pointerdown", (event) => {
+      dragging = true;
+      previousX = event.clientX;
+      previousY = event.clientY;
+      renderer.domElement.setPointerCapture(event.pointerId);
+    });
+
+    renderer.domElement.addEventListener("pointermove", (event) => {
+      if (!dragging) {
+        return;
+      }
+
+      const deltaX = event.clientX - previousX;
+      const deltaY = event.clientY - previousY;
+
+      previousX = event.clientX;
+      previousY = event.clientY;
+
+      azimuth -= deltaX * 0.006;
+      polar -= deltaY * 0.005;
+
+      updateCamera();
+    });
+
+    function endDrag(event) {
+      dragging = false;
+      if (
+        event.pointerId !== undefined &&
+        renderer.domElement.hasPointerCapture(event.pointerId)
+      ) {
+        renderer.domElement.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    renderer.domElement.addEventListener("pointerup", endDrag);
+    renderer.domElement.addEventListener("pointercancel", endDrag);
+
+    // Scroll zoom.
+    renderer.domElement.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        radius += event.deltaY * 0.008;
+        updateCamera();
+      },
+      { passive: false }
+    );
+
+    window.addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>

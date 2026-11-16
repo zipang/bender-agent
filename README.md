@@ -44,6 +44,7 @@ named on the command line.
 ├── .opencode/agents/      the agent definitions
 ├── assets/img/            documentation images
 ├── blueprints/            the subject inputs and the generated views. Shared by every workflow
+├── demos/                 unmeasured candidates the art director kept as markers: one HTML per step
 ├── workflows/
 │   ├── threejs/           the active workflow: viewer, scenes, tools, README, AGENTS
 │   ├── qwen3d-coder/      the experimental workflow: scene drafter, prompts, README, AGENTS
@@ -62,6 +63,11 @@ named on the command line.
 `test-reports/` is where a check writes what a human reads: the silhouette overlays, the scratch
 captures, and the contact sheets. The Three.js workflow writes it, and no workflow commits it: it
 rebuilds from a check at any time. `workflows/threejs/README.md` names each file it holds.
+
+`demos/` holds the scene candidates that the art director keeps on purpose, one file per step, with
+its prompt and its measurements in [`demos/README.md`](./demos/README.md). A demo is evidence, not an
+asset: it has no gate and it lives outside `blueprints/`. The Qwen 3D Coder workflow produced the
+first one.
 
 ## Blueprints
 
@@ -181,6 +187,7 @@ produced, even when the method it describes has since been replaced.
 - **Calque**: A reference view placed in the scene as a plane, sized in metres from the two scales of that view. It is traced over, never rendered into a capture.
 - **Contour**: The closed outline of one orthogonal view, in the local metres of that view's plate. It is a list of **knots**, joined by lines or by a smooth curve. It comes from the cropped file, and it is drawn over the reference picture. The contour volume reads it: change a knot, and the volume changes.
 - **Crop**: A derived file `cropped/<view>.png`: a cut of the locked reference, with a small margin, identical to the same rectangle at the pixel. A crop never resamples, so the contour inherits the native resolution of the reference. Rebuild it at any time.
+- **Demo**: A scene candidate that the art director keeps on purpose, in [`demos/`](./demos/README.md), with its prompt and its measurements. It is evidence of one step, not an asset: it has no gate and it is never edited.
 - **Design unit**: The unit of the numbers of a document. Metres for a game asset, millimetres for a machined part.
 - **Draft**: Raw material in `blueprints/drafts/`. A draft is not a subject.
 - **Envelope**: The coarse box that contains the target volume at the first step of the fidelity ladder.

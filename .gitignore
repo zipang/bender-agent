@@ -40,6 +40,10 @@ blueprints/drafts/
 .DS_Store
 Thumbs.db
 
+# Scratch files of an agent session. Throwaway by definition: never committed, and never the only
+# copy of something a human must see. See AGENTS.md, "File rules".
+.tmp/
+
 # Generated reports: the overlays, the scratches and the contact sheets a check writes for a human.
 # Local evidence, rebuilt at any time; never committed.
 test-reports/

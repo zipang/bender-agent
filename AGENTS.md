@@ -3,11 +3,11 @@
 Rules for agents that work in this repository. This file holds only what applies to **every**
 workflow. The rules of one workflow are in its own folder:
 
-| Workflow | Rules |
-| :--- | :--- |
-| Three.js, active | [`workflows/threejs/AGENTS.md`](./workflows/threejs/AGENTS.md) |
-| Blender, inactive | [`workflows/blender/AGENTS.md`](./workflows/blender/AGENTS.md) |
-| vcad, archived | [`workflows/vcad/AGENTS.md`](./workflows/vcad/AGENTS.md) |
+| Workflow                    | Rules                                                                    |
+| :-------------------------- | :----------------------------------------------------------------------- |
+| Three.js, active            | [`workflows/threejs/AGENTS.md`](./workflows/threejs/AGENTS.md)           |
+| Blender, inactive           | [`workflows/blender/AGENTS.md`](./workflows/blender/AGENTS.md)           |
+| vcad, archived              | [`workflows/vcad/AGENTS.md`](./workflows/vcad/AGENTS.md)                 |
 | Qwen 3D Coder, experimental | [`workflows/qwen3d-coder/AGENTS.md`](./workflows/qwen3d-coder/AGENTS.md) |
 
 ## Purpose
@@ -127,6 +127,13 @@ opencode mcp list
 
 ## File rules
 
+- **Never work in `/tmp`, and never in `/tmp/opencode`.** The art director cannot open those paths, so
+  a result written there does not exist for review.
+- Throwaway files — a scratch script, a capture, a rendered candidate — go in `.tmp/` at the repository
+  root. The folder is git-ignored, and an agent creates it on first use.
+- A file that the art director must see gets a path under `.tmp/` and that full path is quoted in the
+  answer. A throwaway file is never the only copy of an evidence file: the evidence lives in
+  `test-reports/`, `blueprints/`, or `demos/`.
 - Keep each model in its own directory.
 - Keep the authoring source next to the export: the Loon source, the `bpy` script, the `.blend` file,
   or `model.js`.

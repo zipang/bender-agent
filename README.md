@@ -55,6 +55,7 @@ named on the command line.
 ├── research/              method documents, and what each experiment taught
 ├── tickets/               the Kanban board: planned, in_progress, review, done
 ├── test-reports/          what a check writes for a human: overlays and scratches. Git-ignored
+├── .tmp/                  scratch files of an agent session: captures, throwaway scripts. Git-ignored
 ├── opencode.jsonc         project configuration and MCP servers
 ├── AGENTS.md              the rules that hold for every workflow
 └── README.md              this file

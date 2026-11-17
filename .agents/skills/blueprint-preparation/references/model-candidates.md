@@ -6,7 +6,7 @@ comes from the live catalog, not from memory.
 Check the list before a run:
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --list-models
 ```
 

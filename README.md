@@ -29,7 +29,7 @@ blueprints/drafts/<draft>/        subject/ and style/ images
 ```
 
 `blueprints/` stays at the root because every workflow reads it. So does the code that prepares it:
-`scripts/blueprint-generate/`, `scripts/blueprint/`, and `scripts/measure/`.
+`tools/blueprint-generate/`, `tools/blueprint/`, and `tools/measure/`.
 
 The rule that decides where a file lives: **a workflow owns everything it runs, and the root owns
 everything more than one workflow reads.** The Qwen 3D Coder workflow reads an external
@@ -50,7 +50,7 @@ named on the command line.
 │   ├── qwen3d-coder/      the experimental workflow: scene drafter, prompts, README, AGENTS
 │   ├── blender/           README and AGENTS
 │   └── vcad/              README, AGENTS, and the session export tool
-├── scripts/               tools more than one workflow reads: the generator, the blueprint tools,
+├── tools/                 tools more than one workflow reads: the generator, the blueprint tools,
 │                          and the measurement
 ├── research/              method documents, and what each experiment taught
 ├── tickets/               the Kanban board: planned, in_progress, review, done
@@ -176,7 +176,7 @@ produced, even when the method it describes has since been replaced.
 | [`research/threejs-modelling-loop.md`](./research/threejs-modelling-loop.md)                           | Why the CAD attempt failed, and the measured loop that replaced it                                       |
 | [`research/viewer-refactor-plan.md`](./research/viewer-refactor-plan.md)                               | One reusable page driven by `?scene=`, with one shared view table                                        |
 | [`research/blueprint-preparation-investigation.md`](./research/blueprint-preparation-investigation.md) | How an image model produces six consistent views from one reference                                      |
-| [`scripts/blueprint-generate/README.md`](./scripts/blueprint-generate/README.md)                       | The generator: draft, clean, and views. Options, folder contract, prompt templates, and the model filter |
+| [`tools/blueprint-generate/README.md`](./tools/blueprint-generate/README.md)                           | The generator: draft, clean, and views. Options, folder contract, prompt templates, and the model filter |
 
 ## Glossary
 

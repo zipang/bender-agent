@@ -1,6 +1,6 @@
 # Blueprint Prompt Rationale
 
-The live prompt is `scripts/blueprint-generate/prompts/blueprint.md`. Edit that file to tune a
+The live prompt is `tools/blueprint-generate/prompts/blueprint.md`. Edit that file to tune a
 generation. This document explains why the prompt is shaped that way.
 
 ## Structure

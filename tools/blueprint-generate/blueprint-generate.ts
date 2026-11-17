@@ -55,7 +55,7 @@ import {
 
 const PROMPT_VERSION = "blueprint-v6-multiview";
 
-// Repository root. The script lives in <root>/scripts/blueprint-generate/.
+// Repository root. The script lives in <root>/tools/blueprint-generate/.
 const PROJECT_ROOT = resolve(import.meta.dir, "..", "..");
 const BLUEPRINTS_ROOT = resolve(PROJECT_ROOT, "blueprints");
 
@@ -599,7 +599,7 @@ async function processSubject(
 	manifest.referenceViews = options.referenceViews;
 	manifest.template = options.template
 		? relative(PROJECT_ROOT, fromRoot(options.template))
-		: "scripts/blueprint-generate/prompts/blueprint.md";
+		: "tools/blueprint-generate/prompts/blueprint.md";
 	manifest.reference = {
 		file: subject.reference.path.split("/").pop() ?? "",
 		mimeType: subject.reference.mimeType,
@@ -808,7 +808,7 @@ async function cleanSubject(
 	manifest.subjectType = subjectType;
 	manifest.cleanTemplate = options.cleanTemplate
 		? relative(PROJECT_ROOT, fromRoot(options.cleanTemplate))
-		: "scripts/blueprint-generate/prompts/clean.md";
+		: "tools/blueprint-generate/prompts/clean.md";
 
 	const prompt = buildCleanPrompt(cleanTemplate, {
 		subjectType,
@@ -1309,7 +1309,7 @@ async function main(): Promise<void> {
 		}
 		console.log(`mode:       reference cleaning`);
 		console.log(
-			`template:   ${options.cleanTemplate ?? "scripts/blueprint-generate/prompts/clean.md"}`
+			`template:   ${options.cleanTemplate ?? "tools/blueprint-generate/prompts/clean.md"}`
 		);
 		console.log(`models:     ${options.models.join(", ")}`);
 		console.log(`subjects:   ${subjects.length}`);
@@ -1373,7 +1373,7 @@ async function main(): Promise<void> {
 
 	if (!template) throw new Error("View prompt template missing");
 	console.log(
-		`template:   ${options.template ?? "scripts/blueprint-generate/prompts/blueprint.md"}`
+		`template:   ${options.template ?? "tools/blueprint-generate/prompts/blueprint.md"}`
 	);
 	console.log(`style:      ${options.style}`);
 	console.log(`models:     ${options.models.join(", ")}`);

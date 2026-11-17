@@ -187,11 +187,11 @@ async function main(): Promise<void> {
 			}
 
 			if (url.pathname === "/measure" || url.pathname === "/measure/") {
-				path = join(options.root, "scripts/measure/index.html");
+				path = join(options.root, "tools/measure/index.html");
 			} else if (url.pathname.startsWith("/measure/")) {
 				path = join(
 					options.root,
-					"scripts/measure",
+					"tools/measure",
 					url.pathname.slice("/measure/".length)
 				);
 			} else if (url.pathname === "/") {

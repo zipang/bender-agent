@@ -514,7 +514,7 @@ async function main(): Promise<void> {
 		const output = await run(
 			[
 				"python3",
-				join(ROOT, "scripts/blueprint/measure_view.py"),
+				join(ROOT, "tools/blueprint/measure_view.py"),
 				maybeline,
 				`${options.out}/${options.prefix}-${side}.webp`,
 				"--json"

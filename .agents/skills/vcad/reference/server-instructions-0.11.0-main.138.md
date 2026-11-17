@@ -3,8 +3,8 @@
 Captured from the running server (`initialize` result, `instructions` field) on 2026-11-05.
 Server version: **0.11.0-main.138+2df8f6d**. This text is emitted by the kernel registry at boot.
 
-Do not edit by hand. Regenerate with `scripts/blueprint-generate` doc capture, or by asking the
-server for `initialize` and copying its `instructions` field.
+Do not edit by hand. Regenerate by asking the server for `initialize` and copying its `instructions`
+field.
 
 ---
 

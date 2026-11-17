@@ -66,7 +66,7 @@ rendering style, and a uniform pure white background. That image becomes the ide
 subject.
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts \
   --draft blueprints/drafts/r5 \
   --models meta/muse-image-1.0 \
@@ -166,13 +166,13 @@ bun run blueprint-generate.ts --all --models meta/muse-image-1.0 --variants 2
 
 ## Commands
 
-Run the commands from `scripts/blueprint-generate`. The subject path resolves from the repository
+Run the commands from `tools/blueprint-generate`. The subject path resolves from the repository
 root, so it always starts with `blueprints/`.
 
 List the models that accept a reference image and return an image:
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --list-models
 ```
 

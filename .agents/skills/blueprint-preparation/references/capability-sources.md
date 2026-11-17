@@ -44,7 +44,7 @@ Read one record:
 }
 ```
 
-The generator applies this filter in `scripts/blueprint-generate/lib/models.ts`. Run:
+The generator applies this filter in `tools/blueprint-generate/lib/models.ts`. Run:
 
 ```bash
 bun run blueprint-generate.ts --list-models

@@ -127,7 +127,7 @@ the subject can be an object, a machine, a vehicle, a character, a creature, or 
    the most to work with:
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --draft blueprints/drafts/<name> \
   --models meta/muse-image-1.0 --variants 3 \
   --style "low-poly stylized video game figurine" --two-view
@@ -144,7 +144,7 @@ Skip this stage when the promoted reference already sits on a uniform white fiel
 2. Run the cleaning pass:
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --clean \
   --subject blueprints/vehicules/blue-van-01 \
   --models meta/muse-image-1.0 --variants 2
@@ -220,9 +220,9 @@ The modeling workflow starts only after this hand-off passes.
 
 Three text files hold the prompts. Edit them to tune a generation. No code change is needed.
 
-- `scripts/blueprint-generate/prompts/draft.md` for the draft stage.
-- `scripts/blueprint-generate/prompts/clean.md` for the cleaning pass.
-- `scripts/blueprint-generate/prompts/blueprint.md` for the views.
+- `tools/blueprint-generate/prompts/draft.md` for the draft stage.
+- `tools/blueprint-generate/prompts/clean.md` for the cleaning pass.
+- `tools/blueprint-generate/prompts/blueprint.md` for the views.
 
 Placeholders:
 
@@ -309,9 +309,9 @@ If a view fails, generate new variants for that view only.
 
 ## Files
 
-- `scripts/blueprint-generate/prompts/blueprint.md`: the live view prompt template.
-- `scripts/blueprint-generate/prompts/clean.md`: the live cleaning prompt template.
+- `tools/blueprint-generate/prompts/blueprint.md`: the live view prompt template.
+- `tools/blueprint-generate/prompts/clean.md`: the live cleaning prompt template.
 - `references/prompts.md`: the prompt rationale and the repair prompt.
 - `references/model-candidates.md`: usable and rejected models, with the reason.
 - `references/capability-sources.md`: where the capability evidence comes from.
-- `scripts/blueprint-generate/`: the generator.
+- `tools/blueprint-generate/`: the generator.

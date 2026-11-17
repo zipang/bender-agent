@@ -266,7 +266,7 @@ async function sceneDocument(
 		if (spec.plate) {
 			const crop = crops?.views?.[name];
 			if (!crop) {
-				const message = `${name}: no crop. Run scripts/blueprint/crop_reference.py.`;
+				const message = `${name}: no crop. Run tools/blueprint/crop_reference.py.`;
 				if (view.required) problems.push(message);
 				else
 					warnings.push(

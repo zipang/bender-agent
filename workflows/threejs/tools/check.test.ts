@@ -4,7 +4,7 @@
 // recorded fixture — the `profile_mm` of `r5-L3` on `left` — and not from a full `bun run check`.
 // A presentation test that costs 17 s is not run; this one costs about 20 ms.
 //
-// The fixture is the exact JSON `scripts/blueprint/measure_view.py --json` printed for that pair.
+// The fixture is the exact JSON `tools/blueprint/measure_view.py --json` printed for that pair.
 // The expected block is the one T0008 draws, with its bar rule applied: one mark per 5 mm of
 // `|delta|`, the tolerance mark at a fixed column, drawn over the bar so a bar that reaches it
 // visibly crosses it.

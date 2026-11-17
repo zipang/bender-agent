@@ -107,7 +107,7 @@ stage extrapolates the missing faces.
 Run the free check first. It sends no request and costs nothing:
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --draft blueprints/drafts/<draft> --ask
 ```
 
@@ -118,7 +118,7 @@ missing style image. Fill the gaps in `notes.md`, or pass the matching flags. Th
 ### 0.3 Generate the draft candidates
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --draft blueprints/drafts/<draft> \
   --models <model-id> --variants 3 --style "<style>" --two-view
 ```
@@ -204,7 +204,7 @@ The pass copies the current `reference.<ext>` to `source.<ext>` before it writes
 promoted bytes are never lost. It can run again later from that untouched image.
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --clean \
   --subject blueprints/<category>/<subject> \
   --models <model-id> \
@@ -229,7 +229,7 @@ Until `reference.<ext>` exists, the subject is not ready. Do not generate views.
 Run this before you spend anything:
 
 ```bash
-cd scripts/blueprint-generate
+cd tools/blueprint-generate
 bun run blueprint-generate.ts --list-models
 ```
 
@@ -463,7 +463,7 @@ script API that `viewer/main.js` already exposes: `window.__ready`, `window.__se
 
 ### D3. Stage 1 — give every view its scales
 
-1. Run `scripts/blueprint/view_scale.py` on each locked view, with the real dimensions and their
+1. Run `tools/blueprint/view_scale.py` on each locked view, with the real dimensions and their
    source, and `--write` to merge the entry into `dimensions.json`.
 2. It returns `kx` and `ky` for that view, the anisotropy `ky/kx`, and one of three verdicts:
    `pass` (under 5%), `corrected` (5 to 25%), `reject` (over 25%).

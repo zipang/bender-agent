@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0013`.**
+- **The next free ID is `T0017`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -31,11 +31,13 @@ when the art director asks for a change.
 
 ### Planned
 
-| ID                                                         | Title                                                                   | Track                                     | Depends on                                                            |
-| :--------------------------------------------------------- | :---------------------------------------------------------------------- | :---------------------------------------- | :-------------------------------------------------------------------- |
-| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)             | T0004, T0005 — **draft, specification settled, awaits validation**    |
-| [T0010](./planned/T0010-check-runs-on-fixtures.md)         | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                   | nothing — **draft, specification settled (D1–D5), awaits validation** |
-| [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation) | T0011                                                                 |
+| ID                                                         | Title                                                                   | Track                                     | Depends on                                                                            |
+| :--------------------------------------------------------- | :---------------------------------------------------------------------- | :---------------------------------------- | :------------------------------------------------------------------------------------ |
+| [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)             | T0004, T0005 — **draft, specification settled, awaits validation**                    |
+| T0010                                                      | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                   | nothing — **the ticket file is missing from `planned/`; the row is kept as a marker** |
+| [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation) | T0011                                                                                 |
+| [T0015](./planned/T0015-scene-viewer.md)                   | The scene viewer: one page for a delivered asset                        | Shared scene viewer                       | T0014                                                                                 |
+| [T0016](./planned/T0016-qwen3d-coder-ts-asset.md)          | The Qwen 3D Coder delivers a TypeScript asset                           | Qwen 3D Coder workflow                    | T0013, T0015                                                                          |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
@@ -62,6 +64,15 @@ drafts an **asset** and exports it to `.glb`. Both produce unmeasured, stylized 
 art director judges by eye. Both have **no fidelity gate**, and neither replaces workflow D. T0012
 comes second because it reads the client and the preflight that T0011 builds.
 
+T0014, T0015, and T0016 answer a decision of 2026-11-17: the Qwen 3D Coder stops writing a page,
+and delivers **one TypeScript asset** that a shared viewer draws. T0014 renames `scripts/` to
+`tools/`, because the viewer is read by two workflows and belongs to the root. T0015 builds the base
+page at `tools/scene-viewer/`: the style and the round grid of the Three.js viewer, six orthographic
+views and one free view, six HUD rows, and a spin. T0016 turns the drafter into `asset-draft.ts`,
+adds the asset contract to the prompts, and rewrites Workflow E of `bender.md`. The order is strict:
+the rename, then the viewer, then the drafter. T0016 also waits for T0013, because both edit the
+prompt system. The Three.js viewer stays where it is; a later ticket moves it onto the shared base.
+
 The inference server is not part of this repository. T0011 first shipped one in
 `scripts/llama-server/` and removed it inside the same ticket: the workflow now reads an **external
 OpenAI-compatible endpoint**, named by `--base-url` and `--model`. The endpoint is a prerequisite of
@@ -73,9 +84,9 @@ with a locked reference.
 
 ### In progress
 
-| ID                                                          | Title                                          | Track                                    | Note               |
-| :---------------------------------------------------------- | :--------------------------------------------- | :--------------------------------------- | :----------------- |
-| [T0013](./in_progress/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode | Qwen 3D Coder workflow (prompt, drafter) | started 2026-11-17 |
+| ID                                                          | Title                                                | Track                                    | Note               |
+| :---------------------------------------------------------- | :--------------------------------------------------- | :--------------------------------------- | :----------------- |
+| [T0013](./in_progress/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode       | Qwen 3D Coder workflow (prompt, drafter) | started 2026-11-17 |
 
 ### Review
 
@@ -86,15 +97,16 @@ with a locked reference.
 
 ### Done
 
-| ID                                                            | Title                                                                     | Track                            | Closed     |
-| :------------------------------------------------------------ | :------------------------------------------------------------------------ | :------------------------------- | :--------- |
-| [T0001](./done/T0001-workflow-reorganisation.md)              | Workflow reorganisation: one folder per workflow                          | repository layout, all workflows | 2026-11-09 |
-| [T0002](./done/T0002-contour-smoothing.md)                    | Contour smoothing: the path, the two joins, and the knot editor           | Three.js contour and volume      | 2026-11-09 |
-| [T0003](./done/T0003-orthogonal-view-zoom.md)                 | Zoom on the orthogonal views, 100 % to 400 %                              | Three.js viewer                  | 2026-11-09 |
-| [T0007](./done/T0007-viewer-idles-at-zero.md)                 | The viewer idles at zero: draw on demand, not every frame                 | Three.js viewer                  | 2026-11-09 |
-| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools)          | 2026-11-09 |
-| [T0008](./done/T0008-silhouette-report-presentation.md)       | The silhouette report says what it means                                  | Three.js viewer (tools)          | 2026-11-09 |
-| [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                  | 2026-11-09 |
+| ID                                                            | Title                                                                     | Track                             | Closed     |
+| :------------------------------------------------------------ | :------------------------------------------------------------------------ | :-------------------------------- | :--------- |
+| [T0001](./done/T0001-workflow-reorganisation.md)              | Workflow reorganisation: one folder per workflow                          | repository layout, all workflows  | 2026-11-09 |
+| [T0002](./done/T0002-contour-smoothing.md)                    | Contour smoothing: the path, the two joins, and the knot editor           | Three.js contour and volume       | 2026-11-09 |
+| [T0003](./done/T0003-orthogonal-view-zoom.md)                 | Zoom on the orthogonal views, 100 % to 400 %                              | Three.js viewer                   | 2026-11-09 |
+| [T0007](./done/T0007-viewer-idles-at-zero.md)                 | The viewer idles at zero: draw on demand, not every frame                 | Three.js viewer                   | 2026-11-09 |
+| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools)           | 2026-11-09 |
+| [T0008](./done/T0008-silhouette-report-presentation.md)       | The silhouette report says what it means                                  | Three.js viewer (tools)           | 2026-11-09 |
+| [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                   | 2026-11-09 |
+| [T0014](./done/T0014-root-tools-directory.md)                 | The root tool directory: `scripts/` becomes `tools/`                      | repository layout, every workflow | 2026-11-17 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 

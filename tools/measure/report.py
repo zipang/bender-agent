@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn picked points into millimetres, and check that two views agree.
 
-`scripts/measure/index.html` places the points. This script does the arithmetic and the check.
+`tools/measure/index.html` places the points. This script does the arithmetic and the check.
 
 Two rules make the numbers trustworthy:
 
@@ -13,10 +13,10 @@ Two rules make the numbers trustworthy:
 
 Usage:
 
-    python3 scripts/measure/report.py blueprints/vehicules/r5-tl-1972
-    python3 scripts/measure/report.py blueprints/vehicules/r5-tl-1972 --annotate
-    python3 scripts/measure/report.py blueprints/vehicules/r5-tl-1972 --write
-    python3 scripts/measure/report.py blueprints/vehicules/r5-tl-1972 --json
+    python3 tools/measure/report.py blueprints/vehicules/r5-tl-1972
+    python3 tools/measure/report.py blueprints/vehicules/r5-tl-1972 --annotate
+    python3 tools/measure/report.py blueprints/vehicules/r5-tl-1972 --write
+    python3 tools/measure/report.py blueprints/vehicules/r5-tl-1972 --json
 
 `--write` records the landmark verdict in `dimensions.json`, which is what closes gate G1.
 `--annotate` draws the points and their values on a copy of each view, so the placement can be
@@ -135,7 +135,7 @@ def main():
     if not os.path.exists(measurements_path):
         raise SystemExit(f"no {measurements_path}: place the points with /measure/ first")
     if not os.path.exists(dimensions_path):
-        raise SystemExit(f"no {dimensions_path}: run scripts/blueprint/view_scale.py first")
+        raise SystemExit(f"no {dimensions_path}: run tools/blueprint/view_scale.py first")
 
     document = load_json(measurements_path)
     dimensions = load_json(dimensions_path)

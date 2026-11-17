@@ -141,7 +141,7 @@ A generated view is a picture on a white field, and the subject floats somewhere
 tool then has to find it again, and every one of those steps is a place to be wrong.
 
 ```bash
-python3 scripts/blueprint/crop_reference.py --subject blueprints/<category>/<subject>
+python3 tools/blueprint/crop_reference.py --subject blueprints/<category>/<subject>
 ```
 
 It writes `cropped/<view>.png`, where the subject touches the frame, plus `cropped/manifest.json`
@@ -168,7 +168,7 @@ cropped box, and use `--span robust` only for a stated reason.
 One file per subject, next to `notes.md`. The script writes it; no hand-editing is needed.
 
 ```bash
-python3 scripts/blueprint/view_scale.py \
+python3 tools/blueprint/view_scale.py \
   blueprints/<category>/<subject>/cropped/left.png \
   --view left --length 3.521 --width 1.525 --height 1.400 \
   --source "manufacturer: 3521 x 1525 x 1400 mm" \
@@ -191,7 +191,7 @@ Two tools do the job, and they are the only ones allowed to produce a distance. 
 by the art director or by an agent, because the placement is visible and checkable; the number is
 only used once the annotated copy has been looked at.
 
-**`scripts/measure/index.html`** places the points. Start the dev server, then open:
+**`tools/measure/index.html`** places the points. Start the dev server, then open:
 
 ```text
 http://127.0.0.1:5180/measure/?subject=blueprints/<category>/<subject>&view=<view>
@@ -203,12 +203,12 @@ distance **per axis** — `dx` with `kx`, `dy` with `ky` — and draws the resul
 keys nudge the selected point by 1 px, Shift by 10 px. _Save to the subject folder_ writes
 `measurements.json`.
 
-**`scripts/measure/report.py`** does the arithmetic and the check:
+**`tools/measure/report.py`** does the arithmetic and the check:
 
 ```bash
-python3 scripts/measure/report.py blueprints/<category>/<subject>
-python3 scripts/measure/report.py blueprints/<category>/<subject> --annotate
-python3 scripts/measure/report.py blueprints/<category>/<subject> --write
+python3 tools/measure/report.py blueprints/<category>/<subject>
+python3 tools/measure/report.py blueprints/<category>/<subject> --annotate
+python3 tools/measure/report.py blueprints/<category>/<subject> --write
 ```
 
 `--annotate` writes one PNG per view into `measured/`, so the placement can be checked without a
@@ -231,7 +231,7 @@ Pass only when all four conditions hold:
    wheelbase on the side and plan views, the track width on the front and plan views.
 
 Condition 4 is the one that proves the views describe the same object, and it is the only condition
-that the anisotropy test cannot replace. `scripts/measure/report.py --write` runs it and records the
+that the anisotropy test cannot replace. `tools/measure/report.py --write` runs it and records the
 verdict; run it before you claim G1, and never accept a key whose spread is over 10%.
 
 On failure, report the view, the drift, and the landmark that disagrees. Do not rescale a view to
@@ -624,18 +624,18 @@ director judges.
 | `blueprints/<category>/<subject>/dimensions.json`        | **written by stage 1**, read by every later stage                                                                                                                       |
 | `workflows/threejs/scenes/<subject>/model.js`            | the asset: sections, body, accessories. `build()` (or `buildBody()`), `measure`, `target`, `deviation`                                                                  |
 | `workflows/threejs/viewer/`                              | the shared viewer: one page, every scene. `main.js`, `camera.js`, `calque.js`, `picker.js`, `stage.js`, `frame.js`, `measure.js`, `api.js`, `contract.js`, `views.json` |
-| `scripts/blueprint/crop_reference.py`                    | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json`                                                                                      |
+| `tools/blueprint/crop_reference.py`                      | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json`                                                                                      |
 | `blueprints/<category>/<subject>/cropped/`               | the cropped views, and the derived manifest. Rebuildable at any time                                                                                                    |
-| `scripts/blueprint/view_scale.py`                        | **stage 1 tool**: the two scales of a view, its drift, its verdict                                                                                                      |
-| `scripts/blueprint/read_reference.py`                    | reads a silhouette into profile data                                                                                                                                    |
-| `scripts/blueprint/measure_view.py`                      | the same landmarks for both images, in millimetres                                                                                                                      |
+| `tools/blueprint/view_scale.py`                          | **stage 1 tool**: the two scales of a view, its drift, its verdict                                                                                                      |
+| `tools/blueprint/read_reference.py`                      | reads a silhouette into profile data                                                                                                                                    |
+| `tools/blueprint/measure_view.py`                        | the same landmarks for both images, in millimetres                                                                                                                      |
 | `workflows/threejs/tools/silhouette.ts`                  | the overlay: red is reference only, blue is model only                                                                                                                  |
 | `workflows/threejs/tools/check.ts`                       | capture, overlay, measure, and the orientation guard                                                                                                                    |
 | `workflows/threejs/tools/compare_silhouette.py`          | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm                                                                                              |
 | `workflows/threejs/scenes/<subject>/scene.json`          | the subject path and the model module, so the viewer can load both                                                                                                      |
 | `blueprints/<category>/<subject>/cropped/manifest.json`  | each crop's box, offset, size, and the file it came from                                                                                                                |
-| `scripts/measure/index.html`                             | **stage 1 tool**: the point picker, served at `/measure/`                                                                                                               |
-| `scripts/measure/report.py`                              | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict                                                                                                    |
+| `tools/measure/index.html`                               | **stage 1 tool**: the point picker, served at `/measure/`                                                                                                               |
+| `tools/measure/report.py`                                | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict                                                                                                    |
 | `blueprints/<category>/<subject>/measurements.json`      | **written by the picker**, read by the report                                                                                                                           |
 | `blueprints/<category>/<subject>/measured/`              | the annotated copies, one per view                                                                                                                                      |
 | `workflows/threejs/tools/ctl.ts`                         | **render control**: camera, projection, wireframe, isolate, nodes, shot                                                                                                 |

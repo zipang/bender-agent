@@ -18,7 +18,7 @@ Method, and why each choice matters:
     padding never shifts the result.
 
 Usage:
-    python3 scripts/blueprint/measure_view.py <reference> <render> [--length 3520]
+    python3 tools/blueprint/measure_view.py <reference> <render> [--length 3520]
 """
 
 import argparse

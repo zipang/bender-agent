@@ -63,7 +63,9 @@ it wrote, and one viewer command shows it.
   the result. It reports `valid` or `invalid: <reason>`. It never edits and never deletes a
   candidate.
 - **D7 — The viewer is the review page.** The drafter prints the exact viewer command for every valid
-  candidate. Bender never asks the model for a page, a camera, or a light.
+  candidate, and the same candidate also appears in the viewer's picker, because it lands under
+  `blueprints/<category>/<subject>/generated/` (T0015 §10). Bender never asks the model for a page, a
+  camera, or a light.
 
 ## Scope Boundary
 
@@ -225,6 +227,10 @@ export async function validateAsset(path: string): Promise<Validation>;
 - The result must hold at least one `isMesh` node.
 - `new THREE.Box3().setFromObject(root)` must give a finite, positive size on all three axes.
 - The function never edits, moves, or deletes the file.
+- The validator **does not inject the `three` import**: T0015 §1 requires it in the asset. A candidate
+  that omits it is `invalid: THREE is not defined`, and it stays viewable, because the viewer's
+  prelude tolerates the omission (T0015 §1 and §11). The validator reports what the contract says;
+  the viewer draws what it can.
 
 The command reports every written candidate:
 

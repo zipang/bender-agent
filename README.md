@@ -73,11 +73,14 @@ first one.
 The scene viewer runs with one command. The `--asset` flag is optional:
 
 ```bash
-bun run tools/scene-viewer/serve.ts [--asset <repo path>.ts]
+bun run serve:viewer [--asset <repo path>.ts]
 ```
 
 Without `--asset`, the page offers the asset catalogue and opens the first valid candidate. With it,
 the page opens that module. The server listens on `127.0.0.1` only, on port `5181` by default.
+`bun run tools/scene-viewer/serve.ts [--asset <repo path>.ts] [--port <n>]` is the same command
+without the script name. The Three.js viewer keeps its own launcher, `bun run serve:threejs`, on port
+`5180`.
 
 ## Blueprints
 

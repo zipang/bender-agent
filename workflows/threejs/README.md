@@ -253,7 +253,7 @@ server was started with. The page is the same for every subject, so a modelling 
 to look from another angle.
 
 ```bash
-bun run serve                                   # http://127.0.0.1:5180
+bun run serve:threejs                           # http://127.0.0.1:5180
 bun run workflows/threejs/tools/ctl.ts open --shot --scene <name>
 bun run workflows/threejs/tools/ctl.ts shot test-reports/left.webp --view left
 bun run workflows/threejs/tools/ctl.ts close

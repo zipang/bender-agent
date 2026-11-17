@@ -159,5 +159,6 @@ Rules for an agent that works in `workflows/threejs/`. They are short on purpose
   never a second spelling.
 - A scene module is served at its real path. An alias hides the one thing an import failure needs.
 - The subject watch ignores `model/`: an output never reloads its own reader.
-- `bun run serve` and `bun run check` are the two root commands. They are the ones the documents
-  quote.
+- `bun run serve:threejs` and `bun run check` are the two root commands of this workflow. They are
+  the ones the documents quote. `bun run serve:viewer` starts the shared scene viewer, on port `5181`,
+  and belongs to the root `tools/`.

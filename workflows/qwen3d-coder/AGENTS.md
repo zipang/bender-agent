@@ -8,13 +8,27 @@ or G3, and it does not replace workflow D. The art director judges every candida
 
 ## The pass, in order
 
-1. Read the subject's `reference.<ext>` with `read`, and read `notes.md`.
+1. Read the subject's `reference.<ext>` with `read`, and read `notes.md`. In text mode, read the
+   prompt file instead.
 2. Run the free check, `--ask`. It sends no completion, checks the endpoint, and lists the gaps.
 3. Ask the art director everything in one call. Never invent a choice that belongs to the art
    director: the style, the number of variants, the request.
 4. Report the answers, the command, and the cost in time. Then run it.
 5. Hand the candidate paths back with one line of description per file. Wait for the choice.
 6. Never choose a candidate, and never promote one.
+
+## The prompt files
+
+- `prompts/3d-coder-system.txt` is the constant system turn, and it is the model card's text, byte
+  for byte: the cdnjs ES module, no addons, and the camera controls inside the HTML. Do not extend it.
+  The art director's decision of 2026-11-17 (T0013 D7) is that a long system contract does not hold.
+- `prompts/subjects/<slug>.txt` is the user turn of one subject: short lines, numbers instead of
+  adjectives, one line per constraint, and a last line that names what must not appear. Keep it under
+  twenty lines.
+- Text mode sends the file and nothing else: `--prompt-file <f> --out <dir>`. It reads no blueprint
+  and no image.
+- Do not lengthen a prompt to fix a candidate. Change one constraint, then run again.
+- A prompt that grows into prose is a defect. The model answers lists.
 
 ## The model is not an agent
 
@@ -35,7 +49,8 @@ or G3, and it does not replace workflow D. The art director judges every candida
   invalid counter falls back to the folder maximum.
 - The script never edits the model's JavaScript. A broken candidate stays as evidence.
 - As an image, generation reads `reference.<ext>` only. It never reads `source.<ext>`.
-- A candidate lives beside its subject, in `blueprints/<category>/<subject>/generated/`.
+- A candidate lives beside its subject, in `blueprints/<category>/<subject>/generated/`. In text
+  mode it lives in the folder that `--out` names.
 
 ## Files and runtime
 

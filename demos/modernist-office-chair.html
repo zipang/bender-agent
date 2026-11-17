@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modernist Office Chair</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #e8e4dc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    #info {
+      position: fixed;
+      top: 18px;
+      left: 20px;
+      z-index: 10;
+      color: #333028;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    #info h1 {
+      margin: 0 0 5px;
+      font-size: 16px;
+      font-weight: 650;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    #info p {
+      margin: 0;
+      color: #777166;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h1>Modernist Office Chair</h1>
+    <p>Walnut frame · Yellow leather · Steel legs</p>
+  </div>
+
+  <script type="module">
+    import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js";
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe8e4dc);
+
+    const camera = new THREE.PerspectiveCamera(
+      38,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100
+    );
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false
+    });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    document.body.appendChild(renderer.domElement);
+
+    // Lighting: studio key, fill, and top highlights.
+    scene.add(new THREE.HemisphereLight(0xfff8ed, 0x8c8174, 2.2));
+
+    const keyLight = new THREE.DirectionalLight(0xfff4df, 3.8);
+    keyLight.position.set(-4, 7, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -5;
+    keyLight.shadow.camera.right = 5;
+    keyLight.shadow.camera.top = 5;
+    keyLight.shadow.camera.bottom = -5;
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far = 20;
+    keyLight.shadow.bias = -0.00015;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xdce7f0, 1.35);
+    fillLight.position.set(5, 3, -4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffd7a3, 1.1);
+    rimLight.position.set(0, 4, -6);
+    scene.add(rimLight);
+
+    const materials = {
+      walnut: new THREE.MeshStandardMaterial({
+        color: 0x6b4a2f,
+        roughness: 0.42,
+        metalness: 0.02
+      }),
+      leather: new THREE.MeshStandardMaterial({
+        color: 0xe0a526,
+        roughness: 0.58,
+        metalness: 0.0
+      }),
+      steel: new THREE.MeshStandardMaterial({
+        color: 0x9aa3ac,
+        roughness: 0.28,
+        metalness: 0.82
+      })
+    };
+
+    const chair = new THREE.Group();
+    scene.add(chair);
+
+    // Dimensions in world units.
+    const seatY = 0.55;
+    const backBottomY = 0.62;
+    const backTopY = 1.24;
+    const backLean = THREE.MathUtils.degToRad(12);
+    const backCenterY = (backBottomY + backTopY) * 0.5;
+
+    // Main walnut seat board.
+    const seatBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.68, 0.05, 0.62),
+      materials.walnut
+    );
+    seatBoard.position.set(0, seatY, 0);
+    seatBoard.castShadow = true;
+    seatBoard.receiveShadow = true;
+    chair.add(seatBoard);
+
+    // Yellow leather seat cushion.
+    const seatCushion = new THREE.Mesh(
+      new THREE.BoxGeometry(0.60, 0.10, 0.54),
+      materials.leather
+    );
+    seatCushion.position.set(0, seatY + 0.055, 0);
+    seatCushion.castShadow = true;
+    seatCushion.receiveShadow = true;
+    chair.add(seatCushion);
+
+    // Backrest: walnut shell, rotated around X to lean backward.
+    const backShell = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.59, 0.055),
+      materials.walnut
+    );
+    backShell.position.set(0, backCenterY, 0);
+    backShell.rotation.x = backLean;
+    backShell.castShadow = true;
+    backShell.receiveShadow = true;
+    chair.add(backShell);
+
+    // Leather panel on the front face of the backrest.
+    const backPanel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.445, 0.495, 0.018),
+      materials.leather
+    );
+    backPanel.position.set(0, backCenterY, 0.034);
+    backPanel.rotation.x = backLean;
+    backPanel.castShadow = true;
+    backPanel.receiveShadow = true;
+    chair.add(backPanel);
+
+    // Subtle piping around the backrest leather panel.
+    const pipingGroup = new THREE.Group();
+    pipingGroup.position.set(0, backCenterY, 0.045);
+    pipingGroup.rotation.x = backLean;
+
+    const pipingPoints = [
+      new THREE.Vector2(-0.227, -0.25),
+      new THREE.Vector2(0.227, -0.25),
+      new THREE.Vector2(0.227, 0.25),
+      new THREE.Vector2(-0.227, 0.25),
+      new THREE.Vector2(-0.227, -0.25)
+    ];
+
+    const pipingCurve = new THREE.CatmullRomCurve3(
+      pipingPoints.map((p) => new THREE.Vector3(p.x, p.y, 0))
+    );
+    pipingCurve.type = THREE.CatmullRomCurveType;
+    pipingCurve.closed = true;
+
+    const piping = new THREE.Mesh(
+      pipingCurve,
+      new THREE.TubeGeometry(pipingCurve, 64, 0.006, 6, true)
+    );
+    piping.material = new THREE.MeshStandardMaterial({
+      color: 0xc98817,
+      roughness: 0.65
+    });
+    piping.castShadow = true;
+    pipingGroup.add(piping);
+    chair.add(pipingGroup);
+
+    // Four square steel legs.
+    const legPositions = [
+      [-0.285, -0.245],
+      [0.285, -0.245],
+      [-0.285, 0.245],
+      [0.285, 0.245]
+    ];
+
+    for (const [x, z] of legPositions) {
+      const leg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.52, 0.05),
+        materials.steel
+      );
+      leg.position.set(x, 0.26, z);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      chair.add(leg);
+
+      // Slightly splayed lower leg section.
+      const lowerLeg = new THREE.Mesh(
+        new THREE.BoxGeometry(0.043, 0.16, 0.043),
+        materials.steel
+      );
+      lowerLeg.position.set(x * 1.045, 0.08, z * 1.045);
+      lowerLeg.rotation.z = x > 0 ? -0.035 : 0.035;
+      lowerLeg.rotation.x = z > 0 ? -0.035 : 0.035;
+      lowerLeg.castShadow = true;
+      chair.add(lowerLeg);
+    }
+
+    // Crossbars under the seat.
+    const crossbarA = new THREE.Mesh(
+      new THREE.BoxGeometry(0.58, 0.035, 0.035),
+      materials.steel
+    );
+    crossbarA.position.set(0, 0.43, 0);
+    crossbarA.castShadow = true;
+    chair.add(crossbarA);
+
+    const crossbarB = new THREE.Mesh(
+      new THREE.BoxGeometry(0.035, 0.035, 0.52),
+      materials.steel
+    );
+    crossbarB.position.set(0, 0.43, 0);
+    crossbarB.castShadow = true;
+    chair.add(crossbarB);
+
+    // Walnut armrest supports.
+    for (const side of [-1, 1]) {
+      const support = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.08, 0.47),
+        materials.walnut
+      );
+      support.position.set(side * 0.34, 0.64, 0);
+      support.castShadow = true;
+      chair.add(support);
+
+      // Armrest frame.
+      const armrest = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.055, 0.15),
+        materials.walnut
+      );
+      armrest.position.set(side * 0.39, 0.72, 0);
+      armrest.rotation.z = side * -0.12;
+      armrest.castShadow = true;
+      chair.add(armrest);
+
+      // Yellow leather pad on top.
+      const armPad = new THREE.Mesh(
+        new THREE.BoxGeometry(0.285, 0.022, 0.115),
+        materials.leather
+      );
+      armPad.position.set(side * 0.39, 0.756, 0);
+      armPad.rotation.z = side * -0.12;
+      armPad.castShadow = true;
+      chair.add(armPad);
+    }
+
+    // Small rear leg stabilizers.
+    for (const side of [-1, 1]) {
+      const stabilizer = new THREE.Mesh(
+        new THREE.BoxGeometry(0.13, 0.035, 0.055),
+        materials.steel
+      );
+      stabilizer.position.set(side * 0.31, 0.025, 0.285);
+      stabilizer.rotation.z = side * 0.12;
+      stabilizer.castShadow = true;
+      chair.add(stabilizer);
+    }
+
+    // Camera is fixed, with a slight three-quarter view.
+    camera.position.set(3.2, 2.65, 4.3);
+    camera.lookAt(0, 0.62, 0);
+
+    // Direct, lightweight orbit controls implemented without addons.
+    const controls = {
+      azimuth: 0.66,
+      polar: 1.16,
+      radius: 5.1,
+      target: new THREE.Vector3(0, 0.65, 0),
+      dragging: false,
+      previousX: 0,
+      previousY: 0
+    };
+
+    function updateCamera() {
+      const sinPolar = Math.sin(controls.polar);
+      camera.position.set(
+        controls.target.x + controls.radius * sinPolar * Math.sin(controls.azimuth),
+        controls.target.y + controls.radius * Math.cos(controls.polar),
+        controls.target.z + controls.radius * sinPolar * Math.cos(controls.azimuth)
+      );
+      camera.lookAt(controls.target);
+    }
+
+    renderer.domElement.addEventListener("pointerdown", (event) => {
+      controls.dragging = true;
+      controls.previousX = event.clientX;
+      controls.previousY = event.clientY;
+      renderer.domElement.setPointerCapture(event.pointerId);
+    });
+
+    renderer.domElement.addEventListener("pointermove", (event) => {
+      if (!controls.dragging) return;
+
+      const dx = event.clientX - controls.previousX;
+      const dy = event.clientY - controls.previousY;
+
+      controls.previousX = event.clientX;
+      controls.previousY = event.clientY;
+
+      controls.azimuth -= dx * 0.006;
+      controls.polar = THREE.MathUtils.clamp(
+        controls.polar - dy * 0.005,
+        0.65,
+        1.48
+      );
+
+      updateCamera();
+    });
+
+    function endDrag(event) {
+      controls.dragging = false;
+      if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+        renderer.domElement.releasePointerCapture(event.pointerId);
+      }
+    }
+
+    renderer.domElement.addEventListener("pointerup", endDrag);
+    renderer.domElement.addEventListener("pointercancel", endDrag);
+
+    // Resize.
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    updateCamera();
+
+    // Render loop.
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

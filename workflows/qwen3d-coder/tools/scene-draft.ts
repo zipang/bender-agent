@@ -17,7 +17,7 @@ import {
 } from "./lib/client";
 import { checkEndpoint, type PreflightOptions, type PreflightResult } from "./lib/endpoint";
 import { extractHtml, NoHtmlError } from "./lib/extract";
-import { buildUserPrompt, parseNotes, SYSTEM_PROMPT_PATH } from "./lib/prompt";
+import { buildUserPrompt, parseNotes, SYSTEM_PROMPT_PATH, type SubjectNotes } from "./lib/prompt";
 
 // The repository root. This file lives in <root>/workflows/qwen3d-coder/tools/.
 const PROJECT_ROOT = resolve(import.meta.dir, "..", "..", "..");
@@ -52,6 +52,10 @@ export type SceneDraftDeps = {
 
 type Options = {
 	subject: string | null;
+	/** A file that holds the whole user turn. It replaces the subject folder. */
+	promptFile: string | null;
+	/** The candidate folder of a text prompt. It replaces `<subject>/generated/`. */
+	out: string | null;
 	style: string | null;
 	variants: number;
 	image: boolean;
@@ -87,6 +91,8 @@ function validateBaseUrl(value: string): string | null {
 function parseOptions(argv: string[]): Parsed {
 	const options: Options = {
 		subject: null,
+		promptFile: null,
+		out: null,
 		style: null,
 		variants: 1,
 		image: false,
@@ -101,6 +107,8 @@ function parseOptions(argv: string[]): Parsed {
 
 	const withValue = new Set([
 		"--subject",
+		"--prompt-file",
+		"--out",
 		"--style",
 		"--variants",
 		"--prompt",
@@ -128,6 +136,14 @@ function parseOptions(argv: string[]): Parsed {
 		switch (flag) {
 			case "--subject":
 				options.subject = value;
+				break;
+			case "--prompt-file":
+				if (!value.trim()) return { error: `--prompt-file is empty.` };
+				options.promptFile = value;
+				break;
+			case "--out":
+				if (!value.trim()) return { error: `--out is empty.` };
+				options.out = value;
 				break;
 			case "--style":
 				options.style = value;
@@ -225,20 +241,55 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 	}
 	const options = parsed.options;
 
-	if (!options.subject) {
-		err("--subject is required: pass the subject folder.");
-		return 1;
-	}
-	const subjectDir = resolve(options.subject);
-	if (!existsSync(subjectDir)) {
-		err(`The subject folder does not exist: ${subjectDir}`);
-		return 1;
-	}
+	// Text mode: a prompt file replaces the subject folder and its reference image.
+	const textMode = options.promptFile !== null;
 
-	const notes = parseNotes(readNotes(subjectDir));
-	const reference = findReference(subjectDir);
-	const subjectText = notes.subject ?? options.prompt;
-	const request = options.prompt ?? subjectText;
+	let subjectDir: string | null = null;
+	let promptPath: string | null = null;
+	let notes: SubjectNotes = { subject: null, details: null };
+	let reference: string | null = null;
+	let subjectText: string | null = null;
+	let request: string | null = null;
+	let promptText: string | null = null;
+
+	if (textMode) {
+		if (options.subject) {
+			err("--prompt-file and --subject are exclusive: pass one of the two.");
+			return 1;
+		}
+		if (options.image) {
+			err("--image needs --subject and its reference.<ext>.");
+			return 1;
+		}
+		promptPath = resolve(options.promptFile as string);
+		if (!existsSync(promptPath)) {
+			err(`The prompt file does not exist: ${displayPath(promptPath)}`);
+			return 1;
+		}
+		promptText = readFileSync(promptPath, "utf8").trim();
+		if (!promptText) {
+			err(`The prompt file is empty: ${displayPath(promptPath)}`);
+			return 1;
+		}
+		request = promptText;
+	} else {
+		if (!options.subject) {
+			err(
+				"--subject is required: pass the subject folder, or --prompt-file for a text prompt.",
+			);
+			return 1;
+		}
+		subjectDir = resolve(options.subject);
+		if (!existsSync(subjectDir)) {
+			err(`The subject folder does not exist: ${subjectDir}`);
+			return 1;
+		}
+
+		notes = parseNotes(readNotes(subjectDir));
+		reference = findReference(subjectDir);
+		subjectText = notes.subject ?? options.prompt;
+		request = options.prompt ?? subjectText;
+	}
 
 	/** The endpoint check. It runs once per run, before the first variant (`--ask` included). */
 	const resolveModel = async (): Promise<EndpointResolution> => {
@@ -266,12 +317,17 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 		if (!endpoint.ok) return endpoint.code;
 
 		const gaps: string[] = [];
-		if (!reference) gaps.push(`reference.<ext>: missing in ${displayPath(subjectDir)}`);
-		if (!subjectText)
-			gaps.push(
-				'subject note: missing. Add a "## Subject" paragraph to notes.md, or pass --prompt.',
-			);
-		if (!options.style) gaps.push('style: missing. Pass --style "<style>".');
+		if (textMode) {
+			if (!options.out) gaps.push("--out: missing. Pass the candidate folder.");
+		} else {
+			if (!reference)
+				gaps.push(`reference.<ext>: missing in ${displayPath(subjectDir as string)}`);
+			if (!subjectText)
+				gaps.push(
+					'subject note: missing. Add a "## Subject" paragraph to notes.md, or pass --prompt.',
+				);
+			if (!options.style) gaps.push('style: missing. Pass --style "<style>".');
+		}
 
 		if (gaps.length === 0) {
 			out("ask:        No gap found. The material is complete enough to draft.");
@@ -284,20 +340,25 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 		return 0;
 	}
 
-	if (!options.style) {
-		err("--style is required: pass the style in the art director's words.");
-		return 1;
-	}
-	if (!reference) {
-		err(
-			`reference.<ext> is missing in ${displayPath(subjectDir)}. Generation reads no other image.`,
-		);
-		return 1;
-	}
-	if (!subjectText) {
-		err(
-			'An empty subject or an empty request is never sent. Add a "## Subject" paragraph to notes.md, or pass --prompt.',
-		);
+	if (!textMode) {
+		if (!options.style) {
+			err("--style is required: pass the style in the art director's words.");
+			return 1;
+		}
+		if (!reference) {
+			err(
+				`reference.<ext> is missing in ${displayPath(subjectDir as string)}. Generation reads no other image.`,
+			);
+			return 1;
+		}
+		if (!subjectText) {
+			err(
+				'An empty subject or an empty request is never sent. Add a "## Subject" paragraph to notes.md, or pass --prompt.',
+			);
+			return 1;
+		}
+	} else if (!options.out) {
+		err("--out is required with --prompt-file: pass the candidate folder.");
 		return 1;
 	}
 
@@ -305,19 +366,28 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 	if (!endpoint.ok) return endpoint.code;
 
 	const systemPrompt = deps.systemPrompt ?? readFileSync(SYSTEM_PROMPT_PATH, "utf8");
-	const mediaType = MEDIA_TYPES[extname(reference).toLowerCase()] ?? "application/octet-stream";
-	const image: ChatImage | null = options.image
-		? { mime: mediaType, data: readFileSync(reference).toString("base64") }
-		: null;
 
-	const userPrompt = buildUserPrompt({
-		subject: subjectText,
-		style: options.style,
-		details: notes.details,
-		request,
-	});
+	const image: ChatImage | null = (() => {
+		if (textMode || !options.image) return null;
+		const path = reference as string;
+		const mediaType = MEDIA_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
+		return { mime: mediaType, data: readFileSync(path).toString("base64") };
+	})();
 
-	const generatedDir = join(subjectDir, "generated");
+	const userPrompt = textMode
+		? (promptText as string)
+		: buildUserPrompt({
+				subject: subjectText as string,
+				style: options.style as string,
+				details: notes.details,
+				request: request as string,
+			});
+
+	if (textMode) out(`prompt: ${displayPath(promptPath as string)}`);
+
+	const generatedDir = textMode
+		? resolve(options.out as string)
+		: join(subjectDir as string, "generated");
 	let written = 0;
 	let firstFailure: number | null = null;
 

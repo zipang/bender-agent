@@ -48,11 +48,11 @@ code `4`.
 The endpoint's operator sets the rest of its requirements where the endpoint is declared. This
 workflow states them, reads none of them, and cannot verify any of them:
 
-| Requirement              | Value                                | Why                                                                                       |
-| :----------------------- | :----------------------------------- | :---------------------------------------------------------------------------------------- |
-| `-np`, `--parallel`      | **1**                                | One variant at a time. A memory-bound host loses rate and memory with two slots.          |
-| `-ngl`, `--n-gpu-layers` | **`all`** when the backend has a GPU | The model card uses `all`. On a shared-memory GPU it changes placement, not bandwidth.    |
-| `-fa`, `--flash-attn`    | **`on`**                             | The model card's invocation.                                                              |
+| Requirement              | Value                                | Why                                                                                    |
+| :----------------------- | :----------------------------------- | :------------------------------------------------------------------------------------- |
+| `-np`, `--parallel`      | **1**                                | One variant at a time. A memory-bound host loses rate and memory with two slots.       |
+| `-ngl`, `--n-gpu-layers` | **`all`** when the backend has a GPU | The model card uses `all`. On a shared-memory GPU it changes placement, not bandwidth. |
+| `-fa`, `--flash-attn`    | **`on`**                             | The model card's invocation.                                                           |
 
 ## 2. Draft one scene
 
@@ -67,19 +67,42 @@ bun run workflows/qwen3d-coder/tools/scene-draft.ts \
 A subject without a `## Subject` paragraph in `notes.md` needs `--prompt`, because the script never
 sends an empty prompt.
 
-| Flag                | Meaning                                             | Default                    |
-| :------------------ | :-------------------------------------------------- | :------------------------- |
-| `--subject <dir>`   | The subject folder. It must hold `reference.<ext>`  | required                   |
-| `--style "<text>"`  | The rendering style, in the art director's words    | required                   |
-| `--variants <n>`    | The number of candidates                            | `1`                        |
-| `--image`           | Send `reference.<ext>` as an image part             | off                        |
-| `--prompt "<text>"` | The scene request, instead of the subject paragraph | `notes.md`                 |
-| `--base-url <url>`  | The root of the OpenAI-compatible API               | `http://127.0.0.1:9931/v1` |
-| `--model <id>`      | The `id` the endpoint publishes                     | `qwen3.5-4b-3d-coder`      |
-| `--max-tokens <n>`  | The output guard. `-1` removes it                   | `16384`                    |
-| `--timeout <s>`     | The wall-clock budget of one request                | `1800`                     |
-| `--seed <n>`        | A fixed seed, so one run is repeatable              | absent, so random          |
-| `--ask`             | List the gaps and check the endpoint. Send nothing  | off                        |
+| Flag                | Meaning                                             | Default                          |
+| :------------------ | :-------------------------------------------------- | :------------------------------- |
+| `--subject <dir>`   | The subject folder. It must hold `reference.<ext>`  | required, unless `--prompt-file` |
+| `--prompt-file <f>` | A file that holds the whole user turn               | absent                           |
+| `--out <dir>`       | The candidate folder of `--prompt-file`             | required with `--prompt-file`    |
+| `--style "<text>"`  | The rendering style, in the art director's words    | required, unless `--prompt-file` |
+| `--variants <n>`    | The number of candidates                            | `1`                              |
+| `--image`           | Send `reference.<ext>` as an image part             | off                              |
+| `--prompt "<text>"` | The scene request, instead of the subject paragraph | `notes.md`                       |
+| `--base-url <url>`  | The root of the OpenAI-compatible API               | `http://127.0.0.1:9931/v1`       |
+| `--model <id>`      | The `id` the endpoint publishes                     | `qwen3.5-4b-3d-coder`            |
+| `--max-tokens <n>`  | The output guard. `-1` removes it                   | `16384`                          |
+| `--timeout <s>`     | The wall-clock budget of one request                | `1800`                           |
+| `--seed <n>`        | A fixed seed, so one run is repeatable              | absent, so random                |
+| `--ask`             | List the gaps and check the endpoint. Send nothing  | off                              |
+
+### Two modes
+
+**Subject mode** reads a blueprint and sends it with the style. It is the default, and it is the mode
+of every subject that has a `reference.<ext>`.
+
+**Text mode** sends a prompt file and nothing else. It starts from `prompts/`, not from `blueprints/`:
+
+```bash
+bun run workflows/qwen3d-coder/tools/scene-draft.ts \
+  --prompt-file workflows/qwen3d-coder/prompts/subjects/voxel-christmas-tree.txt \
+  --out blueprints/drafts/voxel-christmas-tree/generated
+```
+
+In text mode `--style` is not read, because the prompt file holds the whole user turn. The two modes
+are exclusive: `--prompt-file` with `--subject` exits `1`, and `--image` needs a subject.
+
+The system prompt is constant, whatever the mode. It is
+[`prompts/3d-coder-system.txt`](./prompts/3d-coder-system.txt), and it is the model card's text: the
+cdnjs ES module, no addons, and the camera controls inside the HTML. A prompt file holds one subject,
+in short lines.
 
 `--base-url` must parse as a URL, its scheme must be `http` or `https`, and it must not end with `/`.
 A violation exits `1`.
@@ -106,14 +129,14 @@ endpoint: http://127.0.0.1:9931/v1  model: qwen3.5-4b-3d-coder
 
 Exit codes:
 
-| Code | Meaning                                                                 |
-| :--- | :---------------------------------------------------------------------- |
+| Code | Meaning                                                                    |
+| :--- | :------------------------------------------------------------------------- |
 | `0`  | A candidate was written, or `--ask` completed its check, whatever the gaps |
-| `1`  | Invalid input: a flag, the subject, the style, or the reference         |
-| `2`  | The endpoint is unreachable, or it does not publish the model           |
-| `3`  | A request failed                                                        |
-| `4`  | The response held no complete document                                  |
-| `5`  | The candidate could not be written                                      |
+| `1`  | Invalid input: a flag, the subject, the style, or the reference            |
+| `2`  | The endpoint is unreachable, or it does not publish the model              |
+| `3`  | A request failed                                                           |
+| `4`  | The response held no complete document                                     |
+| `5`  | The candidate could not be written                                         |
 
 A failed variant does not stop the next one. The script still exits 0 when one candidate is written.
 
@@ -177,7 +200,12 @@ The endpoint applies its samplers from left to right: `penalties`, `dry`, `top_n
 `typ_p`, `top_p`, `min_p`, `xtc`, `temperature`. The token cut happens before the temperature
 scales the distribution. This workflow keeps that order.
 
-The system prompt is `prompts/3d-coder-system.txt`, the model card's text byte for byte.
+The system prompt is `prompts/3d-coder-system.txt`, and it is the model card's text, byte for byte:
+the cdnjs ES module, no addons, and the camera controls written inside the HTML. A test fails if a
+byte changes.
+
+In subject mode the user turn is four blocks, built by `tools/lib/prompt.ts`. In text mode the user
+turn is the file that `--prompt-file` names, byte for byte.
 
 The endpoint reports the token count in `timings`. Without `timings` in the response, the reported
 count is the number of non-empty delta frames, not tokens. The request itself does not change.

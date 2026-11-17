@@ -73,7 +73,9 @@ with a locked reference.
 
 ### In progress
 
-No ticket is in progress.
+| ID                                                     | Title                                           | Track                                  | Note         |
+| :----------------------------------------------------- | :---------------------------------------------- | :------------------------------------- | :----------- |
+| [T0013](./in_progress/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode | Qwen 3D Coder workflow (prompt, drafter) | started 2026-11-17 |
 
 ### Review
 

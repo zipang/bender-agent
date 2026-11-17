@@ -384,3 +384,106 @@ describe("a write failure", () => {
 		expect(calls.stream).toHaveLength(2);
 	});
 });
+
+describe("text mode, a prompt file instead of a subject", () => {
+	const PROMPT = "A Christmas tree in its pot, voxel art.\nEvery form is a cube of size 1.";
+
+	function promptFile(text: string | null = PROMPT): string {
+		const dir = mkdtempSync(join(tmpdir(), "qwen3d-prompt-"));
+		roots.push(dir);
+		const path = join(dir, "subject.txt");
+		if (text !== null) writeFileSync(path, text);
+		return path;
+	}
+
+	function outDir(): string {
+		const dir = mkdtempSync(join(tmpdir(), "qwen3d-out-"));
+		roots.push(dir);
+		return dir;
+	}
+
+	test("sends the file text as the user turn, with no image and no style", async () => {
+		const path = promptFile();
+		const out = join(outDir(), "generated");
+		const { d, lines, calls } = deps();
+		const code = await runCli(["--prompt-file", path, "--out", out], d);
+
+		expect(code).toBe(0);
+		expect(candidates(out)).toEqual(["qwen3d-coder-scene--01.html"]);
+		expect(readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8")).toBe(DOCUMENT);
+		const sent = calls.stream[0]!;
+		expect(sent.user).toBe(PROMPT);
+		expect(sent.image).toBeNull();
+		expect(lines.join("\n")).toContain(`prompt: ${path}`);
+	});
+
+	test("a second run writes --02 and leaves --01 byte-identical", async () => {
+		const path = promptFile();
+		const out = join(outDir(), "generated");
+		const first = deps();
+		await runCli(["--prompt-file", path, "--out", out], first.d);
+		const before = readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8");
+
+		const second = deps([{ content: "<!DOCTYPE html>\n<html><body>second</body></html>" }]);
+		await runCli(["--prompt-file", path, "--out", out], second.d);
+
+		expect(candidates(out)).toEqual(["qwen3d-coder-scene--01.html", "qwen3d-coder-scene--02.html"]);
+		expect(readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8")).toBe(before);
+	});
+
+	test("--prompt-file without --out returns 1 and sends nothing", async () => {
+		const path = promptFile();
+		const { d, errors, calls } = deps();
+		const code = await runCli(["--prompt-file", path], d);
+
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("--out is required with --prompt-file");
+		expect(calls.preflight).toHaveLength(0);
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a missing prompt file returns 1 and sends nothing", async () => {
+		const path = join(promptFile(), "absent.txt");
+		const { d, errors, calls } = deps();
+		const code = await runCli(["--prompt-file", path, "--out", outDir()], d);
+
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("does not exist");
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("an empty prompt file returns 1 and sends nothing", async () => {
+		const path = promptFile("   \n\n ");
+		const { d, errors, calls } = deps();
+		const code = await runCli(["--prompt-file", path, "--out", outDir()], d);
+
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("is empty");
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("--prompt-file and --subject are exclusive", async () => {
+		const path = promptFile();
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--prompt-file", path, "--subject", dir, "--out", outDir()],
+			d,
+		);
+
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("exclusive");
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("--ask on a complete prompt file lists no gap and sends nothing", async () => {
+		const path = promptFile();
+		const { d, lines, calls } = deps();
+		const code = await runCli(["--prompt-file", path, "--out", outDir(), "--ask"], d);
+
+		expect(code).toBe(0);
+		expect(lines.join("\n")).toContain("No gap found");
+		expect(calls.stream).toHaveLength(0);
+		expect(calls.preflight).toHaveLength(1);
+	});
+});

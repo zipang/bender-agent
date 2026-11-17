@@ -1,7 +1,8 @@
 // T1.4 — the system prompt and the user prompt.
 //
-// The system prompt is the model card's text, byte for byte. The user prompt is a pure function of
-// its four blocks, so a silent drift in the wording fails the build.
+// The system prompt is the model card's text, byte for byte, on the decision of the art director
+// (T0013 D7): the card states the runtime, and the constraints live in the prompt file. The user
+// prompt is a pure function of its four blocks, so a silent drift in the wording fails the build.
 
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";

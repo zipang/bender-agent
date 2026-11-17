@@ -17,6 +17,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { STAGE_RULES, freeDistance } from "./frame.js";
 import { nextAzimuth } from "./spin.js";
 
 /**
@@ -43,8 +44,8 @@ export function viewBasis(views, name) {
 // One frozen table configures BOTH instances, so parity is a property of the table and not of what
 // each projection happens to read. A pair the projection ignores is still written: the orthographic
 // limits are inert on the perspective instance and the reverse, and one object stays one object. The
-// distance range is the one pair that is NOT in this table: it follows the frame, and `createCameraRig`
-// writes it to both instances once the table has been applied.
+// distance range is the one pair that is NOT in this table: it follows the free distance, and
+// `syncDistanceLimits` writes it to both instances whenever that distance changes.
 //
 // A left drag moves the view on both families. The middle keeps the library default, the dolly. The
 // right button is bound to no action: `null` matches no case in `OrbitControls`' own switch, so a
@@ -64,8 +65,8 @@ const SHARED = {
 	rotateSpeed: 1,
 	zoomToCursor: true,
 	screenSpacePanning: true,
-	minZoom: 1,
-	maxZoom: 10, // orthographic only: the 100 % floor, the 1000 % cap
+	minZoom: 0.1,
+	maxZoom: 10, // orthographic only: the 10 % floor, the 1000 % cap
 	maxPolarAngle: Math.PI / 2,
 	mouseButtons: {
 		LEFT: THREE.MOUSE.PAN,
@@ -86,16 +87,30 @@ function configure(controls) {
 /**
  * @param {object} options
  * @param {Record<string, any>} options.views The fixed view table of `views.js`
- * @param {object} options.frame From `frame.js`: distance, orthoHeight, target
+ * @param {object} options.frame From `frame.js`: orthoHeight, groundRadius,
+ *   target
  * @param {HTMLElement} options.element The canvas, for `OrbitControls`
  * @param {() => void} [options.onManual] Called when the user orbits by hand
  */
 export function createCameraRig({ views, frame, element, onManual }) {
 	const aspect = () => window.innerWidth / window.innerHeight;
+	// The 100 % of the perspective camera: the distance that fits the whole ground disc in the
+	// smaller viewport dimension. The orthographic 100 % is `frame.orthoHeight` instead.
+	const referenceDistance = () =>
+		freeDistance({ groundRadius: frame.groundRadius, aspect: aspect() });
 
-	const camera = new THREE.PerspectiveCamera(26, aspect(), 0.1, 200);
+	const camera = new THREE.PerspectiveCamera(
+		STAGE_RULES.fov,
+		aspect(),
+		0.1,
+		200
+	);
 	const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, -50, 200);
 	ortho.up.set(0, 1, 0);
+
+	// The reference the user's dolly is measured against. `resize` scales `state.distance` by the
+	// ratio of the two references, so a window resize never undoes a dolly.
+	let lastReference = referenceDistance();
 
 	// One state drives both cameras. A named view is a preset written into it. `zoom` is a MIRROR of
 	// `ortho.zoom` -- the field `OrbitControls` writes -- so the rest of the page reads one number
@@ -103,12 +118,12 @@ export function createCameraRig({ views, frame, element, onManual }) {
 	const state = {
 		azimuth: 60,
 		elevation: 30,
-		distance: frame.distance,
+		distance: lastReference,
 		target: new THREE.Vector3(...frame.target),
 		perspective: true,
 		orthoHeight: frame.orthoHeight,
 		zoom: 1,
-		fov: 26,
+		fov: STAGE_RULES.fov,
 		up: [0, 1, 0]
 	};
 
@@ -118,14 +133,39 @@ export function createCameraRig({ views, frame, element, onManual }) {
 	const flat = new OrbitControls(ortho, element);
 	configure(orbit);
 	configure(flat);
-	// The distance range follows the frame. The reference viewer's fixed `3` / `24` is the same 8×
-	// ratio at its own 2.982 m frame distance, so it is one scale in two numbers. A fixed pair pushes
-	// a 10 cm asset 3 m out and cuts the dolly range of an 8 m one, and an asset has no fixed scale
-	// here. Both instances get both numbers, so the pair stays one pair.
-	orbit.minDistance = frame.distance;
-	orbit.maxDistance = frame.distance * 8;
-	flat.minDistance = orbit.minDistance;
-	flat.maxDistance = orbit.maxDistance;
+
+	// The distance range follows the free distance: 10 % to 1000 %, the same range as the flat zoom.
+	// Both instances get both numbers, so the pair stays one pair, and `resize` keeps it in step with
+	// the window.
+	function syncDistanceLimits() {
+		orbit.minDistance = state.distance / 10;
+		orbit.maxDistance = state.distance * 10;
+		flat.minDistance = orbit.minDistance;
+		flat.maxDistance = orbit.maxDistance;
+	}
+
+	// Depth ranges. The stage scales with the asset, so a fixed `far = 200` clips the ground of a
+	// large subject, in BOTH projections. The perspective camera keeps a fixed near plane -- the
+	// closest dolly is `state.distance / 10`, and a perspective near plane clips only what is in
+	// front of the camera -- and its `far` covers the FARTHEST dolly, not the 100 % framing:
+	// `maxDistance` is ten references away, so a 3 x plane clips a subject the user dollied out to.
+	// The flat camera sits at `state.distance` and never moves along its axis: its wheel changes
+	// `ortho.zoom`, not the position. Its depth range therefore brackets the target and the disc
+	// around it, and 200 m is the floor the small stages were tuned with.
+	function syncClipping() {
+		camera.near = 0.1;
+		camera.far = Math.max(
+			200,
+			state.distance * 10 + frame.groundRadius * 2
+		);
+		camera.updateProjectionMatrix();
+
+		ortho.near = Math.max(0.01, state.distance / 10);
+		ortho.far = state.distance + frame.groundRadius * 2;
+		ortho.updateProjectionMatrix();
+	}
+	syncDistanceLimits();
+	syncClipping();
 	// The first documented difference: a free view orbits, a flat view never does. This one field
 	// turns `Shift` + left drag into the orbit the plain left drag gave up, and makes the same
 	// gesture a no-op on `flat`, where a flat view only zooms and pans.
@@ -265,10 +305,16 @@ export function createCameraRig({ views, frame, element, onManual }) {
 		// A named view is the canonical frame: 100 %, centred on `frame.target`. Resetting first
 		// keeps the view reproducible whatever the pointer did before.
 		resetFraming();
+		// The distance of a named view is the free distance for the current window: the perspective
+		// camera frames the disc with it, and the orthographic camera uses it as a safe standoff on
+		// its own axis.
+		lastReference = referenceDistance();
+		state.distance = lastReference;
+		syncDistanceLimits();
+		syncClipping();
 		Object.assign(state, {
 			azimuth: view.azimuth,
 			elevation: view.elevation,
-			distance: frame.distance,
 			perspective: Boolean(view.perspective),
 			up: view.up ?? [0, 1, 0]
 		});
@@ -277,9 +323,22 @@ export function createCameraRig({ views, frame, element, onManual }) {
 
 	// ------------------------------------------------------------------ zoom and pan
 
-	/** The zoom as an integer percentage, 100..1000. */
+	/**
+	 * The zoom as an integer percentage, 10..1000, in BOTH projections.
+	 *
+	 * The flat view reads its own `ortho.zoom`. The free view has no zoom
+	 * factor, so it reads the ratio of the reference distance to the radius the
+	 * camera actually sits at: 100 % is the 100 % framing, and the dolly limits
+	 * (`state.distance / 10`, `state.distance * 10`) are the same 10 %..1000 %
+	 * the flat view allows. The clamp guards the rounding at both ends and a
+	 * gesture the library applied past a limit that was just rewritten.
+	 */
 	function zoomPercent() {
-		return Math.round(ortho.zoom * 100);
+		if (!state.perspective) return Math.round(ortho.zoom * 100);
+		const radius = camera.position.distanceTo(orbit.target);
+		if (!Number.isFinite(radius) || radius <= 0) return 100;
+		const percent = (state.distance / radius) * 100;
+		return Math.round(Math.min(1000, Math.max(10, percent)));
 	}
 
 	/**
@@ -325,14 +384,26 @@ export function createCameraRig({ views, frame, element, onManual }) {
 
 	function reset() {
 		state.up = [0, 1, 0];
-		state.fov = 26;
-		state.distance = frame.distance;
+		state.fov = STAGE_RULES.fov;
+		lastReference = referenceDistance();
+		state.distance = lastReference;
+		syncDistanceLimits();
+		syncClipping();
 		resetFraming();
 	}
 
 	function resize() {
+		// The reference of the new window. `state.distance` is scaled by the ratio of the two
+		// references, so the dolly the user set survives the resize; starting the distance from the
+		// new reference would undo it.
+		const nextReference = referenceDistance();
+		state.distance *= nextReference / lastReference;
+		lastReference = nextReference;
+		syncDistanceLimits();
 		camera.aspect = aspect();
-		camera.updateProjectionMatrix();
+		// Both depth ranges follow the new distance, and `syncClipping` updates the two
+		// projection matrices.
+		syncClipping();
 		frameOrtho();
 	}
 
@@ -345,26 +416,34 @@ export function createCameraRig({ views, frame, element, onManual }) {
 	 * as a broken button.
 	 */
 	function spinStart() {
-		if (!state.perspective) {
-			const name = views.free
-				? "free"
-				: Object.keys(views).find((view) => views[view].perspective);
-			if (!name)
-				throw new Error(
-					"spinStart: the view table has no perspective view"
-				);
-			placeCamera(name);
-		}
-		// Read the camera back before the controls are disabled. A manual orbit or a wheel dolly moved
-		// the camera without touching the state, so without this read the first `spinStep` snaps it
-		// to the last preset and the spin jumps on its first frame. `spinStep` places the camera from
-		// `state`, so the state is the one place the spin reads.
-		const offset = camera.position.clone().sub(state.target);
-		if (offset.lengthSq() > 0) {
+		// The spin starts exactly where the camera is, in either projection: the azimuth, the
+		// elevation and the radius are read from the ACTIVE camera before anything moves. A manual
+		// orbit or a wheel dolly moved the camera without touching the state, so without this read
+		// the first `spinStep` snaps it back to the last preset -- sideways and vertically, and at
+		// the preset distance -- and the spin jumps on its first frame.
+		const offset = activeCamera.position.clone().sub(state.target);
+		const radius = offset.length();
+		if (radius > 0) {
 			state.azimuth = THREE.MathUtils.radToDeg(
 				Math.atan2(offset.z, offset.x)
 			);
-			state.distance = offset.length();
+			state.elevation = THREE.MathUtils.radToDeg(
+				Math.asin(THREE.MathUtils.clamp(offset.y / radius, -1, 1))
+			);
+			state.distance = radius;
+		}
+		// A flat view cannot orbit. The spin keeps its direction and its standoff and takes the
+		// projection that turns around the vertical axis of the target; `applyCamera()` is the one
+		// place that swaps the active camera and rebinds the change listener.
+		if (!state.perspective) {
+			state.perspective = true;
+			// The two pole presets carry `up: [0, 0, -1]`, because an orthographic camera looking
+			// straight down cannot use the world Y as its up. A perspective camera must not inherit
+			// it: `OrbitControls` builds its spherical from `camera.up`, so the rolled vector turns
+			// the grid on its side and swaps the orbit axes the moment the spin stops. The free view
+			// is upright by definition.
+			state.up = [0, 1, 0];
+			applyCamera();
 		}
 		clearInertia(orbit);
 		// Both instances: the wheel is inert during a spin, and the press that stops the spin

@@ -23,15 +23,26 @@ import {
 
 const params = new URLSearchParams(location.search);
 const errorBox = document.getElementById("error");
+const errorText = document.getElementById("error-text") ?? errorBox;
 
 /** Show a failure in the page, so the reason survives a screenshot. */
 function fail(error) {
 	const message = String(error?.message ?? error);
 	window.__error = message;
 	if (!errorBox) return;
-	errorBox.textContent = `asset did not load\n\n${message}`;
+	if (errorText) errorText.textContent = `asset did not load\n\n${message}`;
 	errorBox.hidden = false;
 }
+
+// The box is dismissable, and dismissal is wired once here rather than on every failure: a second
+// failure must not stack a second listener. A failure leaves the page usable -- the picker is built
+// before the asset loads -- so the reader closes the box and opens another candidate.
+document.getElementById("error-close")?.addEventListener("click", () => {
+	if (errorBox) errorBox.hidden = true;
+});
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape" && errorBox) errorBox.hidden = true;
+});
 
 /** The catalogue, or an empty list when the request fails. */
 async function fetchCatalogue() {
@@ -55,6 +66,57 @@ function slugOf(path) {
 	return path.split("/").pop().replace(/\.ts$/, "");
 }
 
+/**
+ * The asset picker, appended to the view bar. It is built BEFORE the asset
+ * loads, because a candidate that does not parse must not take the way to
+ * another one down with it. The view and spin buttons are not: they need a rig,
+ * and a failed load never creates one.
+ */
+function buildPicker(assets, path) {
+	const bar = document.getElementById("views");
+	if (!bar) return null;
+
+	const picker = document.createElement("select");
+	// `name` names a form field. It does not label the control, so the label is written out.
+	picker.name = "asset";
+	picker.setAttribute("aria-label", "asset");
+	picker.title = "the candidate this page draws";
+
+	const entries = assets.some((entry) => entry.path === path)
+		? assets
+		: // A catalogue that failed to load still leaves the named asset open and shown, rather
+			// than an empty picker beside a model. The shape stays `CatalogueEntry`, so
+			// `window.__assets()` never returns a short object.
+			[
+				{
+					path,
+					slug: slugOf(path),
+					subject: "—",
+					category: "—",
+					bytes: 0,
+					modified: 0,
+					valid: true,
+					error: null
+				}
+			];
+	for (const entry of entries) {
+		const option = document.createElement("option");
+		option.value = entry.path;
+		option.textContent = `${entry.slug} — ${entry.subject}${entry.valid ? "" : " (invalid)"}`;
+		if (!entry.valid)
+			option.title = entry.error ?? "this module does not parse";
+		if (entry.path === path) option.selected = true;
+		picker.append(option);
+	}
+	// A navigation, not a swap: `location.assign` resets the camera, the spin and the error box,
+	// which a module swap inside the page would keep from the previous asset.
+	picker.addEventListener("change", () => {
+		location.assign(`/?asset=${encodeURIComponent(picker.value)}`);
+	});
+	bar.append(picker);
+	return picker;
+}
+
 async function boot() {
 	// The cursor contract is a body class, not an inline style: the stylesheet owns it.
 	document.body.classList.add("pan-ready");
@@ -69,46 +131,75 @@ async function boot() {
 
 	const requested = params.get("asset");
 	const path = requested ?? assets.find((entry) => entry.valid)?.path;
-	if (!path) {
-		if (catalogueError) throw catalogueError;
-		throw new Error(
-			"no asset found. Put a .ts module under blueprints/<category>/<subject>/generated/."
-		);
-	}
 
-	// The module is imported from the server, which prepends the `three` import when the file has
-	// none. The import is the only step that executes candidate code, and a syntax error rejects it
-	// with the transpiler's own message.
-	let module_;
+	// The picker is built before the load: a broken candidate stops the page before `window.__ready`,
+	// and the picker must survive that, so the reader can choose another one instead of reloading.
+	if (assets.length > 0 || path) buildPicker(assets, path);
+
+	// The stage is built whether or not an asset loads. A failure is a message about the model, not a
+	// reason to take the ground the model stands on away: the grid, the disc, the HUD and the view
+	// bar stay, and the scene simply holds no model.
+	let loadError = null;
+	let root = null;
+	let measured = null;
 	try {
-		module_ = await import(assetUrl(path));
+		if (!path) {
+			throw (
+				catalogueError ??
+				new Error(
+					"no asset found. Put a .ts module under blueprints/<category>/<subject>/generated/."
+				)
+			);
+		}
+		// The module is imported from the server, which prepends the `three` import when the file has
+		// none. The import is the only step that executes candidate code, and a syntax error rejects
+		// it with the transpiler's own message.
+		let module_;
+		try {
+			module_ = await import(assetUrl(path));
+		} catch (error) {
+			throw new Error(`${path}: ${error?.message ?? error}`);
+		}
+
+		const { build, problems: moduleProblems } = checkAsset(module_, path);
+		if (!build) throw new Error(describeProblems(moduleProblems));
+
+		// `build()` is called exactly once: two calls are two objects, and the page must draw one.
+		const built = build();
+		const rootProblems = checkRoot(built);
+		if (rootProblems.length > 0)
+			throw new Error(describeProblems(rootProblems));
+
+		root = built;
+		measured = measureObject(built);
 	} catch (error) {
-		throw new Error(`${path}: ${error?.message ?? error}`);
+		loadError = error;
 	}
 
-	const { build, problems: moduleProblems } = checkAsset(module_, path);
-	if (!build) throw new Error(describeProblems(moduleProblems));
-
-	// `build()` is called exactly once: two calls are two objects, and the page must draw one.
-	const root = build();
-	const rootProblems = checkRoot(root);
-	if (rootProblems.length > 0)
-		throw new Error(describeProblems(rootProblems));
-
-	const measured = measureObject(root);
-	const frame = frameFrom(measured);
+	// Without an asset the frame is the stage of a one-metre cube: the same ground a small candidate
+	// would get, so the page opens on something known rather than on an arbitrary size.
+	const frame = frameFrom(
+		measured ?? { size: [1, 1, 1], target: [0, 0.5, 0] }
+	);
 
 	// The title and the HUD heading are the asset's, not the viewer's.
-	const slug = slugOf(path);
-	document.title = slug;
-	const heading = document.querySelector("#hud h1");
-	if (heading) heading.textContent = slug;
+	if (path) {
+		const slug = slugOf(path);
+		document.title = slug;
+		const heading = document.querySelector("#hud h1");
+		if (heading) heading.textContent = slug;
+	}
 
 	// The rig needs the canvas, and the stage needs the rig for its loop. One explicit indirection is
 	// cheaper than either a circular constructor or a detached canvas.
 	const rigRef = { current: null };
-	const stage = createStage({ frame, report: () => measured, rigRef });
-	stage.setRoot(root);
+	const stage = createStage({
+		frame,
+		// An empty stage has nothing to measure, and the rows say so rather than showing a zero.
+		report: () => measured ?? { triangles: null, meshes: null, size: null },
+		rigRef
+	});
+	if (root) stage.setRoot(root);
 
 	let currentView = DEFAULT_VIEW;
 	let spinning = false;
@@ -129,58 +220,23 @@ async function boot() {
 	// and keeps it awake until the camera stops.
 	stage.bindRig(rig);
 
-	// The wheel and the pan on a flat view change the zoom, and the zoom row must follow them as they
-	// happen. Only the flat instance is wired: a free view reads a dash whatever the pointer does.
+	// The wheel and the pan change the zoom, and the zoom row must follow them as they happen, in
+	// both projections: the flat instance moves `ortho.zoom`, and the free instance moves the radius
+	// the percent is computed from.
 	rig.flat.addEventListener("change", () => {
+		stage.updateHud(currentView);
+	});
+	rig.controls.addEventListener("change", () => {
 		stage.updateHud(currentView);
 	});
 
 	// ------------------------------------------------------------------ the view bar
 
 	const bar = document.getElementById("views");
-	const picker = document.createElement("select");
 	const viewButtons = [];
 	let spinButton = null;
 
 	if (bar) {
-		picker.name = "asset";
-		// `name` names a form field. It does not label the control, so the label is written out.
-		picker.setAttribute("aria-label", "asset");
-		picker.title = "the candidate this page draws";
-
-		const entries = assets.some((entry) => entry.path === path)
-			? assets
-			: // A catalogue that failed to load still leaves the named asset open and shown, rather
-				// than an empty picker beside a model. The shape stays `CatalogueEntry`, so
-				// `window.__assets()` never returns a short object.
-				[
-					{
-						path,
-						slug: slugOf(path),
-						subject: "—",
-						category: "—",
-						bytes: 0,
-						modified: 0,
-						valid: true,
-						error: null
-					}
-				];
-		for (const entry of entries) {
-			const option = document.createElement("option");
-			option.value = entry.path;
-			option.textContent = `${entry.slug} — ${entry.subject}${entry.valid ? "" : " (invalid)"}`;
-			if (!entry.valid)
-				option.title = entry.error ?? "this module does not parse";
-			if (entry.path === path) option.selected = true;
-			picker.append(option);
-		}
-		// A navigation, not a swap: `location.assign` resets the camera, the spin and the error box,
-		// which a module swap inside the page would keep from the previous asset.
-		picker.addEventListener("change", () => {
-			location.assign(`/?asset=${encodeURIComponent(picker.value)}`);
-		});
-		bar.append(picker);
-
 		for (const name of Object.keys(VIEWS)) {
 			const button = document.createElement("button");
 			button.type = "button";
@@ -285,9 +341,9 @@ async function boot() {
 		view: currentView,
 		spin: spinning,
 		frames: stage.frames(),
-		triangles: measured.triangles,
-		meshes: measured.meshes,
-		size: measured.size,
+		triangles: measured?.triangles ?? null,
+		meshes: measured?.meshes ?? null,
+		size: measured?.size ?? null,
 		draws: stage.renderer.info.render.calls
 	});
 
@@ -295,12 +351,17 @@ async function boot() {
 
 	stage.readyOnSecondFrame(() => {
 		stage.updateHud(currentView);
-		window.__ready = true;
+		// A failure stops before `window.__ready`: the page is usable, and the asset is not loaded.
+		if (root) window.__ready = true;
 	});
 
 	rig.placeCamera(currentView);
 	syncBar();
 	stage.updateHud(currentView);
+
+	// The message comes last, so it sits over a page that is already drawable: the ground, the HUD
+	// and the view bar are in place when the failure is shown.
+	if (loadError) fail(loadError);
 }
 
 try {

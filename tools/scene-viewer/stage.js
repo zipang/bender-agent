@@ -13,6 +13,7 @@
 
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { gridLayers } from "./frame.js";
 
 /**
  * @param {object} options
@@ -86,9 +87,27 @@ export function createStage({ frame, report, rigRef }) {
 	ground.name = "Ground";
 	scene.add(ground);
 
-	const grid = new THREE.GridHelper(frame.gridSize, 24, 0xb0b6bd, 0xcdd2d7);
-	grid.position.y = 0.001;
-	scene.add(grid);
+	// Two grids over the same square, so a metre line reads stronger than a half-metre line. The
+	// layers are a contract of `frame.js`, not a drawing choice here: WebGL ignores `linewidth`
+	// above 1, so the weight is carried by the colour and the alpha. The grid size is an even
+	// integer, so both division counts are integers and both grids share one lattice: the sub grid
+	// puts lines at 0.5 m and at every metre, and the metre grid sits higher and paints over the
+	// coincident ones.
+	for (const layer of gridLayers(frame)) {
+		const grid = new THREE.GridHelper(
+			layer.size,
+			layer.divisions,
+			layer.color,
+			layer.color
+		);
+		grid.position.y = layer.y;
+		grid.material.transparent = layer.opacity < 1;
+		grid.material.opacity = layer.opacity;
+		// A faint layer that wrote depth would hide the metre lines drawn after it on the same
+		// lattice. Only the sub layer changes this: the metre layer keeps the default `true`.
+		grid.material.depthWrite = layer.opacity >= 1;
+		scene.add(grid);
+	}
 
 	// ------------------------------------------------------------------ hud
 
@@ -105,21 +124,29 @@ export function createStage({ frame, report, rigRef }) {
 	function updateHud(name) {
 		const stats = report();
 		if (hud.view) hud.view.textContent = name;
+		// An empty stage has nothing to measure. The rows read a dash, never a zero: a zero is a
+		// measurement, and a failure has none.
 		if (hud.tris)
-			hud.tris.textContent = stats.triangles.toLocaleString("en-US");
-		if (hud.meshes) hud.meshes.textContent = String(stats.meshes);
+			hud.tris.textContent =
+				stats.triangles == null
+					? "—"
+					: stats.triangles.toLocaleString("en-US");
+		if (hud.meshes)
+			hud.meshes.textContent =
+				stats.meshes == null ? "—" : String(stats.meshes);
 		if (hud.draws)
 			hud.draws.textContent = String(renderer.info.render.calls);
 		if (hud.size)
-			hud.size.textContent = stats.size
-				.map((value) => value.toFixed(2))
-				.join(" × ");
-		// The zoom is a fact about the orthographic camera only: a perspective view has no zoom
-		// factor, so it reads a dash rather than a number about a different projection.
+			hud.size.textContent =
+				stats.size == null
+					? "—"
+					: stats.size.map((value) => value.toFixed(2)).join(" × ");
+		// The zoom is a fact about the active camera. A flat view reads `ortho.zoom`; a free view
+		// reads the ratio of the reference distance to the radius, so the two read the same scale
+		// and the same 10 %..1000 % range.
 		const rig = rigRef?.current;
 		if (hud.zoom) {
-			hud.zoom.textContent =
-				rig && !rig.state.perspective ? `${rig.zoomPercent()} %` : "—";
+			hud.zoom.textContent = rig ? `${rig.zoomPercent()} %` : "—";
 		}
 	}
 

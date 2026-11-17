@@ -221,7 +221,9 @@ Unless the CEO/PM has explicitly authorized autonomous approval/commits:
     - **Request changes / fixes**
 3. **Close or Iterate**:
     - **If Approved**: Move the ticket to `tickets/done/`, update `tickets/README.md` (and `PRODUCT.md`), and when asked to commit, group changes logically and follow the repository's commit conventions (`git-commit` skill).
-    - **If Changes Are Requested**: Move the ticket back to `tickets/in_progress/`, delegate the fixes to the coding sub-agent (never edit production code yourself), run Phase 3 review + gates, and re-submit.
+    - **If Changes Are Requested**: Keep the ticket in `tickets/review/` when the request is a **review iteration** on a ticket the CEO/PM is already validating — a bug found by hand, a wording fix, a missing case, a polish round. The art director is still the reviewer, the ticket has not been rejected, and moving it back to `in_progress/` misreports the board. Only move it back to `in_progress/` when the scope, the contract, or the approach is rejected and the work must be re-planned from the specification. In both cases: delegate the fixes to the coding sub-agent (never edit production code yourself), re-run the gates, and re-submit.
+
+    Record every review iteration **inside the ticket**, as a numbered amendment (`## Contract amendment Rn`) that states the rule, supersedes the earlier text it replaces, and lists its acceptance line. The ticket is the record of what the art director asked and what governs; the file never leaves `review/` between two rounds.
 
 #### Mode B — Delegated Trust: Autonomous Approval & Commit
 

@@ -91,7 +91,6 @@ Nothing is in progress. Everything is in `review/`, `planned/`, or `done/`.
 | :----------------------------------------------------- | :---------------------------------------------------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
 | [T0004](./review/T0004-knot-marquee-selection.md)      | Knot editing by marquee selection: select, move, delete                       | Three.js viewer                                    | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in      |
 | [T0011](./review/T0011-qwen3d-coder-workflow.md)       | A fourth workflow: Qwen 3D Coder, an external endpoint, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | all gates green; reviewed after polish; T1.13 deferred to the first subject with a locked reference |
-| [T0015](./review/T0015-scene-viewer.md)                | The scene viewer: one page for a delivered asset                              | Shared scene viewer                                | all gates green (233 tests, 21 files); reviewed after polish; awaits the art director               |
 | [T0013](./review/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode                                | Qwen 3D Coder workflow (prompt, drafter)           | gates green (90 workflow tests); browser judgement still open                                       |
 
 ### Done
@@ -106,6 +105,7 @@ Nothing is in progress. Everything is in `review/`, `planned/`, or `done/`.
 | [T0008](./done/T0008-silhouette-report-presentation.md)       | The silhouette report says what it means                                  | Three.js viewer (tools)           | 2026-11-09 |
 | [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                   | 2026-11-09 |
 | [T0014](./done/T0014-root-tools-directory.md)                 | The root tool directory: `scripts/` becomes `tools/`                      | repository layout, every workflow | 2026-11-17 |
+| [T0015](./done/T0015-scene-viewer.md)                         | The scene viewer: one page for a delivered asset                          | Shared scene viewer               | 2026-11-18 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 

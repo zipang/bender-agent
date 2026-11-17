@@ -29,6 +29,12 @@ blueprints/*/*/*/*
 !blueprints/*/*/*/reference.jpg
 !blueprints/*/*/*/reference.jpeg
 
+# One generated asset is committed on purpose. It is the candidate the scene viewer's manual check
+# opens, and it proves that the catalogue reads `generated/` on a fresh clone. Every other generated
+# candidate stays local. The line 12 of that file was repaired by hand: it held `new THREE.Mesh[]`,
+# which does not parse. See tickets/review/T0015-scene-viewer.md.
+!blueprints/vehicules/red-sportster/generated/qwen3D-01.ts
+
 # Secrets and dependencies
 *.env.local
 node_modules/

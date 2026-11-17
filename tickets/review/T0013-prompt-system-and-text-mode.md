@@ -4,6 +4,7 @@
 - **Wave**: after T0011
 - **Owner**: bender, with the art director as reviewer
 - **Started**: 2026-11-17
+- **Moved to review**: 2026-11-17
 - **Depends on**: T0011 (the client, the preflight, and the candidate writer)
 - **Blocks**: T0012 (the asset drafter reuses the same system prompt)
 - **References**:
@@ -119,4 +120,45 @@ the prompt file holds the whole user turn.
 
 ## Implementation Notes
 
-Empty until the work starts.
+### Done, on 2026-11-17
+
+- `prompts/3d-coder-system.txt` is the model card's four lines, 225 bytes, and
+  `lib/prompt.test.ts` compares it byte for byte. The system prompt did not change.
+- Two prompt files ship: `prompts/subjects/voxel-christmas-tree.txt` (2 lines) and
+  `prompts/subjects/modernist-office-chair.txt` (1 line). Each is far under the twenty-line limit, and
+  each ends with the prohibition list of D3.
+- `scene-draft.ts` takes `--prompt-file` and `--out`. The two modes are exclusive, `--out` is required
+  in text mode, and `--ask` works in both. `lib/prompt.ts` returns the file's text unchanged in text
+  mode instead of assembling four blocks.
+- Evidence of two real runs is in `demos/`: `voxel-christmas-tree.html`,
+  `voxel-christmas-tree-02.html`, and `modernist-office-chair.html`, with the prompts and the
+  measurements in `demos/README.md`. They are the record of what the model produced, and the
+  inspection of the first one is what opened this ticket.
+
+### Gates
+
+```text
+$ bun test workflows/qwen3d-coder
+90 pass, 0 fail, 225 expect() calls, 6 files
+
+$ bun test
+233 pass, 0 fail, 523 expect() calls, 21 files
+```
+
+### Acceptance criteria
+
+- [x] The system prompt is the model card's four lines, byte for byte.
+- [x] Two prompt files exist, and each one is under 20 lines.
+- [x] One run per prompt file writes exactly one candidate, with no blueprint folder. The two runs in
+      `demos/` are the record.
+- [ ] **The art director opens both candidates in a browser and judges them.** Not verified: this host
+      has no window manager, so no browser runs here. The judgement stays open, and it is the one
+      reason this ticket is in `review/` and not in `done/`.
+
+### Notes for the reviewer
+
+- No independent reviewer sub-agent audited this ticket. Its implementation was committed as
+  `ecf8560` before that pass existed, and this ticket file was never updated with its own evidence.
+  The gate above is the CTO's own run.
+- T0016 supersedes D1 and D3 of this ticket: the deliverable becomes a TypeScript module, so the
+  four-line system prompt and the `--prompt-file` text mode change with it. T0016 records that.

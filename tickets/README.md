@@ -36,7 +36,6 @@ when the art director asks for a change.
 | [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)             | T0004, T0005 — **draft, specification settled, awaits validation**                    |
 | T0010                                                      | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                   | nothing — **the ticket file is missing from `planned/`; the row is kept as a marker** |
 | [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation) | T0011                                                                                 |
-| [T0015](./planned/T0015-scene-viewer.md)                   | The scene viewer: one page for a delivered asset                        | Shared scene viewer                       | T0014                                                                                 |
 | [T0016](./planned/T0016-qwen3d-coder-ts-asset.md)          | The Qwen 3D Coder delivers a TypeScript asset                           | Qwen 3D Coder workflow                    | T0013, T0015                                                                          |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
@@ -84,9 +83,9 @@ with a locked reference.
 
 ### In progress
 
-| ID                                                          | Title                                                | Track                                    | Note               |
-| :---------------------------------------------------------- | :--------------------------------------------------- | :--------------------------------------- | :----------------- |
-| [T0013](./in_progress/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode       | Qwen 3D Coder workflow (prompt, drafter) | started 2026-11-17 |
+| ID                                                          | Title                                            | Track                                    | Note               |
+| :---------------------------------------------------------- | :----------------------------------------------- | :--------------------------------------- | :----------------- |
+| [T0013](./in_progress/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode   | Qwen 3D Coder workflow (prompt, drafter) | started 2026-11-17 |
 
 ### Review
 
@@ -94,19 +93,20 @@ with a locked reference.
 | :------------------------------------------------ | :---------------------------------------------------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
 | [T0004](./review/T0004-knot-marquee-selection.md) | Knot editing by marquee selection: select, move, delete                       | Three.js viewer                                    | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in      |
 | [T0011](./review/T0011-qwen3d-coder-workflow.md)  | A fourth workflow: Qwen 3D Coder, an external endpoint, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | all gates green; reviewed after polish; T1.13 deferred to the first subject with a locked reference |
+| [T0015](./review/T0015-scene-viewer.md)           | The scene viewer: one page for a delivered asset                              | Shared scene viewer                                | all gates green (233 tests, 21 files); reviewed after polish; awaits the art director               |
 
 ### Done
 
-| ID                                                            | Title                                                                     | Track                             | Closed     |
-| :------------------------------------------------------------ | :------------------------------------------------------------------------ | :-------------------------------- | :--------- |
-| [T0001](./done/T0001-workflow-reorganisation.md)              | Workflow reorganisation: one folder per workflow                          | repository layout, all workflows  | 2026-11-09 |
-| [T0002](./done/T0002-contour-smoothing.md)                    | Contour smoothing: the path, the two joins, and the knot editor           | Three.js contour and volume       | 2026-11-09 |
-| [T0003](./done/T0003-orthogonal-view-zoom.md)                 | Zoom on the orthogonal views, 100 % to 400 %                              | Three.js viewer                   | 2026-11-09 |
-| [T0007](./done/T0007-viewer-idles-at-zero.md)                 | The viewer idles at zero: draw on demand, not every frame                 | Three.js viewer                   | 2026-11-09 |
-| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools)           | 2026-11-09 |
-| [T0008](./done/T0008-silhouette-report-presentation.md)       | The silhouette report says what it means                                  | Three.js viewer (tools)           | 2026-11-09 |
-| [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                   | 2026-11-09 |
-| [T0014](./done/T0014-root-tools-directory.md)                 | The root tool directory: `scripts/` becomes `tools/`                      | repository layout, every workflow | 2026-11-17 |
+| ID                                                            | Title                                                                     | Track                             | Closed                                                                                |
+| :------------------------------------------------------------ | :------------------------------------------------------------------------ | :-------------------------------- | :------------------------------------------------------------------------------------ |
+| [T0001](./done/T0001-workflow-reorganisation.md)              | Workflow reorganisation: one folder per workflow                          | repository layout, all workflows  | 2026-11-09                                                                            |
+| [T0002](./done/T0002-contour-smoothing.md)                    | Contour smoothing: the path, the two joins, and the knot editor           | Three.js contour and volume       | 2026-11-09                                                                            |
+| [T0003](./done/T0003-orthogonal-view-zoom.md)                 | Zoom on the orthogonal views, 100 % to 400 %                              | Three.js viewer                   | 2026-11-09                                                                            |
+| [T0007](./done/T0007-viewer-idles-at-zero.md)                 | The viewer idles at zero: draw on demand, not every frame                 | Three.js viewer                   | 2026-11-09                                                                            |
+| [T0006](./done/T0006-check-progress-and-orientation-guard.md) | `check.ts` reports its progress, and its orientation guard stops crawling | Three.js viewer (tools)           | 2026-11-09                                                                            |
+| [T0008](./done/T0008-silhouette-report-presentation.md)       | The silhouette report says what it means                                  | Three.js viewer (tools)           | 2026-11-09                                                                            |
+| [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                   | 2026-11-09                                                                            |
+| [T0014](./done/T0014-root-tools-directory.md)                 | The root tool directory: `scripts/` becomes `tools/`                      | repository layout, every workflow | 2026-11-17                                                                            |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 

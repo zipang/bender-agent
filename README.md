@@ -51,7 +51,7 @@ named on the command line.
 │   ├── blender/           README and AGENTS
 │   └── vcad/              README, AGENTS, and the session export tool
 ├── tools/                 tools more than one workflow reads: the generator, the blueprint tools,
-│                          and the measurement
+│                          the measurement, and the scene viewer
 ├── research/              method documents, and what each experiment taught
 ├── tickets/               the Kanban board: planned, in_progress, review, done
 ├── test-reports/          what a check writes for a human: overlays and scratches. Git-ignored
@@ -69,6 +69,15 @@ rebuilds from a check at any time. `workflows/threejs/README.md` names each file
 its prompt and its measurements in [`demos/README.md`](./demos/README.md). A demo is evidence, not an
 asset: it has no gate and it lives outside `blueprints/`. The Qwen 3D Coder workflow produced the
 first one.
+
+The scene viewer runs with one command. The `--asset` flag is optional:
+
+```bash
+bun run tools/scene-viewer/serve.ts [--asset <repo path>.ts]
+```
+
+Without `--asset`, the page offers the asset catalogue and opens the first valid candidate. With it,
+the page opens that module. The server listens on `127.0.0.1` only, on port `5181` by default.
 
 ## Blueprints
 
@@ -182,6 +191,7 @@ produced, even when the method it describes has since been replaced.
 
 - **Art director**: The human who accepts or rejects every generated image and every candidate. The project has no automatic visual validation.
 - **Asset**: One 3D model, with its meshes, materials, and animations, ready for the web.
+- **Asset catalogue**: The list of every candidate the scene viewer can draw: the `.ts` modules under `blueprints/<category>/<subject>/generated/`, and the built-in fixtures in `tools/scene-viewer/fixtures/`. The server publishes the list at `/api/assets`. An entry whose module does not parse is listed with `valid: false` and the message of the transpiler.
 - **Bender**: The agent of this project. It is also the robot that the project models as a test case.
 - **Blueprint candidate**: One generated image for one view, named `<model-slug>--<NN>.<ext>`. The art director picks one.
 - **Blueprint package**: The reference image, the six accepted view images, and the generation manifest of one subject.
@@ -205,11 +215,14 @@ produced, even when the method it describes has since been replaced.
 - **Pivot**: The origin of a node. It is the centre of rotation for animation.
 - **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A 4B model served by an external OpenAI-compatible endpoint drafts one stylized scene as a standalone HTML file from a reference image. It has no gate, and the art director judges every candidate by eye.
 - **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
+- **Root tool**: A tool in the root `tools/`, read by several workflows. It is the opposite of `workflows/<name>/tools/`, which one workflow reads. A tool is never placed by convenience.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.
+- **Scene viewer**: The page in `tools/scene-viewer/` that draws one delivered asset. It lists the candidates from the asset catalogue, frames the chosen one from its own bounding box, and offers six orthographic views, one free view, and a spin. The Three.js viewer stays separate until a later ticket moves it onto this base.
 - **Section**: The set of vertical columns of the body at one station along its length. It is the three-way intersection of one interval from each view.
 - **Selection**: The set of knots the knot editor acts on as one object. It is transient: it is never written to `contours.js` and never enters the save payload. A drag on a selected knot moves the whole set; `Delete` removes it, unless fewer than three knots would remain.
 - **Silhouette overlay**: A comparison image where red is present in the reference only, blue in the model only, and magenta in both.
 - **Skill**: A folder with a `SKILL.md` file, holding instructions and helper files that an agent loads on demand.
+- **Spin**: The continuous rotation of the camera around the asset in the scene viewer, one turn in 12 seconds. The spin is a reason to draw, so the page stops its animation loop when the spin is off.
 - **Station**: One position along the length of the body, where a section is taken. The hull's lattice pitch is the distance between two stations.
 - **STE**: Simplified Technical English. It is the writing standard of every document in this repository.
 - **Ticket**: One unit of work on the Kanban board in `tickets/`. It has an ID `TNNNN`, a scope boundary, a contract, test-first tasks, and acceptance criteria. It moves through `planned/`, `in_progress/`, `review/`, and `done/`, and it never changes after it closes.

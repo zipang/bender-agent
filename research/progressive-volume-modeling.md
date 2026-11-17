@@ -40,11 +40,11 @@ skill catalog gives the craft rules and the quality gates.
 
 ### 2.1 Local skills
 
-| Skill | Role for this method | What it already enforces |
-| :--- | :--- | :--- |
-| `vcad` | Parametric envelope, exact booleans, mechanical masses | Z-up, exact geometry, `inspect_cad` after each change, positive volume, plausible triangle count |
-| `blender-mcp` | Polygon blockout, modifiers, sculpt, materials, review | `get_scene_info` first, short steps, `look` after each geometry change, several angles |
-| `threejs-web` | Export, pivots, budget, compression | Node names, pivot on the joint, applied transforms, triangle budget, `gltf-transform inspect` |
+| Skill         | Role for this method                                   | What it already enforces                                                                         |
+| :------------ | :----------------------------------------------------- | :----------------------------------------------------------------------------------------------- |
+| `vcad`        | Parametric envelope, exact booleans, mechanical masses | Z-up, exact geometry, `inspect_cad` after each change, positive volume, plausible triangle count |
+| `blender-mcp` | Polygon blockout, modifiers, sculpt, materials, review | `get_scene_info` first, short steps, `look` after each geometry change, several angles           |
+| `threejs-web` | Export, pivots, budget, compression                    | Node names, pivot on the joint, applied transforms, triangle budget, `gltf-transform inspect`    |
 
 The local skills define the tool loop well. They do not define a fidelity ladder. They say "build
 the blockout, then add details". They do not say when a stage is correct, or how much resolution
@@ -55,19 +55,19 @@ the next stage needs.
 Install counts are from the skills.sh catalog on 2026-11-04. Counts change. Use them as a signal
 of maturity, not as a proof of quality.
 
-| Skill | Installs | What it gives | Limit for us |
-| :--- | ---: | :--- | :--- |
-| `scenario-labs/skills@scenario-blender-sculpting` | 715 | The strongest stage model. Voxel ladder, stated planes, form metrics, one weakest link per pass, long-lens review | Blender 5.2, Scenario MCP, headless helpers |
-| `scenario-labs/skills@scenario-blender-retopology` | 651 | Loop budgets, pole rules, cage fit, game and film topology, measured results | Assumes a dense sculpt as input |
-| `scenario-labs/skills@scenario-blender-hard-surface` | 632 | Modifier order, cutter hygiene, two-bevel method, shading audits, game reduction | Blender-centric, no envelope stage |
-| `scenario-labs/skills@scenario-blender-blockout` | 337 | Fidelity levels (rough, shaped, detailed), metric scale, audits before review | Built for previs clips, not product fidelity |
-| `scenario-labs/skills@scenario-blender-expert` | 1.1K | Execution channel, review loop, API notes | Infrastructure, not modeling method |
-| `roble3/cc-blender-skill@blender-modeling` | 2.8K | Practical `bpy` recipes, modifier order, boolean and seam pitfalls | A recipe library, not a convergence method |
-| `omer-metin/skills-for-antigravity@3d-modeling` | 1.2K | Production topology knowledge, three-phase sculpt pipeline, LOD rules | Prose knowledge, no executable gates |
-| `w1ne/kernelcad-skills@blockout-model` | low | Parametric envelope, reference overlay, four canonical views, zero interference | Niche CLI, flat-product focus |
-| `w1ne/kernelcad-skills@image-replicator` | low | Render, score, diagnose, one change per pass, anti-gaming policy | Pixel scores need care |
-| `arjun988/blender-skills@retopology` | 403 | Retopology checklist | Narrow, small install base |
-| `freshtechbro/claudedesignskills@blender-web-pipeline` | 3.7K | Blender to web handoff | Export only |
+| Skill                                                  | Installs | What it gives                                                                                                     | Limit for us                                 |
+| :----------------------------------------------------- | -------: | :---------------------------------------------------------------------------------------------------------------- | :------------------------------------------- |
+| `scenario-labs/skills@scenario-blender-sculpting`      |      715 | The strongest stage model. Voxel ladder, stated planes, form metrics, one weakest link per pass, long-lens review | Blender 5.2, Scenario MCP, headless helpers  |
+| `scenario-labs/skills@scenario-blender-retopology`     |      651 | Loop budgets, pole rules, cage fit, game and film topology, measured results                                      | Assumes a dense sculpt as input              |
+| `scenario-labs/skills@scenario-blender-hard-surface`   |      632 | Modifier order, cutter hygiene, two-bevel method, shading audits, game reduction                                  | Blender-centric, no envelope stage           |
+| `scenario-labs/skills@scenario-blender-blockout`       |      337 | Fidelity levels (rough, shaped, detailed), metric scale, audits before review                                     | Built for previs clips, not product fidelity |
+| `scenario-labs/skills@scenario-blender-expert`         |     1.1K | Execution channel, review loop, API notes                                                                         | Infrastructure, not modeling method          |
+| `roble3/cc-blender-skill@blender-modeling`             |     2.8K | Practical `bpy` recipes, modifier order, boolean and seam pitfalls                                                | A recipe library, not a convergence method   |
+| `omer-metin/skills-for-antigravity@3d-modeling`        |     1.2K | Production topology knowledge, three-phase sculpt pipeline, LOD rules                                             | Prose knowledge, no executable gates         |
+| `w1ne/kernelcad-skills@blockout-model`                 |      low | Parametric envelope, reference overlay, four canonical views, zero interference                                   | Niche CLI, flat-product focus                |
+| `w1ne/kernelcad-skills@image-replicator`               |      low | Render, score, diagnose, one change per pass, anti-gaming policy                                                  | Pixel scores need care                       |
+| `arjun988/blender-skills@retopology`                   |      403 | Retopology checklist                                                                                              | Narrow, small install base                   |
+| `freshtechbro/claudedesignskills@blender-web-pipeline` |     3.7K | Blender to web handoff                                                                                            | Export only                                  |
 
 ### 2.3 The gap
 
@@ -103,16 +103,16 @@ is about one pixel of the hero view, or the texel density, whichever is larger.
 
 ### 3.1 The stages
 
-| Stage | Name | Question answered | Typical representation |
-| :--- | :--- | :--- | :--- |
-| L0 | Envelope | Where is the volume, and how big is it? | One box per mass, or one convex hull |
-| L1 | Masses | Which volumes compose the object? | Boxes, cylinders, rounded blocks |
-| L2 | Silhouette | Does the outline match in every canonical view? | Moved corners and edges, few loop cuts |
-| L3 | Primary forms | Do the big planes and transitions read? | Bevel, chamfer, subdivision 1, voxel H/40 |
-| L4 | Secondary forms | Do the features and joints read? | Subdivision 3 to 4, creases, booleans, loops |
-| L5 | Tertiary detail | Does the surface hold at the delivery scale? | Subdivision 5 to 7, displacement, micro-bevels |
-| L6 | Topology freeze | Can the mesh deform, bake, and ship? | Quad cage, retopo, game reduction |
-| L7 | Asset contract | Does it load and animate in Three.js? | Pivots, names, materials, GLB, compression |
+| Stage | Name            | Question answered                               | Typical representation                         |
+| :---- | :-------------- | :---------------------------------------------- | :--------------------------------------------- |
+| L0    | Envelope        | Where is the volume, and how big is it?         | One box per mass, or one convex hull           |
+| L1    | Masses          | Which volumes compose the object?               | Boxes, cylinders, rounded blocks               |
+| L2    | Silhouette      | Does the outline match in every canonical view? | Moved corners and edges, few loop cuts         |
+| L3    | Primary forms   | Do the big planes and transitions read?         | Bevel, chamfer, subdivision 1, voxel H/40      |
+| L4    | Secondary forms | Do the features and joints read?                | Subdivision 3 to 4, creases, booleans, loops   |
+| L5    | Tertiary detail | Does the surface hold at the delivery scale?    | Subdivision 5 to 7, displacement, micro-bevels |
+| L6    | Topology freeze | Can the mesh deform, bake, and ship?            | Quad cage, retopo, game reduction              |
+| L7    | Asset contract  | Does it load and animate in Three.js?           | Pivots, names, materials, GLB, compression     |
 
 Stages L0 to L2 are additive refinement of a coarse cage. Stages L3 to L5 are resolution
 refinement. Stage L6 changes the topology without changing the form. Stage L7 changes nothing
@@ -131,14 +131,14 @@ diagnostic comes from the sculpting experts and it holds for hard surface too.
 
 These are proposed defaults. Calibrate them on the first asset and record the result.
 
-| Stage | Tolerance on the largest dimension | Also expressed as |
-| :--- | :--- | :--- |
-| L0 Envelope | 10% | "reads as the right object category" |
-| L1 Masses | 5% | part count and part position correct |
-| L2 Silhouette | 2% | outline inside the reference line |
-| L3 Primary | 1% | planes and transitions correct |
-| L4 Secondary | 0.5% | features placed within one feature width |
-| L5 Detail | 0.2% or one output pixel | detail visible at delivery framing |
+| Stage         | Tolerance on the largest dimension | Also expressed as                        |
+| :------------ | :--------------------------------- | :--------------------------------------- |
+| L0 Envelope   | 10%                                | "reads as the right object category"     |
+| L1 Masses     | 5%                                 | part count and part position correct     |
+| L2 Silhouette | 2%                                 | outline inside the reference line        |
+| L3 Primary    | 1%                                 | planes and transitions correct           |
+| L4 Secondary  | 0.5%                               | features placed within one feature width |
+| L5 Detail     | 0.2% or one output pixel           | detail visible at delivery framing       |
 
 Halve the tolerance at each stage. Stop when the tolerance is below the delivery tolerance.
 
@@ -146,11 +146,11 @@ Halve the tolerance at each stage. Stop when the tolerance is below the delivery
 
 A model has three units. Keep them separate.
 
-| Space | What it is | Rule |
-| :--- | :--- | :--- |
-| Design unit | The unit of the numbers that you type | One unit for the whole document. Record it. |
-| Kernel and mesh | The numeric space of vcad | No hidden conversion. See the measurement below. |
-| Runtime unit | glTF and Three.js | One glTF unit is one meter. Always. |
+| Space           | What it is                            | Rule                                             |
+| :-------------- | :------------------------------------ | :----------------------------------------------- |
+| Design unit     | The unit of the numbers that you type | One unit for the whole document. Record it.      |
+| Kernel and mesh | The numeric space of vcad             | No hidden conversion. See the measurement below. |
+| Runtime unit    | glTF and Three.js                     | One glTF unit is one meter. Always.              |
 
 vcad does not convert on export. Measured on 2026-11-04: a cube of 2 document units exports a
 GLB position accessor with minimum 0 and maximum 2. The design unit becomes the glTF unit
@@ -158,11 +158,11 @@ directly.
 
 Choose the design unit from the deliverable, not from the subject alone.
 
-| Subject or deliverable | Design unit | Export scale to meters |
-| :--- | :--- | :--- |
-| Character, vehicle, robot, level | 1 unit = 1 m | 1.0 |
-| Mechanical part, CNC, 3D print | 1 unit = 1 mm | 0.001 |
-| Building or terrain | 1 unit = 1 m | 1.0 |
+| Subject or deliverable           | Design unit   | Export scale to meters |
+| :------------------------------- | :------------ | :--------------------- |
+| Character, vehicle, robot, level | 1 unit = 1 m  | 1.0                    |
+| Mechanical part, CNC, 3D print   | 1 unit = 1 mm | 0.001                  |
+| Building or terrain              | 1 unit = 1 m  | 1.0                    |
 
 Two limits apply.
 
@@ -195,16 +195,16 @@ The design unit is not a formatting detail. It fixes six things:
 
 Two profiles cover the work of this repository.
 
-| Setting | Game asset profile | 3D print profile |
-| :--- | :--- | :--- |
-| Design unit in vcad | 1 unit = 1 m | 1 unit = 1 mm |
-| Typical subject | character 1.7, car 4.2, robot 2.0 | bracket 40, enclosure 120, jig 300 |
-| Smallest feature | 1 mm | 0.4 mm, one nozzle width |
-| vcad export | GLB, scale 1.0 | STL or STEP, scale 1.0, the numbers are already mm |
-| Blender units | Metric, scale 1.0, meters | Metric, scale 0.001, millimeters |
-| Blender web export | GLB, scale 1.0 | Do not export this scene. Copy it to a meter scene first. |
-| Runtime | Three.js, meters | Slicer, millimeters |
-| Delivery tolerance | 0.5 mm | 0.05 mm |
+| Setting             | Game asset profile                | 3D print profile                                          |
+| :------------------ | :-------------------------------- | :-------------------------------------------------------- |
+| Design unit in vcad | 1 unit = 1 m                      | 1 unit = 1 mm                                             |
+| Typical subject     | character 1.7, car 4.2, robot 2.0 | bracket 40, enclosure 120, jig 300                        |
+| Smallest feature    | 1 mm                              | 0.4 mm, one nozzle width                                  |
+| vcad export         | GLB, scale 1.0                    | STL or STEP, scale 1.0, the numbers are already mm        |
+| Blender units       | Metric, scale 1.0, meters         | Metric, scale 0.001, millimeters                          |
+| Blender web export  | GLB, scale 1.0                    | Do not export this scene. Copy it to a meter scene first. |
+| Runtime             | Three.js, meters                  | Slicer, millimeters                                       |
+| Delivery tolerance  | 0.5 mm                            | 0.05 mm                                                   |
 
 Rules for the game asset profile:
 
@@ -456,18 +456,18 @@ Do not start with the detail. Detail attracts the eye and hides the mass.
 
 Name one weakest link. Use this table.
 
-| Symptom | Wrong stage | Correct action |
-| :--- | :--- | :--- |
-| The object reads as the wrong category | L0 or L1 | Change the envelope or the mass split |
-| The outline is wrong in one view | L2 | Move a control point or add one cut |
-| The outline is right, the depth is wrong | L1 | Re-measure the depth from a second view |
-| A transition is too soft or too sharp | L3 | Change the bevel, chamfer, or blend |
-| A feature sits in the wrong place | L4 | Move the feature. Do not cut it deeper |
-| A feature is too small to read | L4 or L5 | Enlarge it to one pixel or more |
-| A plane cut does not change the look | L3 | The mass is wrong. Go back one stage |
-| A line looks like a scratch | L5 | Change the stroke or the tool. Do not smooth |
-| A shading smear on a flat face | L3 | The face is not planar. Flatten it |
-| The cage looks right, the subdivision is lumpy | L7 | Adjust the cage fit, not the sculpt |
+| Symptom                                        | Wrong stage | Correct action                               |
+| :--------------------------------------------- | :---------- | :------------------------------------------- |
+| The object reads as the wrong category         | L0 or L1    | Change the envelope or the mass split        |
+| The outline is wrong in one view               | L2          | Move a control point or add one cut          |
+| The outline is right, the depth is wrong       | L1          | Re-measure the depth from a second view      |
+| A transition is too soft or too sharp          | L3          | Change the bevel, chamfer, or blend          |
+| A feature sits in the wrong place              | L4          | Move the feature. Do not cut it deeper       |
+| A feature is too small to read                 | L4 or L5    | Enlarge it to one pixel or more              |
+| A plane cut does not change the look           | L3          | The mass is wrong. Go back one stage         |
+| A line looks like a scratch                    | L5          | Change the stroke or the tool. Do not smooth |
+| A shading smear on a flat face                 | L3          | The face is not planar. Flatten it           |
+| The cage looks right, the subdivision is lumpy | L7          | Adjust the cage fit, not the sculpt          |
 
 ### 5.4 Change one thing
 
@@ -521,19 +521,19 @@ openings. It was a slab. The pixel score was high and the object was wrong.
 
 Use a small set. Each metric answers one question. No metric replaces the render.
 
-| Metric | Question | Stage | Typical gate |
-| :--- | :--- | :--- | :--- |
-| Bounding box | Is the volume at the right place and size? | L0 | inside 10% of reference |
-| Silhouette deviation | Is the outline correct? | L1 to L3 | 2% of largest dimension |
-| Silhouette IoU | Does the outline overlap? | L1 to L3 | 0.45 minimum, as a selector |
-| SSIM | Is the internal structure similar? | L3 to L5 | 0.25 minimum, as a selector |
-| Volume | Is the solid plausible? | L0 to L4 | positive, within 15% of the estimate |
-| Center of mass | Is the mass distributed correctly? | L1 | within 5% of height |
-| Non-manifold edges | Is the mesh closed? | L3 to L6 | 0 |
-| Subdivision fit | Does the cage match the surface? | L7 | mean 0.3% or less |
-| Stretch ratio | Is the surface distorted? | L4 to L6 | p95 over median below 2.5 |
-| Triangle count | Is the asset inside budget? | L6 to L7 | from the vision pack |
-| Texel density | Are the textures even? | L7 | one value per asset class |
+| Metric               | Question                                   | Stage    | Typical gate                         |
+| :------------------- | :----------------------------------------- | :------- | :----------------------------------- |
+| Bounding box         | Is the volume at the right place and size? | L0       | inside 10% of reference              |
+| Silhouette deviation | Is the outline correct?                    | L1 to L3 | 2% of largest dimension              |
+| Silhouette IoU       | Does the outline overlap?                  | L1 to L3 | 0.45 minimum, as a selector          |
+| SSIM                 | Is the internal structure similar?         | L3 to L5 | 0.25 minimum, as a selector          |
+| Volume               | Is the solid plausible?                    | L0 to L4 | positive, within 15% of the estimate |
+| Center of mass       | Is the mass distributed correctly?         | L1       | within 5% of height                  |
+| Non-manifold edges   | Is the mesh closed?                        | L3 to L6 | 0                                    |
+| Subdivision fit      | Does the cage match the surface?           | L7       | mean 0.3% or less                    |
+| Stretch ratio        | Is the surface distorted?                  | L4 to L6 | p95 over median below 2.5            |
+| Triangle count       | Is the asset inside budget?                | L6 to L7 | from the vision pack                 |
+| Texel density        | Are the textures even?                     | L7       | one value per asset class            |
 
 Read the numbers as diagnostics. A high SSIM on a wrong object is a false signal.
 
@@ -578,13 +578,13 @@ For the 3D print profile, set the scene units to Metric, unit scale `0.001`, len
 
 Measured in Blender 5.2.3:
 
-| Check | Result |
-| :--- | :--- |
-| Cube of 1 Blender unit, mesh dimensions | 1.0, independent of the scene scale |
-| glTF export bounds of that cube | -1 to 1, no unit conversion |
-| glTF export operator unit properties | none |
-| STL export with **Scene Unit** off | 1.0 per Blender unit |
-| STL export with **Scene Unit** on, scale 0.001 | 0.001 per Blender unit |
+| Check                                          | Result                              |
+| :--------------------------------------------- | :---------------------------------- |
+| Cube of 1 Blender unit, mesh dimensions        | 1.0, independent of the scene scale |
+| glTF export bounds of that cube                | -1 to 1, no unit conversion         |
+| glTF export operator unit properties           | none                                |
+| STL export with **Scene Unit** off             | 1.0 per Blender unit                |
+| STL export with **Scene Unit** on, scale 0.001 | 0.001 per Blender unit              |
 
 So the scene scale is a display and tool setting. It is not a data conversion. For a web export,
 use a meter scene. For an STL, enable **Scene Unit**. Check the exported bounds in both cases.
@@ -618,18 +618,18 @@ Keep the vcad Loon source next to the `.blend` file. A server restart loses the 
 Object: a robot head, about 0.30 m high. Design unit: 1 unit = 1 m. Export scale: 1.0. Reference:
 a front view and a side view.
 
-| Pass | Stage | Action | Gate |
-| :--- | :--- | :--- | :--- |
-| 01 | L0 | One box, 0.24 x 0.22 x 0.30 m | Box matches both views within 10% |
-| 02 | L1 | Split into `Cranium`, `Jaw`, `Neck` | Three masses, correct centers |
-| 03 | L2 | Move the jaw corners down and forward | Side outline within 2% |
-| 04 | L2 | Add one loop cut at the brow line | Front outline break matches |
-| 05 | L3 | Bevel the shell edges, 3 mm (0.003 units), 3 segments | Edge highlight is continuous |
-| 06 | L3 | Voxel remesh the jaw at H/40, blend 0.12 H | Jaw reads as a block, not a ball |
-| 07 | L4 | Add eyes, mouth grille, antenna base | Features at the right height |
-| 08 | L4 | Add the visor recess with a boolean | Cut is clean in close-up |
-| 09 | L5 | Add panel lines and screws | Visible at 1080 px, no alias |
-| 10 | L7 | Pivots, names, GLB, inspect | Loads in Three.js, inside budget |
+| Pass | Stage | Action                                                | Gate                              |
+| :--- | :---- | :---------------------------------------------------- | :-------------------------------- |
+| 01   | L0    | One box, 0.24 x 0.22 x 0.30 m                         | Box matches both views within 10% |
+| 02   | L1    | Split into `Cranium`, `Jaw`, `Neck`                   | Three masses, correct centers     |
+| 03   | L2    | Move the jaw corners down and forward                 | Side outline within 2%            |
+| 04   | L2    | Add one loop cut at the brow line                     | Front outline break matches       |
+| 05   | L3    | Bevel the shell edges, 3 mm (0.003 units), 3 segments | Edge highlight is continuous      |
+| 06   | L3    | Voxel remesh the jaw at H/40, blend 0.12 H            | Jaw reads as a block, not a ball  |
+| 07   | L4    | Add eyes, mouth grille, antenna base                  | Features at the right height      |
+| 08   | L4    | Add the visor recess with a boolean                   | Cut is clean in close-up          |
+| 09   | L5    | Add panel lines and screws                            | Visible at 1080 px, no alias      |
+| 10   | L7    | Pivots, names, GLB, inspect                           | Loads in Three.js, inside budget  |
 
 The head passes about 10 gates. Each gate is a small decision. The form converges because each
 decision is measured, not because the modeler worked longer.

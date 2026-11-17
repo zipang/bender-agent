@@ -12,18 +12,18 @@
 Steps 0, 1a, 3, 4, 6, 7 and 8 are done: the path, the two joins, the viewer switch, the knot editor
 and its documentation. Step 5 is partial, and §6.6 holds an open defect.
 
-| Step | State | Commit |
-| :--- | :--- | :--- |
-| 0 Baseline | done | `tickets/done/baseline-contour.json` |
-| 1 Subpixel edge | attempted, reverted. See §6.3 | — |
-| 1a Boundary walk | done. See §6.4 | `7fa12a2` |
-| 2 Float opening | not done. The 1-D opening stays for the hull: a 2-D disc costs 80 mm of length | — |
-| 3 Path | **done.** See §6.5 | this commit |
-| 4 Contact sheet | **done.** See §6.5, `/tmp/opencode/sheet-tolerance.png` | this commit |
-| 5 Hull from the path | partly. The page builds the volume from the paths; the offline hull still reads the photograph. See §6.7 | this commit |
-| 6 Viewer | **done.** `calque --mode poly|bezier` | this commit |
-| 7 Documentation | **done.** `workflows/threejs/README.md` §5.1, `AGENTS.md` "Contour rules" | this commit |
-| 8 Knot editor | **done.** The knots are the source; reduce, add, remove, move, join, save. See §6.8 | this commit |
+| Step                 | State                                                                                                    | Commit                               |
+| :------------------- | :------------------------------------------------------------------------------------------------------- | :----------------------------------- |
+| 0 Baseline           | done                                                                                                     | `tickets/done/baseline-contour.json` |
+| 1 Subpixel edge      | attempted, reverted. See §6.3                                                                            | —                                    |
+| 1a Boundary walk     | done. See §6.4                                                                                           | `7fa12a2`                            |
+| 2 Float opening      | not done. The 1-D opening stays for the hull: a 2-D disc costs 80 mm of length                           | —                                    |
+| 3 Path               | **done.** See §6.5                                                                                       | this commit                          |
+| 4 Contact sheet      | **done.** See §6.5, `/tmp/opencode/sheet-tolerance.png`                                                  | this commit                          |
+| 5 Hull from the path | partly. The page builds the volume from the paths; the offline hull still reads the photograph. See §6.7 | this commit                          |
+| 6 Viewer             | **done.** `calque --mode poly                                                                            | bezier`                              | this commit |
+| 7 Documentation      | **done.** `workflows/threejs/README.md` §5.1, `AGENTS.md` "Contour rules"                                | this commit                          |
+| 8 Knot editor        | **done.** The knots are the source; reduce, add, remove, move, join, save. See §6.8                      | this commit                          |
 
 ## 1. Purpose
 
@@ -82,11 +82,11 @@ That file is a **cut, not a resample**. `crop_reference.py` calls `Image.crop` a
 cropped array is identical to the same rectangle of the locked reference. Measured on `left`: 768 x
 1376 source, 532 x 1251 crop, and the two arrays are equal at the pixel.
 
-| View | Locked reference | Cropped file | Resampling |
-| :--- | ---: | ---: | :--- |
-| `left` | 1376 x 768 | 1251 x 532 | none. The crop is a sub-rectangle. |
-| `front` | 2048 x 1152 | 988 x 885 | none. |
-| `top` | 1376 x 768 | 372 x 708 | none. |
+| View    | Locked reference | Cropped file | Resampling                         |
+| :------ | ---------------: | -----------: | :--------------------------------- |
+| `left`  |       1376 x 768 |   1251 x 532 | none. The crop is a sub-rectangle. |
+| `front` |      2048 x 1152 |    988 x 885 | none.                              |
+| `top`   |       1376 x 768 |    372 x 708 | none.                              |
 
 The pixel pitch of the contour is therefore the pitch of the locked reference: 2.8236 mm across and
 2.6515 mm down, on `left`.
@@ -113,13 +113,13 @@ a finer grid samples the same ramp better. It does not make the ramp narrower.
 The hull is built on a fixed lattice. `--step 20` is documented in the tracer as the **column and
 station pitch**, and the measurement confirms it:
 
-| Quantity | Measured |
-| :--- | --- |
-| Stations along the length | 177, for 3521 mm. Pitch 20.1 mm |
-| Columns across the width | 76, for 1505 mm. Pitch 20.1 mm |
-| Vertices outside that lattice | none |
-| Triangles | 51,300 |
-| Pixel pitch on `left` | 2.82 mm across, 2.65 mm down |
+| Quantity                      | Measured                        |
+| :---------------------------- | ------------------------------- |
+| Stations along the length     | 177, for 3521 mm. Pitch 20.1 mm |
+| Columns across the width      | 76, for 1505 mm. Pitch 20.1 mm  |
+| Vertices outside that lattice | none                            |
+| Triangles                     | 51,300                          |
+| Pixel pitch on `left`         | 2.82 mm across, 2.65 mm down    |
 
 The surface height is `min(face_hi(x), side_hi(z))`. The two silhouettes cross along a diagonal
 crease. At a mid station, 42 of 75 columns carry a distinct pair of heights, so the roof is not
@@ -210,7 +210,7 @@ today. The change is in the caller, not in the morphology.
 
 The opening is also ONE-DIMENSIONAL today: it erodes the `lo` and `hi` profiles of a view, column
 by column, and dilates them back. That removes an accessory in the profile sense, and it leaves the
-region *column-convex*: every column is filled from its first subject pixel to its last, so a
+region _column-convex_: every column is filled from its first subject pixel to its last, so a
 concave flank is filled in. On `top`, the left flank reads column 14 from row 190 to row 410 while
 the body edge runs from 15 to 19. This is the reason the drawn contour sits outside the body, and
 no drawing that reads such a region can be closer than its region.
@@ -238,10 +238,10 @@ A pitch under the pixel size is honest only because the edge is subpixel. A pitc
 points without adding information, and the document must say so. The pixel is a ceiling, not a
 target.
 
-| Mode | Output | When |
-| :--- | :--- | :--- |
-| `poly` | straight segments, one per resampled point | default. It is the trace, with no interpretation. |
-| `bezier` | cubic segments fitted to the resampled points | reading, judging, and a clean outline to look at |
+| Mode     | Output                                        | When                                              |
+| :------- | :-------------------------------------------- | :------------------------------------------------ |
+| `poly`   | straight segments, one per resampled point    | default. It is the trace, with no interpretation. |
+| `bezier` | cubic segments fitted to the resampled points | reading, judging, and a clean outline to look at  |
 
 The bezier fit is greedy and guarded by a maximum deviation:
 
@@ -272,10 +272,10 @@ whatever the chord tolerance adds:
 
 Two parameters, and only one of them decides:
 
-| Flag | Default | Meaning |
-| :--- | ---: | :--- |
-| `--deviation` | 0.5 | mm. The chord tolerance. This decides where a span ends and a vertex is placed. |
-| `--step` | 200 | mm. A hard cap on the span length. It keeps a flat panel from becoming one quad. |
+| Flag          | Default | Meaning                                                                          |
+| :------------ | ------: | :------------------------------------------------------------------------------- |
+| `--deviation` |     0.5 | mm. The chord tolerance. This decides where a span ends and a vertex is placed.  |
+| `--step`      |     200 | mm. A hard cap on the span length. It keeps a flat panel from becoming one quad. |
 
 The tracer prints the station count before and after. A run that keeps its count means the
 tolerance is doing nothing, and the step has failed.
@@ -354,13 +354,13 @@ builder changes.
 
 ### 4.3 Command line
 
-| Flag | Default | Meaning |
-| :--- | ---: | :--- |
-| `--pitch` | 2 | millimetres between path samples |
-| `--mode` | `poly` | `poly` or `bezier` |
-| `--tolerance` | 0.25 | millimetres. Maximum deviation of the bezier fit |
-| `--deviation` | 0.5 | millimetres. Chord tolerance of the hull lattice |
-| `--step` | 200 | millimetres. Hard cap on the span length |
+| Flag          | Default | Meaning                                          |
+| :------------ | ------: | :----------------------------------------------- |
+| `--pitch`     |       2 | millimetres between path samples                 |
+| `--mode`      |  `poly` | `poly` or `bezier`                               |
+| `--tolerance` |    0.25 | millimetres. Maximum deviation of the bezier fit |
+| `--deviation` |     0.5 | millimetres. Chord tolerance of the hull lattice |
+| `--step`      |     200 | millimetres. Hard cap on the span length         |
 
 `--step` is a cap, not a pitch. An old command line that passes `--step 20` still runs, and it means
 "no span longer than 20 mm".
@@ -410,12 +410,12 @@ Read the existing chapter, then add the rows. Do not rewrite it.
 
 ### 5.2 `workflows/threejs/AGENTS.md`: the rules
 
-| Addition | Content |
-| :--- | :--- |
-| The contour rules | Subpixel, float opening, then a path. Never a binary threshold alone. |
-| The single-source rule | The plate and the hull read the same path. A second sampling of the photograph is a defect. |
+| Addition               | Content                                                                                                                    |
+| :--------------------- | :------------------------------------------------------------------------------------------------------------------------- |
+| The contour rules      | Subpixel, float opening, then a path. Never a binary threshold alone.                                                      |
+| The single-source rule | The plate and the hull read the same path. A second sampling of the photograph is a defect.                                |
 | The documentation duty | A change that adds a tool, a flag, a file, or a gate updates the workflow's `README.md` and `AGENTS.md` in the same commit |
-| The glossary duty | A new project word gets an entry in `README.md`, alphabetically sorted |
+| The glossary duty      | A new project word gets an entry in `README.md`, alphabetically sorted                                                     |
 
 ### 5.3 The documentation duty
 
@@ -427,45 +427,45 @@ questions the documents should have answered.
 
 ### 5.4 Where a sentence belongs
 
-| Question | Document |
-| :--- | :--- |
-| Is this about the page, the API, the trace, or the capture? | `workflows/threejs/` |
-| Is this about Blender, its add-on, or its materials? | `workflows/blender/` |
-| Is this about vcad, BRep, or Loon? | `workflows/vcad/` |
+| Question                                                        | Document                                                |
+| :-------------------------------------------------------------- | :------------------------------------------------------ |
+| Is this about the page, the API, the trace, or the capture?     | `workflows/threejs/`                                    |
+| Is this about Blender, its add-on, or its materials?            | `workflows/blender/`                                    |
+| Is this about vcad, BRep, or Loon?                              | `workflows/vcad/`                                       |
 | Is this about the six views, the crops, or the real dimensions? | the root `README.md`, because every workflow reads them |
-| Is this a word with a special meaning here? | the glossary in the root `README.md` |
+| Is this a word with a special meaning here?                     | the glossary in the root `README.md`                    |
 
 ## 6. Migration plan
 
 No step starts before the previous step passes its gate.
 
-| # | Step | Content |
-| :--- | :--- | :--- |
-| 0 | Baseline | Record the six point counts, the station and column counts, the hull numbers, and the five IoU values in `baseline-contour.json`. **Done.** Gate: the tracer reproduces `body-hull.js` byte for byte from the same inputs. |
-| 1 | Subpixel edge | `crossing()` in `trace_hull.py`. `cols` and `rows` become floats. The hull and the contour read them. Gate: the hull size moves by under 2 mm on every axis. |
-| 2 | Float opening | The morphology reads floats without a code change. Verify the 150 mm window still removes the mirrors and keeps the sill. Gate: the cut table is unchanged within 2 mm. |
-| 3 | Path | `--pitch`, `--mode`, `--tolerance`, the greedy fit, and the measured deviation. `CONTOURS` moves to version 2. Gate: deviation at or under the tolerance on all six views, and `left` under 120 segments. |
-| 4 | Contact sheet | `--sheet`, one PNG per row, with the contour and the shaded 3/4 view side by side. The art director chooses the cell. Gate: the chosen cell is recorded, and the defaults become that cell. |
-| 5 | Hull from the path | The stations and columns come from the sampled path. `--deviation` decides, `--step` caps. Gate: the surface follows the path, the triangle count falls, and no silhouette moves by more than the IoU gate allows. |
-| 6 | Viewer | `path` instead of `points`, both modes, the witness dash preserved. Gate: three layers superpose on `left`, `top`, and `back`, and a witness view draws dashed. |
-| 7 | Documentation | Add the contour rows to `workflows/threejs/README.md`, the contour rules to `workflows/threejs/AGENTS.md`, the glossary entries to the root `README.md`, and this plan's progress table. Gate: a reader answers "which flag sets the pitch, and what proved its value" from the workflow document alone. |
+| #   | Step               | Content                                                                                                                                                                                                                                                                                                  |
+| :-- | :----------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | Baseline           | Record the six point counts, the station and column counts, the hull numbers, and the five IoU values in `baseline-contour.json`. **Done.** Gate: the tracer reproduces `body-hull.js` byte for byte from the same inputs.                                                                               |
+| 1   | Subpixel edge      | `crossing()` in `trace_hull.py`. `cols` and `rows` become floats. The hull and the contour read them. Gate: the hull size moves by under 2 mm on every axis.                                                                                                                                             |
+| 2   | Float opening      | The morphology reads floats without a code change. Verify the 150 mm window still removes the mirrors and keeps the sill. Gate: the cut table is unchanged within 2 mm.                                                                                                                                  |
+| 3   | Path               | `--pitch`, `--mode`, `--tolerance`, the greedy fit, and the measured deviation. `CONTOURS` moves to version 2. Gate: deviation at or under the tolerance on all six views, and `left` under 120 segments.                                                                                                |
+| 4   | Contact sheet      | `--sheet`, one PNG per row, with the contour and the shaded 3/4 view side by side. The art director chooses the cell. Gate: the chosen cell is recorded, and the defaults become that cell.                                                                                                              |
+| 5   | Hull from the path | The stations and columns come from the sampled path. `--deviation` decides, `--step` caps. Gate: the surface follows the path, the triangle count falls, and no silhouette moves by more than the IoU gate allows.                                                                                       |
+| 6   | Viewer             | `path` instead of `points`, both modes, the witness dash preserved. Gate: three layers superpose on `left`, `top`, and `back`, and a witness view draws dashed.                                                                                                                                          |
+| 7   | Documentation      | Add the contour rows to `workflows/threejs/README.md`, the contour rules to `workflows/threejs/AGENTS.md`, the glossary entries to the root `README.md`, and this plan's progress table. Gate: a reader answers "which flag sets the pitch, and what proved its value" from the workflow document alone. |
 
 ### 6.1 Gates
 
-| Gate | Check |
-| :--- | :--- |
-| Baseline reproducible | Re-running the tracer on the same subject writes `body-hull.js` byte for byte. A baseline that cannot be rebuilt is a memory, not a measurement |
-| Model identity | `size` and `target` within 2 mm of the baseline of step 0 |
-| Silhouette | IoU on `left`, `front`, `back`, `top`, `bottom` within 0.005 of the step 0 values |
-| Path | Deviation at or under the tolerance, on all six views, printed by the tool |
-| Point count | `bezier` on `left` under 120 segments, from 2494 points today |
-| Edge identity | A step that locates an edge more precisely must return the same edge. The contour bounding box on every view stays within one pixel of the previous step, and a shift beyond that is a change of definition, not a refinement |
-| No staircase | On a shaded three-quarter view, the meeting line of the two profiles is a straight run, with no tread of one lattice cell. This is read on the render, not on the contour |
-| Lattice | The station count is below the baseline of 177, and the tool prints it |
-| Triangle count | Below 50 percent of the 51,300 baseline. A count that does not fall means the tolerance is doing nothing, and the step has failed |
-| Layers | The picture, the contour, and the model superpose on one plane, and each of the three switches alone |
-| Documents | `workflows/threejs/README.md` names the command and the output of every script in the workflow |
-| Parameter choice | The pitch and the tolerance come from a rendered contact sheet that shows the surface, and the chosen cell is written in this plan |
+| Gate                  | Check                                                                                                                                                                                                                         |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Baseline reproducible | Re-running the tracer on the same subject writes `body-hull.js` byte for byte. A baseline that cannot be rebuilt is a memory, not a measurement                                                                               |
+| Model identity        | `size` and `target` within 2 mm of the baseline of step 0                                                                                                                                                                     |
+| Silhouette            | IoU on `left`, `front`, `back`, `top`, `bottom` within 0.005 of the step 0 values                                                                                                                                             |
+| Path                  | Deviation at or under the tolerance, on all six views, printed by the tool                                                                                                                                                    |
+| Point count           | `bezier` on `left` under 120 segments, from 2494 points today                                                                                                                                                                 |
+| Edge identity         | A step that locates an edge more precisely must return the same edge. The contour bounding box on every view stays within one pixel of the previous step, and a shift beyond that is a change of definition, not a refinement |
+| No staircase          | On a shaded three-quarter view, the meeting line of the two profiles is a straight run, with no tread of one lattice cell. This is read on the render, not on the contour                                                     |
+| Lattice               | The station count is below the baseline of 177, and the tool prints it                                                                                                                                                        |
+| Triangle count        | Below 50 percent of the 51,300 baseline. A count that does not fall means the tolerance is doing nothing, and the step has failed                                                                                             |
+| Layers                | The picture, the contour, and the model superpose on one plane, and each of the three switches alone                                                                                                                          |
+| Documents             | `workflows/threejs/README.md` names the command and the output of every script in the workflow                                                                                                                                |
+| Parameter choice      | The pitch and the tolerance come from a rendered contact sheet that shows the surface, and the chosen cell is written in this plan                                                                                            |
 
 ### 6.3 Step 1, attempted and reverted
 
@@ -526,13 +526,13 @@ pixels, which is a change of subject disguised as a change of drawing.
 
 **Gates.**
 
-| Gate | Result |
-| :--- | :--- |
-| `SECTIONS` byte-identical to step 0 | yes |
-| `TRACE` byte-identical to step 0 | yes |
-| Edge identity, bounding-box delta on the six views | worst 0.52 px, under 1 px |
-| Ring versus the traced region, IoU | 1.0000 on all six views, gap 0 px |
-| Ring versus the picture, IoU `top` | 0.9908 → 0.9912 |
+| Gate                                               | Result                            |
+| :------------------------------------------------- | :-------------------------------- |
+| `SECTIONS` byte-identical to step 0                | yes                               |
+| `TRACE` byte-identical to step 0                   | yes                               |
+| Edge identity, bounding-box delta on the six views | worst 0.52 px, under 1 px         |
+| Ring versus the traced region, IoU                 | 1.0000 on all six views, gap 0 px |
+| Ring versus the picture, IoU `top`                 | 0.9908 → 0.9912                   |
 
 **What it does not fix, and this is the important part.** The drawn ring now reproduces its region
 exactly, and the region is still wrong at the flanks. `region_from_columns` is column-convex: every
@@ -545,14 +545,14 @@ drawing honest; it did not move the edge. §3.3 names the cause and step 2 is th
 `tickets/done/baseline-contour.json` holds the whole record. The numbers that later steps are compared
 to:
 
-| Quantity | Baseline |
-| :--- | :--- |
+| Quantity       | Baseline                                                                                    |
+| :------------- | :------------------------------------------------------------------------------------------ |
 | Contour points | `left` 2494, `right` 2442, `front` 1970, `back` 1396, `bottom` 1018, `top` 736. Total 10056 |
-| Stations | 177, all with columns. Pitch 20.01 mm |
-| Columns | 12764 in total, from 5 to 76 per station |
-| Hull | 3521 x 1505 x 1180 mm. 51300 triangles, one mesh |
-| Deviation | length 0, height -5, width -20, sill 215 mm |
-| IoU | `left` 0.940, `front` 0.855, `back` 0.915, `top` 0.936, `bottom` 0.935 |
+| Stations       | 177, all with columns. Pitch 20.01 mm                                                       |
+| Columns        | 12764 in total, from 5 to 76 per station                                                    |
+| Hull           | 3521 x 1505 x 1180 mm. 51300 triangles, one mesh                                            |
+| Deviation      | length 0, height -5, width -20, sill 215 mm                                                 |
+| IoU            | `left` 0.940, `front` 0.855, `back` 0.915, `top` 0.936, `bottom` 0.935                      |
 
 The file also keeps the sha256 of `body-hull.js`, of `dimensions.json` and of the six cropped
 files, so a later step can prove which inputs it started from.
@@ -566,20 +566,20 @@ implementation, not a promise about the shape.
 `fit_ring()` (greedy least-squares cubics with the end tangents taken from the neighbouring
 points), and `build_path()`. `plate_contour()` now emits a path plus its measured deviation.
 
-| Flag | Default | Changes |
-| :--- | ---: | :--- |
+| Flag          | Default | Changes                                                                       |
+| :------------ | ------: | :---------------------------------------------------------------------------- |
 | `--tolerance` | 0.25 mm | the SHAPE. The largest distance the drawn line may sit from the traced points |
-| `--pitch` | 2 mm | the resolution. The longest segment |
-| `--mode` | `poly` | the reading, not the shape: `L` segments, or cubics through the same points |
+| `--pitch`     |    2 mm | the resolution. The longest segment                                           |
+| `--mode`      |  `poly` | the reading, not the shape: `L` segments, or cubics through the same points   |
 
 **The measured tolerance, `top`, `--pitch 20`.**
 
 | `--tolerance` | Segments | Measured deviation |
-| ---: | ---: | ---: |
-| 0.25 | 584 | 0.01 mm |
-| 1 | 547 | 0.74 mm |
-| 3 | 346 | 2.95 mm |
-| 6 | 60 | 0.00 mm |
+| ------------: | -------: | -----------------: |
+|          0.25 |      584 |            0.01 mm |
+|             1 |      547 |            0.74 mm |
+|             3 |      346 |            2.95 mm |
+|             6 |       60 |            0.00 mm |
 
 Below the pixel size the fit cannot smooth anything, and it falls back to `L` segments — the honest
 answer there is the trace itself. The default is 3 mm, chosen on the rendered contact sheet
@@ -615,11 +615,11 @@ The tension is arithmetic, not aesthetic. An accessory is attached to the body, 
 operation that removes it also moves the body edge wherever the two meet. There are three ways out,
 and each one pays somewhere:
 
-| Route | How | Cost |
-| :--- | :--- | :--- |
-| Opened mask | draw from the region the hull already uses | the region is column-convex: the `top` flanks go back to 1 to 6 px outside the body |
-| 2-D disc opening | erode and dilate the mask with a disc of radius `--smooth-mm` | measured at 80 mm of body length on the hull; the nose and tail round off |
-| Separate accessory contours | the art director names the regions; the body contour keeps its exact fit and the accessories get their own closed paths | one extra decision per view, and one more artifact to carry |
+| Route                       | How                                                                                                                     | Cost                                                                                |
+| :-------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| Opened mask                 | draw from the region the hull already uses                                                                              | the region is column-convex: the `top` flanks go back to 1 to 6 px outside the body |
+| 2-D disc opening            | erode and dilate the mask with a disc of radius `--smooth-mm`                                                           | measured at 80 mm of body length on the hull; the nose and tail round off           |
+| Separate accessory contours | the art director names the regions; the body contour keeps its exact fit and the accessories get their own closed paths | one extra decision per view, and one more artifact to carry                         |
 
 The third route is the only one that keeps the fit that was just accepted. It also matches the
 vocabulary of stage 3: an accessory is a named part, so it can be a named contour.
@@ -636,25 +636,25 @@ simplified line would be drawn over a body that never saw it.
 
 So the page builds the volume from the three paths, and the offline hull stays untouched beside it.
 
-| Piece | File | What it does |
-| :--- | :--- | :--- |
-| `plateFrame()` | `viewer/plate.js` | where a view's picture sits in the model, in metres. One function, two consumers |
-| `flattenPath()` / `shapeFromRing()` | `viewer/path.js` | one reading of a path. One flattening, one outline |
-| `buildContourVolume()` | `viewer/volume.js` | extrude each path along its normal, intersect the three prisms |
-| `contourMode()` / `volume()` | `viewer/main.js` | switch the reading, then rebuild |
+| Piece                               | File               | What it does                                                                     |
+| :---------------------------------- | :----------------- | :------------------------------------------------------------------------------- |
+| `plateFrame()`                      | `viewer/plate.js`  | where a view's picture sits in the model, in metres. One function, two consumers |
+| `flattenPath()` / `shapeFromRing()` | `viewer/path.js`   | one reading of a path. One flattening, one outline                               |
+| `buildContourVolume()`              | `viewer/volume.js` | extrude each path along its normal, intersect the three prisms                   |
+| `contourMode()` / `volume()`        | `viewer/main.js`   | switch the reading, then rebuild                                                 |
 
 `three-bvh-csg` does the boolean, served from `node_modules` through `/vendor/three-bvh-csg/`.
 
 **Measured.** Three prisms, 24 422 triangles after the intersection, bounding box
 1525 x 1402 x 3521 mm, rebuilt in about 2 s.
 
-| View | Used | IoU |
-| :--- | :--- | ---: |
-| `left` | yes | 0.993 |
-| `back` | yes | 0.981 |
-| `top` | yes | 0.993 |
-| `right` | witness | 0.977 |
-| `front` | witness | 0.918 |
+| View     | Used    |   IoU |
+| :------- | :------ | ----: |
+| `left`   | yes     | 0.993 |
+| `back`   | yes     | 0.981 |
+| `top`    | yes     | 0.993 |
+| `right`  | witness | 0.977 |
+| `front`  | witness | 0.918 |
 | `bottom` | witness | 0.979 |
 
 The used views agree by construction, so they measure the extrusion code and not the subject. The
@@ -678,13 +678,13 @@ into the surface.
 **What.** The contour is a list of **knots** -- points the outline passes through -- joined one of two
 ways. The knots are the source; the join is a reading.
 
-| Piece | File | What it does |
-| :--- | :--- | :--- |
-| `pathFromKnots()` | `viewer/path.js` | one path from the knots: `poly` lines, or `bezier` cubics with Catmull-Rom tangents |
-| `ringOf()`, `simplifyRing()`, `nearestOnRing()`, `insertKnot()`, `removeKnot()`, `moveKnot()` | `viewer/knots.js` | the traced vertices, the reduce, and the edit operations |
-| `KNOTS` | `scenes/<sub>/contours.js` | one knot list per view, written by the viewer's `save` |
-| `POST /api/contours` | `tools/api.ts` | writes `contours.js` from the page |
-| `#knots` panel | `viewer/index.html` | edit, join, reduce, reset, save |
+| Piece                                                                                         | File                       | What it does                                                                        |
+| :-------------------------------------------------------------------------------------------- | :------------------------- | :---------------------------------------------------------------------------------- |
+| `pathFromKnots()`                                                                             | `viewer/path.js`           | one path from the knots: `poly` lines, or `bezier` cubics with Catmull-Rom tangents |
+| `ringOf()`, `simplifyRing()`, `nearestOnRing()`, `insertKnot()`, `removeKnot()`, `moveKnot()` | `viewer/knots.js`          | the traced vertices, the reduce, and the edit operations                            |
+| `KNOTS`                                                                                       | `scenes/<sub>/contours.js` | one knot list per view, written by the viewer's `save`                              |
+| `POST /api/contours`                                                                          | `tools/api.ts`             | writes `contours.js` from the page                                                  |
+| `#knots` panel                                                                                | `viewer/index.html`        | edit, join, reduce, reset, save                                                     |
 
 The editor: click the line to add a knot, click a knot to remove it, drag to move it. A view absent
 from `KNOTS` keeps its traced path, so nothing is destroyed. The first edit seeds the knots from the
@@ -695,10 +695,10 @@ accepted fit to within its tolerance.
 
 **Measured.** The same three views (`left`, `back`, `top`), two states:
 
-| State | Knots (l/b/t) | Triangles | Bbox mm | `left` | `back` | `top` | `right` | `front` |
-| :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: |
-| traced, tol 3 mm, bezier | 194 / 81 / 346 | 24 422 | 1525 x 1402 x 3521 | 0.993 | 0.981 | 0.993 | 0.977 | 0.918 |
-| reduce 25 mm, bezier | 34 / 14 / 26 | 13 381 | 1538 x 1402 x 3530 | 0.970 | 0.963 | 0.967 | 0.965 | 0.880 |
+| State                    | Knots (l/b/t)  | Triangles | Bbox mm            | `left` | `back` | `top` | `right` | `front` |
+| :----------------------- | :------------- | --------: | :----------------- | -----: | -----: | ----: | ------: | ------: |
+| traced, tol 3 mm, bezier | 194 / 81 / 346 |    24 422 | 1525 x 1402 x 3521 |  0.993 |  0.981 | 0.993 |   0.977 |   0.918 |
+| reduce 25 mm, bezier     | 34 / 14 / 26   |    13 381 | 1538 x 1402 x 3530 |  0.970 |  0.963 | 0.967 |   0.965 |   0.880 |
 
 The staircase is gone from the three-quarter render. The cost is 2 to 3 points of IoU on the used
 views and 3.8 on the `front` witness. The tolerance and the join are the art director's to choose on
@@ -709,17 +709,16 @@ until it is edited. `reduce` never compounds: it reads the trace, not the last r
 
 ## 7. Failure modes to keep
 
-
-| Symptom | Cause | Rule |
-| :--- | :--- | :--- |
-| A clean outline over a stepped surface | the contour and the hull read the photograph apart | one path, two readers |
-| A contour that follows the canvas | the trace ran on a screenshot | read the cropped PNG, never the page |
-| A witness that disagrees everywhere | the witness used the raw mask | the witness gets the same mask and the same opening |
-| A bezier that misses the trace | the fit was trusted, not measured | print the maximum deviation and gate on it |
-| A staircase that comes back | the hull re-sampled the photograph | the hull reads the path, and the station count is printed |
-| A smoother edge that cuts into the body | the threshold changed which edge it found | a refinement keeps the edge and moves it between two pixels. Measure the profile before choosing a level |
-| A plate that draws nothing | the plate sat under the ground disc | a plan view is placed by height, not by depth |
-| A document that describes an older tool | the doc was written once | the same commit updates the documents |
+| Symptom                                 | Cause                                              | Rule                                                                                                     |
+| :-------------------------------------- | :------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| A clean outline over a stepped surface  | the contour and the hull read the photograph apart | one path, two readers                                                                                    |
+| A contour that follows the canvas       | the trace ran on a screenshot                      | read the cropped PNG, never the page                                                                     |
+| A witness that disagrees everywhere     | the witness used the raw mask                      | the witness gets the same mask and the same opening                                                      |
+| A bezier that misses the trace          | the fit was trusted, not measured                  | print the maximum deviation and gate on it                                                               |
+| A staircase that comes back             | the hull re-sampled the photograph                 | the hull reads the path, and the station count is printed                                                |
+| A smoother edge that cuts into the body | the threshold changed which edge it found          | a refinement keeps the edge and moves it between two pixels. Measure the profile before choosing a level |
+| A plate that draws nothing              | the plate sat under the ground disc                | a plan view is placed by height, not by depth                                                            |
+| A document that describes an older tool | the doc was written once                           | the same commit updates the documents                                                                    |
 
 ## 8. Open points
 

@@ -20,9 +20,9 @@ form that Three.js cannot build from numbers.
   depend on the window, the context, and the edit mode.
 - **Look up a shader node by type, never by name.** Node names are localized.
 
-  ```python
-  bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
-  ```
+    ```python
+    bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    ```
 
 - **Read an enum before you set it.** Read the valid identifiers from `bl_rna`, and assign inside
   `try` / `except TypeError`, whose message lists the valid values.

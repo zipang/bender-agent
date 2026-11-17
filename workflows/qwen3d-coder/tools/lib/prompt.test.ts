@@ -14,7 +14,7 @@ const CARD_LINES = [
 	"Use only the Three.js core ES module from",
 	"https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js.",
 	"Do not import addons or legacy examples/js paths;",
-	"implement any camera controls directly inside the HTML.",
+	"implement any camera controls directly inside the HTML."
 ];
 
 describe("the system prompt", () => {
@@ -25,7 +25,7 @@ describe("the system prompt", () => {
 
 	test("the exported path points inside the workflow", () => {
 		expect(SYSTEM_PROMPT_PATH).toBe(
-			join(import.meta.dir, "..", "..", "prompts", "3d-coder-system.txt"),
+			join(import.meta.dir, "..", "..", "prompts", "3d-coder-system.txt")
 		);
 	});
 });
@@ -36,15 +36,15 @@ describe("buildUserPrompt", () => {
 			subject: "a 1972 Renault 5 TL, orange, three doors",
 			style: "low-poly stylized video game figurine, soft studio light",
 			details: "blank plates, no badge, no rear door on either side",
-			request: "the car on a plain turntable",
+			request: "the car on a plain turntable"
 		});
 		expect(output).toBe(
 			[
 				"Subject: a 1972 Renault 5 TL, orange, three doors",
 				"Style: low-poly stylized video game figurine, soft studio light",
 				"Details that must survive: blank plates, no badge, no rear door on either side",
-				"Create one self-contained HTML file with Three.js from cdnjs that shows the car on a plain turntable.",
-			].join("\n"),
+				"Create one self-contained HTML file with Three.js from cdnjs that shows the car on a plain turntable."
+			].join("\n")
 		);
 	});
 
@@ -53,34 +53,45 @@ describe("buildUserPrompt", () => {
 			subject: "a robot head",
 			style: "flat shaded",
 			details: "   ",
-			request: "a robot head",
+			request: "a robot head"
 		});
 		expect(output).toBe(
 			[
 				"Subject: a robot head",
 				"Style: flat shaded",
-				"Create one self-contained HTML file with Three.js from cdnjs that shows a robot head.",
-			].join("\n"),
+				"Create one self-contained HTML file with Three.js from cdnjs that shows a robot head."
+			].join("\n")
 		);
 		expect(output).not.toContain("Details that must survive:");
 	});
 
 	test("a missing request falls back to the subject", () => {
-		const output = buildUserPrompt({ subject: "a red bicycle", style: "clay render" });
+		const output = buildUserPrompt({
+			subject: "a red bicycle",
+			style: "clay render"
+		});
 		expect(output).toBe(
 			[
 				"Subject: a red bicycle",
 				"Style: clay render",
-				"Create one self-contained HTML file with Three.js from cdnjs that shows a red bicycle.",
-			].join("\n"),
+				"Create one self-contained HTML file with Three.js from cdnjs that shows a red bicycle."
+			].join("\n")
 		);
 	});
 
 	test("an empty input throws", () => {
-		expect(() => buildUserPrompt({ subject: "  ", style: "clay render" })).toThrow();
-		expect(() => buildUserPrompt({ subject: "a red bicycle", style: "" })).toThrow();
 		expect(() =>
-			buildUserPrompt({ subject: "a red bicycle", style: "clay", request: " " }),
+			buildUserPrompt({ subject: "  ", style: "clay render" })
+		).toThrow();
+		expect(() =>
+			buildUserPrompt({ subject: "a red bicycle", style: "" })
+		).toThrow();
+		expect(() =>
+			buildUserPrompt({
+				subject: "a red bicycle",
+				style: "clay",
+				request: " "
+			})
 		).toThrow();
 	});
 });
@@ -107,11 +118,11 @@ describe("parseNotes", () => {
 			"",
 			"## Hidden parts",
 			"",
-			"None.",
+			"None."
 		].join("\n");
 		const notes = parseNotes(markdown);
 		expect(notes.subject).toBe(
-			"A 1972 Renault 5 TL, orange, three doors.\nIt has a fabric roof.",
+			"A 1972 Renault 5 TL, orange, three doors.\nIt has a fabric roof."
 		);
 		expect(notes.details).toBe("Blank plates and no badge.");
 	});
@@ -134,7 +145,7 @@ describe("the details headings", () => {
 			"",
 			"## Identity features that must not change",
 			"",
-			"One eye, one antenna, two arms.",
+			"One eye, one antenna, two arms."
 		].join("\n");
 		const notes = parseNotes(markdown);
 		expect(notes.subject).toBe("A small robot with one eye.");
@@ -149,7 +160,7 @@ describe("the details headings", () => {
 			"",
 			"## Identity features that must not change",
 			"",
-			"One eye.",
+			"One eye."
 		].join("\n");
 		expect(parseNotes(markdown).details).toBe("Blank plates.");
 	});

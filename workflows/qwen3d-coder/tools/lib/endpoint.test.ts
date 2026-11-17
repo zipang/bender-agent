@@ -13,7 +13,7 @@ const MODEL = "qwen3.5-4b-3d-coder";
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
-		headers: { "content-type": "application/json" },
+		headers: { "content-type": "application/json" }
 	});
 }
 
@@ -24,7 +24,7 @@ describe("checkEndpoint", () => {
 			model: MODEL,
 			fetchImpl: async () => {
 				throw new TypeError("fetch failed");
-			},
+			}
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -38,7 +38,8 @@ describe("checkEndpoint", () => {
 		const result = await checkEndpoint({
 			baseUrl: BASE_URL,
 			model: MODEL,
-			fetchImpl: async () => new Response("service unavailable", { status: 503 }),
+			fetchImpl: async () =>
+				new Response("service unavailable", { status: 503 })
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -53,7 +54,7 @@ describe("checkEndpoint", () => {
 		const result = await checkEndpoint({
 			baseUrl: BASE_URL,
 			model: MODEL,
-			fetchImpl: async () => new Response(body),
+			fetchImpl: async () => new Response(body)
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -66,7 +67,7 @@ describe("checkEndpoint", () => {
 		const result = await checkEndpoint({
 			baseUrl: BASE_URL,
 			model: MODEL,
-			fetchImpl: async () => new Response("<html>not the api</html>"),
+			fetchImpl: async () => new Response("<html>not the api</html>")
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -79,7 +80,7 @@ describe("checkEndpoint", () => {
 		const result = await checkEndpoint({
 			baseUrl: BASE_URL,
 			model: MODEL,
-			fetchImpl: async () => new Response(long),
+			fetchImpl: async () => new Response(long)
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -92,7 +93,9 @@ describe("checkEndpoint", () => {
 			baseUrl: BASE_URL,
 			model: MODEL,
 			fetchImpl: async () =>
-				jsonResponse({ data: [{ id: "qwen3.5-2b" }, { id: "another-model" }] }),
+				jsonResponse({
+					data: [{ id: "qwen3.5-2b" }, { id: "another-model" }]
+				})
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -105,7 +108,7 @@ describe("checkEndpoint", () => {
 		const result = await checkEndpoint({
 			baseUrl: BASE_URL,
 			model: MODEL,
-			fetchImpl: async () => jsonResponse({ data: [] }),
+			fetchImpl: async () => jsonResponse({ data: [] })
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error("unreachable");
@@ -121,9 +124,9 @@ describe("checkEndpoint", () => {
 				jsonResponse({
 					data: [
 						{ id: "qwen3.5-2b", status: { value: "unloaded" } },
-						{ id: MODEL, status: { value: "unloaded" }, extra: 1 },
-					],
-				}),
+						{ id: MODEL, status: { value: "unloaded" }, extra: 1 }
+					]
+				})
 		});
 		expect(result).toEqual({ ok: true, id: MODEL });
 	});
@@ -133,7 +136,10 @@ describe("checkEndpoint", () => {
 			baseUrl: BASE_URL,
 			model: MODEL,
 			fetchImpl: async () =>
-				jsonResponse({ data: [{ id: MODEL, owned_by: "local" }], object: "list" }),
+				jsonResponse({
+					data: [{ id: MODEL, owned_by: "local" }],
+					object: "list"
+				})
 		});
 		expect(result).toEqual({ ok: true, id: MODEL });
 	});
@@ -146,7 +152,7 @@ describe("checkEndpoint", () => {
 			fetchImpl: async (input, init) => {
 				calls.push({ url: String(input), init });
 				return jsonResponse({ data: [{ id: MODEL }] });
-			},
+			}
 		});
 		expect(result.ok).toBe(true);
 		expect(calls).toHaveLength(1);

@@ -13,16 +13,28 @@ import {
 	streamChat,
 	type ChatImage,
 	type ChatResult,
-	type StreamChatOptions,
+	type StreamChatOptions
 } from "./lib/client";
-import { checkEndpoint, type PreflightOptions, type PreflightResult } from "./lib/endpoint";
+import {
+	checkEndpoint,
+	type PreflightOptions,
+	type PreflightResult
+} from "./lib/endpoint";
 import { extractHtml, NoHtmlError } from "./lib/extract";
-import { buildUserPrompt, parseNotes, SYSTEM_PROMPT_PATH, type SubjectNotes } from "./lib/prompt";
+import {
+	buildUserPrompt,
+	parseNotes,
+	SYSTEM_PROMPT_PATH,
+	type SubjectNotes
+} from "./lib/prompt";
 
 // The repository root. This file lives in <root>/workflows/qwen3d-coder/tools/.
 const PROJECT_ROOT = resolve(import.meta.dir, "..", "..", "..");
 
-/** The documented default port of an OpenAI-compatible endpoint, as a convenience. */
+/**
+ * The documented default port of an OpenAI-compatible endpoint, as a
+ * convenience.
+ */
 export const DEFAULT_BASE_URL = "http://127.0.0.1:9931/v1";
 /** The `id` that the reference endpoint publishes for the 3D Coder weights. */
 export const DEFAULT_MODEL = "qwen3.5-4b-3d-coder";
@@ -33,7 +45,7 @@ const MEDIA_TYPES: Record<string, string> = {
 	".png": "image/png",
 	".jpg": "image/jpeg",
 	".jpeg": "image/jpeg",
-	".webp": "image/webp",
+	".webp": "image/webp"
 };
 
 const REFERENCE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
@@ -44,7 +56,10 @@ export type SceneDraftDeps = {
 	/** The `/models` preflight. Absent means the real fetch. */
 	preflight?: (options: PreflightOptions) => Promise<PreflightResult>;
 	stream?: (options: StreamChatOptions) => Promise<ChatResult>;
-	/** The candidate writer. Absent means write beside the subject with `O_EXCL`. */
+	/**
+	 * The candidate writer. Absent means write beside the subject with
+	 * `O_EXCL`.
+	 */
 	write?: (dir: string, html: string) => string;
 	/** The system prompt text. Absent means read the workflow file. */
 	systemPrompt?: string;
@@ -54,7 +69,10 @@ type Options = {
 	subject: string | null;
 	/** A file that holds the whole user turn. It replaces the subject folder. */
 	promptFile: string | null;
-	/** The candidate folder of a text prompt. It replaces `<subject>/generated/`. */
+	/**
+	 * The candidate folder of a text prompt. It replaces
+	 * `<subject>/generated/`.
+	 */
 	out: string | null;
 	style: string | null;
 	variants: number;
@@ -70,12 +88,16 @@ type Options = {
 
 type Parsed = { options: Options } | { error: string };
 
-/** The endpoint check as the caller reads it: a resolved id, or the exit code to return. */
+/**
+ * The endpoint check as the caller reads it: a resolved id, or the exit code to
+ * return.
+ */
 type EndpointResolution = { ok: true; id: string } | { ok: false; code: 2 };
 
 /** The base URL must parse and must hold no trailing slash. */
 function validateBaseUrl(value: string): string | null {
-	if (value.endsWith("/")) return `--base-url must not end with "/", got "${value}".`;
+	if (value.endsWith("/"))
+		return `--base-url must not end with "/", got "${value}".`;
 	let url: URL;
 	try {
 		url = new URL(value);
@@ -102,7 +124,7 @@ function parseOptions(argv: string[]): Parsed {
 		maxTokens: DEFAULT_MAX_TOKENS,
 		timeout: DEFAULT_TIMEOUT_S,
 		seed: null,
-		ask: false,
+		ask: false
 	};
 
 	const withValue = new Set([
@@ -116,7 +138,7 @@ function parseOptions(argv: string[]): Parsed {
 		"--model",
 		"--max-tokens",
 		"--timeout",
-		"--seed",
+		"--seed"
 	]);
 	const booleans = new Set(["--image", "--ask"]);
 
@@ -164,14 +186,18 @@ function parseOptions(argv: string[]): Parsed {
 			case "--variants": {
 				const parsed = Number(value);
 				if (!Number.isInteger(parsed) || parsed < 1)
-					return { error: `--variants is a positive integer, got "${value}".` };
+					return {
+						error: `--variants is a positive integer, got "${value}".`
+					};
 				options.variants = parsed;
 				break;
 			}
 			case "--max-tokens": {
 				const parsed = Number(value);
 				if (!Number.isInteger(parsed) || parsed < -1) {
-					return { error: `--max-tokens is an integer of -1 or more, got "${value}".` };
+					return {
+						error: `--max-tokens is an integer of -1 or more, got "${value}".`
+					};
 				}
 				options.maxTokens = parsed;
 				break;
@@ -179,7 +205,9 @@ function parseOptions(argv: string[]): Parsed {
 			case "--timeout": {
 				const parsed = Number(value);
 				if (!Number.isFinite(parsed) || parsed <= 0)
-					return { error: `--timeout is a positive number of seconds, got "${value}".` };
+					return {
+						error: `--timeout is a positive number of seconds, got "${value}".`
+					};
 				options.timeout = parsed;
 				break;
 			}
@@ -196,7 +224,10 @@ function parseOptions(argv: string[]): Parsed {
 	return { options };
 }
 
-/** The chosen identity image of the subject folder. Generation reads no other image. */
+/**
+ * The chosen identity image of the subject folder. Generation reads no other
+ * image.
+ */
 function findReference(dir: string): string | null {
 	let names: string[];
 	try {
@@ -223,11 +254,14 @@ function displayPath(path: string): string {
 /**
  * The command-line entry point.
  *
- * Exit codes: 0 a candidate was written, 1 invalid input, 2 the endpoint is unreachable or does not
- * name the model, 3 a request failed, 4 the response held no complete document, 5 the candidate
- * could not be written.
+ * Exit codes: 0 a candidate was written, 1 invalid input, 2 the endpoint is
+ * unreachable or does not name the model, 3 a request failed, 4 the response
+ * held no complete document, 5 the candidate could not be written.
  */
-export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise<number> {
+export async function runCli(
+	argv: string[],
+	deps: SceneDraftDeps = {}
+): Promise<number> {
 	const out = deps.out ?? console.log;
 	const err = deps.err ?? console.error;
 	const preflight = deps.preflight ?? checkEndpoint;
@@ -254,7 +288,9 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 
 	if (textMode) {
 		if (options.subject) {
-			err("--prompt-file and --subject are exclusive: pass one of the two.");
+			err(
+				"--prompt-file and --subject are exclusive: pass one of the two."
+			);
 			return 1;
 		}
 		if (options.image) {
@@ -275,7 +311,7 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 	} else {
 		if (!options.subject) {
 			err(
-				"--subject is required: pass the subject folder, or --prompt-file for a text prompt.",
+				"--subject is required: pass the subject folder, or --prompt-file for a text prompt."
 			);
 			return 1;
 		}
@@ -291,14 +327,17 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 		request = options.prompt ?? subjectText;
 	}
 
-	/** The endpoint check. It runs once per run, before the first variant (`--ask` included). */
+	/**
+	 * The endpoint check. It runs once per run, before the first variant
+	 * (`--ask` included).
+	 */
 	const resolveModel = async (): Promise<EndpointResolution> => {
 		let result: PreflightResult;
 		try {
 			result = await preflight({
 				baseUrl: options.baseUrl,
 				model: options.model,
-				timeoutMs: Math.min(options.timeout * 1000, 10_000),
+				timeoutMs: Math.min(options.timeout * 1000, 10_000)
 			});
 		} catch (error) {
 			err(`endpoint not ready: ${(error as Error).message}`);
@@ -318,19 +357,25 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 
 		const gaps: string[] = [];
 		if (textMode) {
-			if (!options.out) gaps.push("--out: missing. Pass the candidate folder.");
+			if (!options.out)
+				gaps.push("--out: missing. Pass the candidate folder.");
 		} else {
 			if (!reference)
-				gaps.push(`reference.<ext>: missing in ${displayPath(subjectDir as string)}`);
+				gaps.push(
+					`reference.<ext>: missing in ${displayPath(subjectDir as string)}`
+				);
 			if (!subjectText)
 				gaps.push(
-					'subject note: missing. Add a "## Subject" paragraph to notes.md, or pass --prompt.',
+					'subject note: missing. Add a "## Subject" paragraph to notes.md, or pass --prompt.'
 				);
-			if (!options.style) gaps.push('style: missing. Pass --style "<style>".');
+			if (!options.style)
+				gaps.push('style: missing. Pass --style "<style>".');
 		}
 
 		if (gaps.length === 0) {
-			out("ask:        No gap found. The material is complete enough to draft.");
+			out(
+				"ask:        No gap found. The material is complete enough to draft."
+			);
 			out("No request was sent and nothing was spent.");
 			return 0;
 		}
@@ -342,18 +387,20 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 
 	if (!textMode) {
 		if (!options.style) {
-			err("--style is required: pass the style in the art director's words.");
+			err(
+				"--style is required: pass the style in the art director's words."
+			);
 			return 1;
 		}
 		if (!reference) {
 			err(
-				`reference.<ext> is missing in ${displayPath(subjectDir as string)}. Generation reads no other image.`,
+				`reference.<ext> is missing in ${displayPath(subjectDir as string)}. Generation reads no other image.`
 			);
 			return 1;
 		}
 		if (!subjectText) {
 			err(
-				'An empty subject or an empty request is never sent. Add a "## Subject" paragraph to notes.md, or pass --prompt.',
+				'An empty subject or an empty request is never sent. Add a "## Subject" paragraph to notes.md, or pass --prompt.'
 			);
 			return 1;
 		}
@@ -365,12 +412,15 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 	const endpoint = await resolveModel();
 	if (!endpoint.ok) return endpoint.code;
 
-	const systemPrompt = deps.systemPrompt ?? readFileSync(SYSTEM_PROMPT_PATH, "utf8");
+	const systemPrompt =
+		deps.systemPrompt ?? readFileSync(SYSTEM_PROMPT_PATH, "utf8");
 
 	const image: ChatImage | null = (() => {
 		if (textMode || !options.image) return null;
 		const path = reference as string;
-		const mediaType = MEDIA_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream";
+		const mediaType =
+			MEDIA_TYPES[extname(path).toLowerCase()] ??
+			"application/octet-stream";
 		return { mime: mediaType, data: readFileSync(path).toString("base64") };
 	})();
 
@@ -380,7 +430,7 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 				subject: subjectText as string,
 				style: options.style as string,
 				details: notes.details,
-				request: request as string,
+				request: request as string
 			});
 
 	if (textMode) out(`prompt: ${displayPath(promptPath as string)}`);
@@ -404,7 +454,7 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 				image,
 				maxTokens: options.maxTokens,
 				seed: options.seed,
-				timeoutMs: options.timeout * 1000,
+				timeoutMs: options.timeout * 1000
 			});
 			html = extractHtml(result.content);
 		} catch (error) {
@@ -422,7 +472,7 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 			// The model answered, but the candidate could not be stored.
 			firstFailure ??= 5;
 			out(
-				`variant ${variant}  the candidate could not be written: ${(error as Error).message}`,
+				`variant ${variant}  the candidate could not be written: ${(error as Error).message}`
 			);
 			continue;
 		}
@@ -430,13 +480,13 @@ export async function runCli(argv: string[], deps: SceneDraftDeps = {}): Promise
 		written += 1;
 		const seconds = (performance.now() - started) / 1000;
 		out(
-			`variant ${variant}  ${displayPath(path)}  ${seconds.toFixed(1)} s  ${result.tokens} tokens  ${result.tokensPerSecond.toFixed(1)} tok/s`,
+			`variant ${variant}  ${displayPath(path)}  ${seconds.toFixed(1)} s  ${result.tokens} tokens  ${result.tokensPerSecond.toFixed(1)} tok/s`
 		);
 	}
 
 	if (written > 0) {
 		out(
-			`${written} candidate(s) written to ${displayPath(generatedDir)}. The art director chooses.`,
+			`${written} candidate(s) written to ${displayPath(generatedDir)}. The art director chooses.`
 		);
 		return 0;
 	}

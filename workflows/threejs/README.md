@@ -37,10 +37,10 @@ workflows/threejs/
 
 A scene holds two files and no build step:
 
-| File | Role |
-| :--- | :--- |
-| `scene.json` | `{ id, name, subject, model }`. `subject` is repository-relative, so the scene can move |
-| `model.js` | The asset. Exports `build()` or `buildBody()`, plus `measure()`, `target()` and `deviation()` when it carries the gate numbers |
+| File         | Role                                                                                                                           |
+| :----------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| `scene.json` | `{ id, name, subject, model }`. `subject` is repository-relative, so the scene can move                                        |
+| `model.js`   | The asset. Exports `build()` or `buildBody()`, plus `measure()`, `target()` and `deviation()` when it carries the gate numbers |
 
 `model.js` imports `three` and nothing else: no DOM, no renderer, no network. The live scene and
 the exported `.glb` are then built from the same source.
@@ -89,8 +89,7 @@ python3 scripts/blueprint/view_scale.py blueprints/vehicules/<subject>/cropped/l
   --write blueprints/vehicules/<subject>/dimensions.json
 ```
 
-A view's verdict is `pass` under 5 percent drift, `corrected` between 5 and 25, and `reject` above
-25. A rejected view is regenerated, never rescaled. A corrected view is used, and both of its scales
+A view's verdict is `pass` under 5 percent drift, `corrected` between 5 and 25, and `reject` above 25. A rejected view is regenerated, never rescaled. A corrected view is used, and both of its scales
 are mandatory.
 
 Gate G1: every required view has two scales, no required view is `reject`, and one landmark shared
@@ -118,12 +117,12 @@ millimetres, and the contour is a path sampled by `--pitch`.
 or `C` in the shape that `THREE.Path` accepts. Three flags produce it, and only one of them changes
 the shape.
 
-| Flag | Default | Meaning |
-| :--- | ---: | :--- |
-| `--tolerance` | 0.25 | millimetres. The largest distance the drawn line may sit from the traced points. **This is the one number that changes the shape.** |
-| `--pitch` | 2 | millimetres. The longest segment. It sets the resolution, not the shape. |
-| `--mode` | `poly` | `poly` joins the points the fit kept; `bezier` fits cubics to the same points. |
-| `--smooth-mm` | 150 | millimetres. The widest protrusion the **hull** may erase. The drawn contour reads the picture and is never opened. |
+| Flag          | Default | Meaning                                                                                                                             |
+| :------------ | ------: | :---------------------------------------------------------------------------------------------------------------------------------- |
+| `--tolerance` |    0.25 | millimetres. The largest distance the drawn line may sit from the traced points. **This is the one number that changes the shape.** |
+| `--pitch`     |       2 | millimetres. The longest segment. It sets the resolution, not the shape.                                                            |
+| `--mode`      |  `poly` | `poly` joins the points the fit kept; `bezier` fits cubics to the same points.                                                      |
+| `--smooth-mm` |     150 | millimetres. The widest protrusion the **hull** may erase. The drawn contour reads the picture and is never opened.                 |
 
 Both modes read one path. `poly` flattens each segment to its own end point, `bezier` samples the
 curve, so a switch between them cannot move the outline. The tool prints the measured
@@ -131,12 +130,12 @@ curve, so a switch between them cannot move the outline. The tool prints the mea
 
 Measured on `r5-tl-1972`, `top` view, `--pitch 20`:
 
-| `--tolerance` | Segments | Measured deviation |
-| ---: | ---: | ---: |
-| 0.25 | 584 | 0.01 mm. Keeps the pixel staircase |
-| 1 | 547 | 0.74 mm |
-| 3 | 346 | 2.95 mm. The default |
-| 6 | 60 | 0.00 mm. Loses the wheel-arch detail |
+| `--tolerance` | Segments |                   Measured deviation |
+| ------------: | -------: | -----------------------------------: |
+|          0.25 |      584 |   0.01 mm. Keeps the pixel staircase |
+|             1 |      547 |                              0.74 mm |
+|             3 |      346 |                 2.95 mm. The default |
+|             6 |       60 | 0.00 mm. Loses the wheel-arch detail |
 
 The value is chosen on a rendered contact sheet, not from this table. The table only shows that the
 flag does what it says.
@@ -151,9 +150,9 @@ So the contour is a list of **knots** the art director controls. A knot is a poi
 **passes through**. `viewer/knots.js` reads the list, joins the knots one of two ways, and everything
 else reads that join:
 
-| Join | What it does |
-| :--- | :--- |
-| `poly` | straight segments through the knots. The angular reading. |
+| Join     | What it does                                                                                                          |
+| :------- | :-------------------------------------------------------------------------------------------------------------------- |
+| `poly`   | straight segments through the knots. The angular reading.                                                             |
 | `bezier` | cubics through the knots, with the tangents of a Catmull-Rom spline. The curve reaches every knot and joins smoothly. |
 
 The two joins read the **same** knots, so a switch between them moves the line between two knots and
@@ -175,20 +174,20 @@ through the same points would bulge past it.
 
 The editor, in the viewer's `#knots` panel:
 
-| Action | Result |
-| :--- | :--- |
-| `Shift` + left drag | draw a selection rectangle; every knot of the view inside it joins the selection |
-| a second `Shift` + drag | add to the selection; no knot is selected twice |
-| `Shift` click (under 3 px) | change nothing |
-| drag a selected knot | move the whole selection by one vector; the outline follows the pointer |
-| drag an unselected knot | clear the selection; no knot is inserted, removed or moved |
-| left drag away from every knot | pan the camera; the selection is kept |
-| `Delete` / `Backspace` | remove the selected knots, unless fewer than three would remain |
-| `Escape` | clear the selection, or cancel an open rectangle |
-| `poly` / `bezier` | change the join |
-| `reduce` + mm | Douglas-Peucker on the traced ring at that tolerance: 194 knots become 34 at 25 mm |
-| `reset` | drop the hand-set knots of the view and return to the traced path |
-| `save` | write `contours.js` |
+| Action                         | Result                                                                             |
+| :----------------------------- | :--------------------------------------------------------------------------------- |
+| `Shift` + left drag            | draw a selection rectangle; every knot of the view inside it joins the selection   |
+| a second `Shift` + drag        | add to the selection; no knot is selected twice                                    |
+| `Shift` click (under 3 px)     | change nothing                                                                     |
+| drag a selected knot           | move the whole selection by one vector; the outline follows the pointer            |
+| drag an unselected knot        | clear the selection; no knot is inserted, removed or moved                         |
+| left drag away from every knot | pan the camera; the selection is kept                                              |
+| `Delete` / `Backspace`         | remove the selected knots, unless fewer than three would remain                    |
+| `Escape`                       | clear the selection, or cancel an open rectangle                                   |
+| `poly` / `bezier`              | change the join                                                                    |
+| `reduce` + mm                  | Douglas-Peucker on the traced ring at that tolerance: 194 knots become 34 at 25 mm |
+| `reset`                        | drop the hand-set knots of the view and return to the traced path                  |
+| `save`                         | write `contours.js`                                                                |
 
 The selection is **transient**. It lives in memory only: it is never written to `contours.js` and it
 never enters the `POST /api/contours` payload. A view change, `reduce`, `reset`, and leaving edit
@@ -264,15 +263,15 @@ A scene is named by its directory name, and by nothing else: `?scene=r5-tl-1972`
 and the refusal names the form. One name appears in a URL, in a command line, in a capture log and in
 `scene.json`, so one form is one thing to keep in step instead of three.
 
-| Route | Serves |
-| :--- | :--- |
-| `/` | redirect to the viewer, on the scene of `--scene` |
-| `/viewer/*` | the shared page and `views.json` |
-| `/workflows/threejs/scenes/*.js` | a scene's modules, at their real path, so a relative import resolves. Every other file is refused |
-| `/vendor/three/*` | the `three` package |
-| `/api/*` | the scene document, the assets, the model, the scene list, a measurement write. Every endpoint takes `?scene=<name>` |
-| `/repo/*` | read-only files under the repository root |
-| `/measure/` | the point picker for stage 1 |
+| Route                            | Serves                                                                                                               |
+| :------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
+| `/`                              | redirect to the viewer, on the scene of `--scene`                                                                    |
+| `/viewer/*`                      | the shared page and `views.json`                                                                                     |
+| `/workflows/threejs/scenes/*.js` | a scene's modules, at their real path, so a relative import resolves. Every other file is refused                    |
+| `/vendor/three/*`                | the `three` package                                                                                                  |
+| `/api/*`                         | the scene document, the assets, the model, the scene list, a measurement write. Every endpoint takes `?scene=<name>` |
+| `/repo/*`                        | read-only files under the repository root                                                                            |
+| `/measure/`                      | the point picker for stage 1                                                                                         |
 
 The client never assembles a path. One API document returns the subject, the dimensions, the crops
 and the view table already merged and in millimetres, and each failure has a name.
@@ -281,12 +280,12 @@ The page carries four layers, each with its own switch: the model, the contour v
 contour, and the calque. A calque is the reference plate, sized in metres from `kx` and `ky`. A plan
 view is placed by height, not by depth, because the ground disc hides a plate placed under it.
 
-| Layer | What it is | Built by |
-| :--- | :--- | :--- |
-| model | `SECTIONS`, the offline reduction of the photograph | `trace_hull.py`, then `model.js` |
-| volume | the intersection of the three drawn contours | `viewer/volume.js`, in the page |
-| contour | the knots, joined `poly` or `bezier` | `calque.js`, from `KNOTS` else `CONTOURS` |
-| calque | the reference plate | `calque.js`, from the cropped picture |
+| Layer   | What it is                                          | Built by                                  |
+| :------ | :-------------------------------------------------- | :---------------------------------------- |
+| model   | `SECTIONS`, the offline reduction of the photograph | `trace_hull.py`, then `model.js`          |
+| volume  | the intersection of the three drawn contours        | `viewer/volume.js`, in the page           |
+| contour | the knots, joined `poly` or `bezier`                | `calque.js`, from `KNOTS` else `CONTOURS` |
+| calque  | the reference plate                                 | `calque.js`, from the cropped picture     |
 
 ### 7.1 The contour volume
 
@@ -312,10 +311,10 @@ The rebuild takes about 2 s for three prisms. The boolean kernel is `three-bvh-c
 
 Measured on `r5-tl-1972`, two states of the same three views:
 
-| State | Triangles | Bbox mm | `left` | `back` | `top` | `right` | `front` |
-| :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: |
-| traced, `--tolerance 3 mm`, `bezier` | 24 422 | 1525 x 1402 x 3521 | 0.993 | 0.981 | 0.993 | 0.977 | 0.918 |
-| knots, reduce 25 mm, `bezier` | 13 381 | 1538 x 1402 x 3530 | 0.970 | 0.963 | 0.967 | 0.965 | 0.880 |
+| State                                | Triangles | Bbox mm            | `left` | `back` | `top` | `right` | `front` |
+| :----------------------------------- | --------: | :----------------- | -----: | -----: | ----: | ------: | ------: |
+| traced, `--tolerance 3 mm`, `bezier` |    24 422 | 1525 x 1402 x 3521 |  0.993 |  0.981 | 0.993 |   0.977 |   0.918 |
+| knots, reduce 25 mm, `bezier`        |    13 381 | 1538 x 1402 x 3530 |  0.970 |  0.963 | 0.967 |   0.965 |   0.880 |
 
 The second row is the point of the tool: fewer points and a smoother surface, at a measured cost in
 fidelity. `left`, `back` and `top` are the used views; `right` and `front` are witnesses, and `front`
@@ -335,13 +334,13 @@ active one. Both are configured from **one frozen `SHARED` table**, so the wheel
 notch, the inertia, the cursor anchoring and the drags are the same on every view. `enableRotate` is
 the single difference: `true` on the free view, `false` on the flat one.
 
-| Gesture | Effect |
-| :--- | :--- |
-| wheel | zoom, anchored on the point under the cursor, 100 % to 1000 % |
-| left drag | pan, on both families |
-| middle drag | dolly, on both families |
-| `Shift` + left drag | orbit on a free view, inert on a flat one |
-| right drag | nothing: the button is kept for a context menu |
+| Gesture             | Effect                                                        |
+| :------------------ | :------------------------------------------------------------ |
+| wheel               | zoom, anchored on the point under the cursor, 100 % to 1000 % |
+| left drag           | pan, on both families                                         |
+| middle drag         | dolly, on both families                                       |
+| `Shift` + left drag | orbit on a free view, inert on a flat one                     |
+| right drag          | nothing: the button is kept for a context menu                |
 
 `Shift` + left drag is the one behaviour not in the `OrbitControls` documentation: the library swaps
 the rotate and pan actions under `ctrl`, `meta` or `shift`, and the flat instance refuses the rotate
@@ -382,10 +381,10 @@ frames.
 
 `stage` exposes two counters, and `__ctl.frames()` returns them:
 
-| Counter | Counts |
-| :--- | :--- |
-| `rendered` | calls to `renderer.render` |
-| `ticks` | invocations of the animation-loop callback |
+| Counter    | Counts                                     |
+| :--------- | :----------------------------------------- |
+| `rendered` | calls to `renderer.render`                 |
+| `ticks`    | invocations of the animation-loop callback |
 
 `rendered` frozen alone would pass with a spinning loop; `ticks` frozen too is the proof that the
 loop stopped. `nextFrame()` keeps its meaning: it sets `dirty`, re-arms the loop, and only then
@@ -402,12 +401,12 @@ press. T0003 gives the left button to the camera -- a left drag pans on both fam
 on the press would drop a point on every pan. A drag records nothing, and a plain left click records
 nothing: that click is the pan's resting gesture.
 
-| Chord | `source` | Records |
-| :--- | :--- | :--- |
-| `Ctrl` + left click | `calque` | one point, on release, under 3 px of movement |
-| `Ctrl` + `Shift` + left click | `model` | one point, on release, under 3 px of movement |
-| `Ctrl` + left drag | -- | nothing |
-| plain left click or drag | -- | nothing |
+| Chord                         | `source` | Records                                       |
+| :---------------------------- | :------- | :-------------------------------------------- |
+| `Ctrl` + left click           | `calque` | one point, on release, under 3 px of movement |
+| `Ctrl` + `Shift` + left click | `model`  | one point, on release, under 3 px of movement |
+| `Ctrl` + left drag            | --       | nothing                                       |
+| plain left click or drag      | --       | nothing                                       |
 
 `ctrlKey` only. `metaKey` is not accepted: on macOS a `Meta` click is the secondary-click gesture,
 and the art director asked for `Ctrl`. The `source` is decided at the **press**, so releasing `Shift`
@@ -427,61 +426,61 @@ bun run workflows/threejs/tools/check_measure.ts               # the chord and t
 
 Every row states what the tool reads, what it writes, and how it is called.
 
-| Tool | Reads | Writes | Command |
-| :--- | :--- | :--- | :--- |
-| `tools/serve.ts` | the scene folder, the viewer, `node_modules/three` | nothing | `bun run serve` |
-| `tools/api.ts` | `scene.json`, `dimensions.json`, the crop manifest, the view table | nothing, except `POST /api/measure` and `POST /api/contours` | reached through `serve.ts` |
-| `tools/ctl.ts` | the live page | a capture, and its `.json` sidecar | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `knots`, `select`, `drag`, `delete-selection`, `eval`, `stats` |
-| `tools/check_zoom.ts` | the live page, through `__ctl` and real input | a report; non-zero on the first failed assertion | `check_zoom.ts` |
-| `tools/check_idle.ts` | the live page, through `__ctl.frames()` | a report; non-zero on the first failed assertion | `check_idle.ts` |
-| `tools/check_measure.ts` | the live page, through `__ctl` and synthetic pointer events | a report; non-zero on the first failed assertion | `check_measure.ts` |
-| `tools/check_knot_selection.ts` | the live page, through `__ctl` and synthetic pointer and keyboard events | a report; non-zero on the first failed assertion | `check_knot_selection.ts` |
-| `tools/shot.ts` | the live page, the view table | `<out>/<prefix>-<view>.webp`; its scratch under `test-reports/` | `shot.ts --out <dir> --prefix <p> --scene <name>` |
-| `tools/check.ts` | the captures, the references | one report, and the overlays under `test-reports/silhouette/` | `bun run check`. It prints a timestamped line per step (coloured on a TTY), streams each child's output, and exits 1 when the model is outside the tolerance |
-| `tools/session.ts` | nothing | nothing. It owns a browser session: open, close in a `finally` and on `SIGINT`/`SIGTERM`, a stale-session sweep, and a timeout on every `agent-browser` call | imported |
-| `tools/silhouette.ts` | a render, a reference | an overlay PNG under `test-reports/silhouette/`: red reference only, blue model only, magenta both | `silhouette.ts --subject <s> --render <dir>` |
-| `tools/compare_silhouette.py` | a render, its sidecar, a reference, `dimensions.json` | an overlay, and a station table in millimetres | `--subject <s> --view <v> --render <file>` |
-| `tools/trace_hull.py` | the cropped views, `dimensions.json` | `body-hull.js`: sections, contours, gate numbers | `--subject <s> --out <file> --step 20 --mode bezier --pitch 20 --tolerance 3` |
-| `tools/paths.ts` | nothing | nothing. It holds the root, the viewer, the scenes and the tool folder | imported |
-| `scripts/blueprint/crop_reference.py` | `reference.<ext>` | `cropped/<view>.png` and `cropped/manifest.json`. A cut, not a resample: the pixels are the same rectangle, so the native resolution of the reference survives | `--subject <s>` |
-| `scripts/blueprint/view_scale.py` | a cropped view, the real dimensions | an entry in `dimensions.json` | `--view <v> --length .. --write` |
-| `scripts/blueprint/measure_view.py` | a reference, a render | a landmark table in millimetres | `<reference> <render> --json` |
-| `scripts/blueprint/read_reference.py` | a side-view reference | profile data, in millimetres from the nose | `<image> --length 3520` |
-| `scripts/measure/index.html` | a reference image | picked points, through the API | open `/measure/?subject=..&view=..` |
-| `scripts/measure/report.py` | the picked points | `measurements.json`, and an annotated copy | `<subject> --annotate --write` |
-| `scripts/blueprint-generate/` | a draft, a subject, a model | candidate images, then `reference.<ext>` | see its own README |
+| Tool                                  | Reads                                                                    | Writes                                                                                                                                                         | Command                                                                                                                                                      |
+| :------------------------------------ | :----------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools/serve.ts`                      | the scene folder, the viewer, `node_modules/three`                       | nothing                                                                                                                                                        | `bun run serve`                                                                                                                                              |
+| `tools/api.ts`                        | `scene.json`, `dimensions.json`, the crop manifest, the view table       | nothing, except `POST /api/measure` and `POST /api/contours`                                                                                                   | reached through `serve.ts`                                                                                                                                   |
+| `tools/ctl.ts`                        | the live page                                                            | a capture, and its `.json` sidecar                                                                                                                             | `ctl.ts <command>`. `open`, `close`, `shot`, `view`, `layers`, `volume`, `calque`, `zoom`, `knots`, `select`, `drag`, `delete-selection`, `eval`, `stats`    |
+| `tools/check_zoom.ts`                 | the live page, through `__ctl` and real input                            | a report; non-zero on the first failed assertion                                                                                                               | `check_zoom.ts`                                                                                                                                              |
+| `tools/check_idle.ts`                 | the live page, through `__ctl.frames()`                                  | a report; non-zero on the first failed assertion                                                                                                               | `check_idle.ts`                                                                                                                                              |
+| `tools/check_measure.ts`              | the live page, through `__ctl` and synthetic pointer events              | a report; non-zero on the first failed assertion                                                                                                               | `check_measure.ts`                                                                                                                                           |
+| `tools/check_knot_selection.ts`       | the live page, through `__ctl` and synthetic pointer and keyboard events | a report; non-zero on the first failed assertion                                                                                                               | `check_knot_selection.ts`                                                                                                                                    |
+| `tools/shot.ts`                       | the live page, the view table                                            | `<out>/<prefix>-<view>.webp`; its scratch under `test-reports/`                                                                                                | `shot.ts --out <dir> --prefix <p> --scene <name>`                                                                                                            |
+| `tools/check.ts`                      | the captures, the references                                             | one report, and the overlays under `test-reports/silhouette/`                                                                                                  | `bun run check`. It prints a timestamped line per step (coloured on a TTY), streams each child's output, and exits 1 when the model is outside the tolerance |
+| `tools/session.ts`                    | nothing                                                                  | nothing. It owns a browser session: open, close in a `finally` and on `SIGINT`/`SIGTERM`, a stale-session sweep, and a timeout on every `agent-browser` call   | imported                                                                                                                                                     |
+| `tools/silhouette.ts`                 | a render, a reference                                                    | an overlay PNG under `test-reports/silhouette/`: red reference only, blue model only, magenta both                                                             | `silhouette.ts --subject <s> --render <dir>`                                                                                                                 |
+| `tools/compare_silhouette.py`         | a render, its sidecar, a reference, `dimensions.json`                    | an overlay, and a station table in millimetres                                                                                                                 | `--subject <s> --view <v> --render <file>`                                                                                                                   |
+| `tools/trace_hull.py`                 | the cropped views, `dimensions.json`                                     | `body-hull.js`: sections, contours, gate numbers                                                                                                               | `--subject <s> --out <file> --step 20 --mode bezier --pitch 20 --tolerance 3`                                                                                |
+| `tools/paths.ts`                      | nothing                                                                  | nothing. It holds the root, the viewer, the scenes and the tool folder                                                                                         | imported                                                                                                                                                     |
+| `scripts/blueprint/crop_reference.py` | `reference.<ext>`                                                        | `cropped/<view>.png` and `cropped/manifest.json`. A cut, not a resample: the pixels are the same rectangle, so the native resolution of the reference survives | `--subject <s>`                                                                                                                                              |
+| `scripts/blueprint/view_scale.py`     | a cropped view, the real dimensions                                      | an entry in `dimensions.json`                                                                                                                                  | `--view <v> --length .. --write`                                                                                                                             |
+| `scripts/blueprint/measure_view.py`   | a reference, a render                                                    | a landmark table in millimetres                                                                                                                                | `<reference> <render> --json`                                                                                                                                |
+| `scripts/blueprint/read_reference.py` | a side-view reference                                                    | profile data, in millimetres from the nose                                                                                                                     | `<image> --length 3520`                                                                                                                                      |
+| `scripts/measure/index.html`          | a reference image                                                        | picked points, through the API                                                                                                                                 | open `/measure/?subject=..&view=..`                                                                                                                          |
+| `scripts/measure/report.py`           | the picked points                                                        | `measurements.json`, and an annotated copy                                                                                                                     | `<subject> --annotate --write`                                                                                                                               |
+| `scripts/blueprint-generate/`         | a draft, a subject, a model                                              | candidate images, then `reference.<ext>`                                                                                                                       | see its own README                                                                                                                                           |
 
 The last five rows prepare a reference, and every workflow needs them. They stay under `scripts/`,
 not under this folder.
 
 ## 9. The artifacts
 
-| Artifact | Written by | Owner |
-| :--- | :--- | :--- |
-| `blueprints/<cat>/<sub>/reference.<ext>` | the art director, by promotion | the art director |
-| `blueprints/<cat>/<sub>/source.<ext>` | the cleaning pass, before it writes | nobody modifies it |
-| `blueprints/<cat>/<sub>/<view>/reference.<ext>` | the art director, from the candidates | the art director |
-| `blueprints/<cat>/<sub>/cropped/*` | `crop_reference.py` | derived, rebuilt at any time. A pure cut, so the crop carries the native resolution of the reference and the scale in `dimensions.json` is millimetres per pixel **of the crop** |
-| `blueprints/<cat>/<sub>/dimensions.json` | `view_scale.py`, then read | committed: it records the decision |
-| `blueprints/<cat>/<sub>/measurements.json` | `report.py`, or `POST /api/measure` | committed |
-| `scenes/<sub>/body-hull.js` | `trace_hull.py` | generated, committed, never hand-edited |
-| `scenes/<sub>/contours.js` | the viewer's `save` command, through `POST /api/contours` | the art director. The contour source: one knot list per view |
-| `scenes/<sub>/model.js` | a person or an agent | the authority for the shape |
-| `scenes/<sub>/accessories.js` | a person or an agent | the stage-3 work list |
-| `blueprints/<cat>/<sub>/model/*.webp` | `shot.ts` and `check.ts` | local, gitignored |
-| `test-reports/**` | `silhouette.ts`, `shot.ts`, `check_zoom.ts` | local, gitignored. The overlays and the scratches a check writes for a human |
-| `*.glb` | the export | local, gitignored |
+| Artifact                                        | Written by                                                | Owner                                                                                                                                                                            |
+| :---------------------------------------------- | :-------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blueprints/<cat>/<sub>/reference.<ext>`        | the art director, by promotion                            | the art director                                                                                                                                                                 |
+| `blueprints/<cat>/<sub>/source.<ext>`           | the cleaning pass, before it writes                       | nobody modifies it                                                                                                                                                               |
+| `blueprints/<cat>/<sub>/<view>/reference.<ext>` | the art director, from the candidates                     | the art director                                                                                                                                                                 |
+| `blueprints/<cat>/<sub>/cropped/*`              | `crop_reference.py`                                       | derived, rebuilt at any time. A pure cut, so the crop carries the native resolution of the reference and the scale in `dimensions.json` is millimetres per pixel **of the crop** |
+| `blueprints/<cat>/<sub>/dimensions.json`        | `view_scale.py`, then read                                | committed: it records the decision                                                                                                                                               |
+| `blueprints/<cat>/<sub>/measurements.json`      | `report.py`, or `POST /api/measure`                       | committed                                                                                                                                                                        |
+| `scenes/<sub>/body-hull.js`                     | `trace_hull.py`                                           | generated, committed, never hand-edited                                                                                                                                          |
+| `scenes/<sub>/contours.js`                      | the viewer's `save` command, through `POST /api/contours` | the art director. The contour source: one knot list per view                                                                                                                     |
+| `scenes/<sub>/model.js`                         | a person or an agent                                      | the authority for the shape                                                                                                                                                      |
+| `scenes/<sub>/accessories.js`                   | a person or an agent                                      | the stage-3 work list                                                                                                                                                            |
+| `blueprints/<cat>/<sub>/model/*.webp`           | `shot.ts` and `check.ts`                                  | local, gitignored                                                                                                                                                                |
+| `test-reports/**`                               | `silhouette.ts`, `shot.ts`, `check_zoom.ts`               | local, gitignored. The overlays and the scratches a check writes for a human                                                                                                     |
+| `*.glb`                                         | the export                                                | local, gitignored                                                                                                                                                                |
 
 ## 10. Gates
 
-| Gate | Check |
-| :--- | :--- |
-| G1, the scale | two scales per required view, no `reject`, and one shared landmark within 10 percent |
-| G2, the body | the binary silhouette matches in every locked view, within 100 mm or 3 percent |
-| G3, an accessory | its own box within 3 percent, placed within 20 mm, no z-fighting, no gap over 5 mm |
-| Silhouette | IoU of the two binary masks, not a shaded render |
-| Orientation | the two side images show the same flank before any number is trusted |
-| Capture | the flat views use the orthographic camera |
+| Gate             | Check                                                                                |
+| :--------------- | :----------------------------------------------------------------------------------- |
+| G1, the scale    | two scales per required view, no `reject`, and one shared landmark within 10 percent |
+| G2, the body     | the binary silhouette matches in every locked view, within 100 mm or 3 percent       |
+| G3, an accessory | its own box within 3 percent, placed within 20 mm, no z-fighting, no gap over 5 mm   |
+| Silhouette       | IoU of the two binary masks, not a shaded render                                     |
+| Orientation      | the two side images show the same flank before any number is trusted                 |
+| Capture          | the flat views use the orthographic camera                                           |
 
 A gate measured on one view is half-measured. Write `not measured` for the others and treat the gate
 as failed.
@@ -550,27 +549,27 @@ mode, so the two never drift.
 
 ## 11. Failure modes this workflow keeps
 
-| Symptom | Cause | Rule |
-| :--- | :--- | :--- |
-| A mirrored silhouette reads as plausible | the two images show opposite flanks | check the nose side on both, in the picture |
-| A correct roof measures wrong | a perspective camera against an orthographic reference | flat views use the orthographic camera |
-| Every measurement is 0.3 percent short | the calque was calibrated on the cropped file, not the subject box | calibrate on the subject box |
-| A plate draws nothing | the plate sat under the ground disc | a plan is placed by height |
-| A contour is a staircase | one integer row per pixel column | the edge is subpixel, and the opening runs on floats |
-| The surface is a staircase | the hull re-samples the photograph on a fixed lattice, so a diagonal crease is cut into steps | the hull reads the simplified path, and its pitch is a chord tolerance, not a constant |
-| An accessory removal eats the shoulder | a taper is a long run of small moves | remove by geometric opening on the intervals, never by colour |
-| A capture fails with an undefined global | the pass wrote a render into the watched subject | `model/` is not watched |
-| A stage reports numbers and no picture | the stage was not finished | a stage ends with one WebP per named view |
-| A scene module fails to import | an alias hid the real path | a module is served where it lives |
+| Symptom                                  | Cause                                                                                         | Rule                                                                                   |
+| :--------------------------------------- | :-------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- |
+| A mirrored silhouette reads as plausible | the two images show opposite flanks                                                           | check the nose side on both, in the picture                                            |
+| A correct roof measures wrong            | a perspective camera against an orthographic reference                                        | flat views use the orthographic camera                                                 |
+| Every measurement is 0.3 percent short   | the calque was calibrated on the cropped file, not the subject box                            | calibrate on the subject box                                                           |
+| A plate draws nothing                    | the plate sat under the ground disc                                                           | a plan is placed by height                                                             |
+| A contour is a staircase                 | one integer row per pixel column                                                              | the edge is subpixel, and the opening runs on floats                                   |
+| The surface is a staircase               | the hull re-samples the photograph on a fixed lattice, so a diagonal crease is cut into steps | the hull reads the simplified path, and its pitch is a chord tolerance, not a constant |
+| An accessory removal eats the shoulder   | a taper is a long run of small moves                                                          | remove by geometric opening on the intervals, never by colour                          |
+| A capture fails with an undefined global | the pass wrote a render into the watched subject                                              | `model/` is not watched                                                                |
+| A stage reports numbers and no picture   | the stage was not finished                                                                    | a stage ends with one WebP per named view                                              |
+| A scene module fails to import           | an alias hid the real path                                                                    | a module is served where it lives                                                      |
 
 ## 12. Where the documentation lives
 
-| Question | Document |
-| :--- | :--- |
-| What does this workflow do, and with which tools? | this file |
-| What are the rules for an agent that works here? | [`AGENTS.md`](./AGENTS.md) |
-| How does the generator combine and extend images? | [`../../scripts/blueprint-generate/README.md`](../../scripts/blueprint-generate/README.md) |
-| What is the folder contract under `blueprints/`? | [`../../blueprints/README.md`](../../blueprints/README.md) |
-| What method does the fidelity ladder require? | [`../../research/progressive-volume-modeling.md`](../../research/progressive-volume-modeling.md) |
-| Why this workflow replaced the CAD attempt? | [`../../research/threejs-modelling-loop.md`](../../research/threejs-modelling-loop.md) |
-| What is still to do? | [`../../tickets/`](../../tickets/) |
+| Question                                          | Document                                                                                         |
+| :------------------------------------------------ | :----------------------------------------------------------------------------------------------- |
+| What does this workflow do, and with which tools? | this file                                                                                        |
+| What are the rules for an agent that works here?  | [`AGENTS.md`](./AGENTS.md)                                                                       |
+| How does the generator combine and extend images? | [`../../scripts/blueprint-generate/README.md`](../../scripts/blueprint-generate/README.md)       |
+| What is the folder contract under `blueprints/`?  | [`../../blueprints/README.md`](../../blueprints/README.md)                                       |
+| What method does the fidelity ladder require?     | [`../../research/progressive-volume-modeling.md`](../../research/progressive-volume-modeling.md) |
+| Why this workflow replaced the CAD attempt?       | [`../../research/threejs-modelling-loop.md`](../../research/threejs-modelling-loop.md)           |
+| What is still to do?                              | [`../../tickets/`](../../tickets/)                                                               |

@@ -9,14 +9,14 @@ This skill explains how to control **Blender** with the `mcp-for-blender` server
 
 ## MCP tools
 
-| Tool | Purpose |
-| :--- | :--- |
-| `get_scene_info` | Compact scene summary, one line per object: transform, materials, topology, hierarchy. Filter with `root` or `query`. Call it before you change an existing scene. |
-| `execute_blender_code` | Run Python (`bpy`, `bmesh`, `mathutils`) in the active Blender instance. |
-| `look` | Visual review. Capture the viewport, the camera, an auto-framed multi-view sheet (`angles`), or an animation strip (`frames`). Styles: `solid`, `material`, `rendered`, `wireframe`, `xray`. |
-| `search_assets` / `import_asset` | Find and import HDRIs, PBR textures, and models from **Poly Haven** (CC0), **Poly Pizza**, or **Sketchfab**. |
-| `generate_3d` | Generate and import one textured model with an AI provider (Tripo, Meshy, Hunyuan3D, Hyper3D Rodin). |
-| `get_addon_status` | Return the Blender version, the add-on version, and the enabled libraries. |
+| Tool                             | Purpose                                                                                                                                                                                      |
+| :------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_scene_info`                 | Compact scene summary, one line per object: transform, materials, topology, hierarchy. Filter with `root` or `query`. Call it before you change an existing scene.                           |
+| `execute_blender_code`           | Run Python (`bpy`, `bmesh`, `mathutils`) in the active Blender instance.                                                                                                                     |
+| `look`                           | Visual review. Capture the viewport, the camera, an auto-framed multi-view sheet (`angles`), or an animation strip (`frames`). Styles: `solid`, `material`, `rendered`, `wireframe`, `xray`. |
+| `search_assets` / `import_asset` | Find and import HDRIs, PBR textures, and models from **Poly Haven** (CC0), **Poly Pizza**, or **Sketchfab**.                                                                                 |
+| `generate_3d`                    | Generate and import one textured model with an AI provider (Tripo, Meshy, Hunyuan3D, Hyper3D Rodin).                                                                                         |
+| `get_addon_status`               | Return the Blender version, the add-on version, and the enabled libraries.                                                                                                                   |
 
 ## Workflow rules
 
@@ -172,8 +172,8 @@ def inset_quad_on_face(verts, margins):
 Build the robot in parts. Give each part a stable name for the Three.js animation.
 
 - `Bender_Root`. Empty at `0, 0, 0`, on the ground.
-  - `Torso`. Tapered metal cone. Add `Torso_Door` with the pivot on the side hinge.
-  - `Head`. Cylinder plus a half sphere. Add the recessed black `Visor`, the `Eye_L` and `Eye_R` cylinders, the `Mouth_Grille`, and the `Antenna`.
-  - `Arm_L`, `Arm_R`, `Leg_L`, `Leg_R`. Tubular segments with an armature, or rigid segments with a parent bone.
+    - `Torso`. Tapered metal cone. Add `Torso_Door` with the pivot on the side hinge.
+    - `Head`. Cylinder plus a half sphere. Add the recessed black `Visor`, the `Eye_L` and `Eye_R` cylinders, the `Mouth_Grille`, and the `Antenna`.
+    - `Arm_L`, `Arm_R`, `Leg_L`, `Leg_R`. Tubular segments with an armature, or rigid segments with a parent bone.
 - Call `look` after each sub-assembly. Check the front view, the profile, and a three-quarter view.
 - Check the proportions against the reference images before you add surface detail.

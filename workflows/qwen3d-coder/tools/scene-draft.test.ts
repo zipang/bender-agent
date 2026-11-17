@@ -4,20 +4,36 @@
 // model loads. The free `--ask` check runs the preflight and sends no completion.
 
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	mkdirSync,
+	mkdtempSync,
+	readdirSync,
+	readFileSync,
+	rmSync,
+	writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DEFAULT_BASE_URL, DEFAULT_MODEL, runCli, type SceneDraftDeps } from "./scene-draft";
+import {
+	DEFAULT_BASE_URL,
+	DEFAULT_MODEL,
+	runCli,
+	type SceneDraftDeps
+} from "./scene-draft";
 import type { PreflightOptions, PreflightResult } from "./lib/endpoint";
 
 const roots: string[] = [];
 
-function subjectDir(options: { reference?: boolean; notes?: string | null } = {}): string {
+function subjectDir(
+	options: { reference?: boolean; notes?: string | null } = {}
+): string {
 	const dir = mkdtempSync(join(tmpdir(), "qwen3d-subject-"));
 	roots.push(dir);
-	if (options.reference !== false) writeFileSync(join(dir, "reference.png"), "PNG-BYTES");
+	if (options.reference !== false)
+		writeFileSync(join(dir, "reference.png"), "PNG-BYTES");
 	if (options.notes !== undefined) {
-		if (options.notes !== null) writeFileSync(join(dir, "notes.md"), options.notes);
+		if (options.notes !== null)
+			writeFileSync(join(dir, "notes.md"), options.notes);
 	}
 	return dir;
 }
@@ -31,24 +47,29 @@ const NOTES = [
 	"",
 	"## Specific subject details",
 	"",
-	"blank plates, no badge",
+	"blank plates, no badge"
 ].join("\n");
 
 const DOCUMENT = "<!DOCTYPE html>\n<html><body>scene</body></html>";
 
-/** The candidate files of a `generated/` folder, sorted. The counter file is not a candidate. */
+/**
+ * The candidate files of a `generated/` folder, sorted. The counter file is not
+ * a candidate.
+ */
 function candidates(generatedDir: string): string[] {
 	return readdirSync(generatedDir)
 		.filter((name) => name.endsWith(".html"))
 		.sort();
 }
 
-function deps(streamResults: Array<{ content: string } | Error> = [{ content: DOCUMENT }]) {
+function deps(
+	streamResults: Array<{ content: string } | Error> = [{ content: DOCUMENT }]
+) {
 	const lines: string[] = [];
 	const errors: string[] = [];
 	const calls = {
 		preflight: [] as PreflightOptions[],
-		stream: [] as Array<Record<string, unknown>>,
+		stream: [] as Array<Record<string, unknown>>
 	};
 	let index = 0;
 	const d: SceneDraftDeps = {
@@ -61,17 +82,24 @@ function deps(streamResults: Array<{ content: string } | Error> = [{ content: DO
 		},
 		stream: async (options) => {
 			calls.stream.push(options as unknown as Record<string, unknown>);
-			const result = streamResults[Math.min(index, streamResults.length - 1)]!;
+			const result =
+				streamResults[Math.min(index, streamResults.length - 1)]!;
 			index += 1;
 			if (result instanceof Error) throw result;
-			return { content: result.content, tokens: 2, seconds: 0.1, tokensPerSecond: 20 };
-		},
+			return {
+				content: result.content,
+				tokens: 2,
+				seconds: 0.1,
+				tokensPerSecond: 20
+			};
+		}
 	};
 	return { d, lines, errors, calls };
 }
 
 afterEach(() => {
-	for (const dir of roots.splice(0)) rmSync(dir, { recursive: true, force: true });
+	for (const dir of roots.splice(0))
+		rmSync(dir, { recursive: true, force: true });
 });
 
 describe("--ask", () => {
@@ -91,7 +119,10 @@ describe("--ask", () => {
 	test("reports no gap on complete material and still sends nothing", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, lines, calls } = deps();
-		const code = await runCli(["--subject", dir, "--style", "clay render", "--ask"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render", "--ask"],
+			d
+		);
 		expect(code).toBe(0);
 		expect(lines.join("\n")).toContain("No gap");
 		expect(calls.preflight).toHaveLength(1);
@@ -104,9 +135,12 @@ describe("--ask", () => {
 		d.preflight = async () => ({
 			ok: false,
 			exitCode: 2,
-			message: `The endpoint at ${DEFAULT_BASE_URL}/models is unreachable.`,
+			message: `The endpoint at ${DEFAULT_BASE_URL}/models is unreachable.`
 		});
-		const code = await runCli(["--subject", dir, "--style", "clay render", "--ask"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render", "--ask"],
+			d
+		);
 		expect(code).toBe(2);
 		expect(errors.join("\n")).toContain(DEFAULT_BASE_URL);
 	});
@@ -133,11 +167,13 @@ describe("the endpoint flags", () => {
 				"--base-url",
 				"https://gateway.example/api/v1",
 				"--model",
-				"another-3d-model",
+				"another-3d-model"
 			],
-			d,
+			d
 		);
-		expect(calls.preflight[0]!.baseUrl).toBe("https://gateway.example/api/v1");
+		expect(calls.preflight[0]!.baseUrl).toBe(
+			"https://gateway.example/api/v1"
+		);
 		expect(calls.preflight[0]!.model).toBe("another-3d-model");
 		expect(calls.stream[0]!.model).toBe("another-3d-model");
 		expect(calls.stream[0]!.baseUrl).toBe("https://gateway.example/api/v1");
@@ -147,15 +183,24 @@ describe("the endpoint flags", () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, lines } = deps();
 		await runCli(["--subject", dir, "--style", "clay render"], d);
-		expect(lines[0]).toBe(`endpoint: ${DEFAULT_BASE_URL}  model: ${DEFAULT_MODEL}`);
+		expect(lines[0]).toBe(
+			`endpoint: ${DEFAULT_BASE_URL}  model: ${DEFAULT_MODEL}`
+		);
 	});
 
 	test("a base URL with a trailing slash returns 1 before any check", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, errors, calls } = deps();
 		const code = await runCli(
-			["--subject", dir, "--style", "clay", "--base-url", `${DEFAULT_BASE_URL}/`],
-			d,
+			[
+				"--subject",
+				dir,
+				"--style",
+				"clay",
+				"--base-url",
+				`${DEFAULT_BASE_URL}/`
+			],
+			d
 		);
 		expect(code).toBe(1);
 		expect(errors.join("\n")).toContain("--base-url");
@@ -164,7 +209,10 @@ describe("the endpoint flags", () => {
 
 	test("a base URL that does not parse returns 1", async () => {
 		const { d, errors, calls } = deps();
-		const code = await runCli(["--subject", "x", "--base-url", "not a url"], d);
+		const code = await runCli(
+			["--subject", "x", "--base-url", "not a url"],
+			d
+		);
 		expect(code).toBe(1);
 		expect(errors.join("\n")).toContain("--base-url");
 		expect(calls.preflight).toHaveLength(0);
@@ -174,8 +222,15 @@ describe("the endpoint flags", () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d } = deps();
 		const code = await runCli(
-			["--subject", dir, "--style", "clay", "--base-url", "ftp://example.test/v1"],
-			d,
+			[
+				"--subject",
+				dir,
+				"--style",
+				"clay",
+				"--base-url",
+				"ftp://example.test/v1"
+			],
+			d
 		);
 		expect(code).toBe(1);
 	});
@@ -186,9 +241,13 @@ describe("the endpoint flags", () => {
 		d.preflight = async () => ({
 			ok: false,
 			exitCode: 2,
-			message: 'does not publish the requested model "gone". Available ids: other.',
+			message:
+				'does not publish the requested model "gone". Available ids: other.'
 		});
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render"],
+			d
+		);
 		expect(code).toBe(2);
 		expect(errors.join("\n")).toContain("does not publish");
 		expect(calls.stream).toHaveLength(0);
@@ -200,7 +259,10 @@ describe("the endpoint flags", () => {
 		d.preflight = async () => {
 			throw new Error("socket closed");
 		};
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render"],
+			d
+		);
 		expect(code).toBe(2);
 		expect(errors.join("\n")).toContain("socket closed");
 		expect(calls.stream).toHaveLength(0);
@@ -218,7 +280,10 @@ describe("invalid input", () => {
 	test("an unknown flag returns 1", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, errors } = deps();
-		const code = await runCli(["--subject", dir, "--style", "clay", "--nope"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--nope"],
+			d
+		);
 		expect(code).toBe(1);
 		expect(errors.join("\n")).toContain("--nope");
 	});
@@ -227,7 +292,9 @@ describe("invalid input", () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d } = deps();
 		expect(await runCli(["--subject", dir, "--port", "9931"], d)).toBe(1);
-		expect(await runCli(["--subject", dir, "--profile", "3d-coder"], d)).toBe(1);
+		expect(
+			await runCli(["--subject", dir, "--profile", "3d-coder"], d)
+		).toBe(1);
 	});
 
 	test("a missing style returns 1 before any request", async () => {
@@ -253,12 +320,17 @@ describe("a run", () => {
 		const { d, lines, calls } = deps([{ content: DOCUMENT }]);
 		const code = await runCli(
 			["--subject", dir, "--style", "clay render", "--variants", "2"],
-			d,
+			d
 		);
 		expect(code).toBe(0);
 		const files = candidates(join(dir, "generated"));
-		expect(files).toEqual(["qwen3d-coder-scene--01.html", "qwen3d-coder-scene--02.html"]);
-		expect(readFileSync(join(dir, "generated", files[0]!), "utf8")).toBe(DOCUMENT);
+		expect(files).toEqual([
+			"qwen3d-coder-scene--01.html",
+			"qwen3d-coder-scene--02.html"
+		]);
+		expect(readFileSync(join(dir, "generated", files[0]!), "utf8")).toBe(
+			DOCUMENT
+		);
 		expect(calls.preflight).toHaveLength(1);
 		expect(calls.stream).toHaveLength(2);
 		const output = lines.join("\n");
@@ -282,14 +354,16 @@ describe("a run", () => {
 				"--max-tokens",
 				"512",
 				"--seed",
-				"42",
+				"42"
 			],
-			d,
+			d
 		);
 		const sent = calls.stream[0]!;
 		expect(sent.model).toBe(DEFAULT_MODEL);
 		expect(sent.system).toBe("the system prompt");
-		expect(String(sent.user)).toContain("Subject: a 1972 Renault 5 TL, orange, three doors");
+		expect(String(sent.user)).toContain(
+			"Subject: a 1972 Renault 5 TL, orange, three doors"
+		);
 		expect(String(sent.user)).toContain("shows the car on a turntable.");
 		expect(sent.maxTokens).toBe(512);
 		expect(sent.seed).toBe(42);
@@ -299,7 +373,10 @@ describe("a run", () => {
 	test("--image sends the reference bytes with their media type", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, calls } = deps();
-		await runCli(["--subject", dir, "--style", "clay render", "--image"], d);
+		await runCli(
+			["--subject", dir, "--style", "clay render", "--image"],
+			d
+		);
 		const image = calls.stream[0]!.image as { mime: string; data: string };
 		expect(image.mime).toBe("image/png");
 		expect(image.data).toBe(Buffer.from("PNG-BYTES").toString("base64"));
@@ -309,15 +386,17 @@ describe("a run", () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, lines, calls } = deps([
 			{ content: "reasoning only, no document" },
-			{ content: DOCUMENT },
+			{ content: DOCUMENT }
 		]);
 		const code = await runCli(
 			["--subject", dir, "--style", "clay render", "--variants", "2"],
-			d,
+			d
 		);
 		expect(code).toBe(0);
 		expect(calls.stream).toHaveLength(2);
-		expect(candidates(join(dir, "generated"))).toEqual(["qwen3d-coder-scene--01.html"]);
+		expect(candidates(join(dir, "generated"))).toEqual([
+			"qwen3d-coder-scene--01.html"
+		]);
 		expect(lines.join("\n")).toContain("failed");
 	});
 
@@ -327,14 +406,20 @@ describe("a run", () => {
 		d.stream = async () => {
 			throw new Error("request failed");
 		};
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render"],
+			d
+		);
 		expect(code).toBe(3);
 	});
 
 	test("an incomplete document on every variant returns 4", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d } = deps([{ content: "no html here" }]);
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render"],
+			d
+		);
 		expect(code).toBe(4);
 	});
 
@@ -344,12 +429,15 @@ describe("a run", () => {
 		const existing = join(dir, "generated", "qwen3d-coder-scene--01.html");
 		writeFileSync(existing, "the first run");
 		const { d } = deps();
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render"],
+			d
+		);
 		expect(code).toBe(0);
 		expect(readFileSync(existing, "utf8")).toBe("the first run");
 		expect(candidates(join(dir, "generated"))).toEqual([
 			"qwen3d-coder-scene--01.html",
-			"qwen3d-coder-scene--02.html",
+			"qwen3d-coder-scene--02.html"
 		]);
 	});
 });
@@ -361,7 +449,10 @@ describe("a write failure", () => {
 		d.write = () => {
 			throw new Error("disk full");
 		};
-		const code = await runCli(["--subject", dir, "--style", "clay render"], d);
+		const code = await runCli(
+			["--subject", dir, "--style", "clay render"],
+			d
+		);
 		expect(code).toBe(5);
 		expect(calls.stream).toHaveLength(1);
 		expect(lines.join("\n")).toContain("could not be written");
@@ -369,7 +460,10 @@ describe("a write failure", () => {
 
 	test("a write failure does not stop the next variant", async () => {
 		const dir = subjectDir({ notes: NOTES });
-		const { d, calls } = deps([{ content: DOCUMENT }, { content: DOCUMENT }]);
+		const { d, calls } = deps([
+			{ content: DOCUMENT },
+			{ content: DOCUMENT }
+		]);
 		let attempts = 0;
 		d.write = () => {
 			attempts += 1;
@@ -378,7 +472,7 @@ describe("a write failure", () => {
 		};
 		const code = await runCli(
 			["--subject", dir, "--style", "clay render", "--variants", "2"],
-			d,
+			d
 		);
 		expect(code).toBe(0);
 		expect(calls.stream).toHaveLength(2);
@@ -386,7 +480,8 @@ describe("a write failure", () => {
 });
 
 describe("text mode, a prompt file instead of a subject", () => {
-	const PROMPT = "A Christmas tree in its pot, voxel art.\nEvery form is a cube of size 1.";
+	const PROMPT =
+		"A Christmas tree in its pot, voxel art.\nEvery form is a cube of size 1.";
 
 	function promptFile(text: string | null = PROMPT): string {
 		const dir = mkdtempSync(join(tmpdir(), "qwen3d-prompt-"));
@@ -410,7 +505,9 @@ describe("text mode, a prompt file instead of a subject", () => {
 
 		expect(code).toBe(0);
 		expect(candidates(out)).toEqual(["qwen3d-coder-scene--01.html"]);
-		expect(readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8")).toBe(DOCUMENT);
+		expect(
+			readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8")
+		).toBe(DOCUMENT);
 		const sent = calls.stream[0]!;
 		expect(sent.user).toBe(PROMPT);
 		expect(sent.image).toBeNull();
@@ -422,13 +519,23 @@ describe("text mode, a prompt file instead of a subject", () => {
 		const out = join(outDir(), "generated");
 		const first = deps();
 		await runCli(["--prompt-file", path, "--out", out], first.d);
-		const before = readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8");
+		const before = readFileSync(
+			join(out, "qwen3d-coder-scene--01.html"),
+			"utf8"
+		);
 
-		const second = deps([{ content: "<!DOCTYPE html>\n<html><body>second</body></html>" }]);
+		const second = deps([
+			{ content: "<!DOCTYPE html>\n<html><body>second</body></html>" }
+		]);
 		await runCli(["--prompt-file", path, "--out", out], second.d);
 
-		expect(candidates(out)).toEqual(["qwen3d-coder-scene--01.html", "qwen3d-coder-scene--02.html"]);
-		expect(readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8")).toBe(before);
+		expect(candidates(out)).toEqual([
+			"qwen3d-coder-scene--01.html",
+			"qwen3d-coder-scene--02.html"
+		]);
+		expect(
+			readFileSync(join(out, "qwen3d-coder-scene--01.html"), "utf8")
+		).toBe(before);
 	});
 
 	test("--prompt-file without --out returns 1 and sends nothing", async () => {
@@ -437,7 +544,9 @@ describe("text mode, a prompt file instead of a subject", () => {
 		const code = await runCli(["--prompt-file", path], d);
 
 		expect(code).toBe(1);
-		expect(errors.join("\n")).toContain("--out is required with --prompt-file");
+		expect(errors.join("\n")).toContain(
+			"--out is required with --prompt-file"
+		);
 		expect(calls.preflight).toHaveLength(0);
 		expect(calls.stream).toHaveLength(0);
 	});
@@ -445,7 +554,10 @@ describe("text mode, a prompt file instead of a subject", () => {
 	test("a missing prompt file returns 1 and sends nothing", async () => {
 		const path = join(promptFile(), "absent.txt");
 		const { d, errors, calls } = deps();
-		const code = await runCli(["--prompt-file", path, "--out", outDir()], d);
+		const code = await runCli(
+			["--prompt-file", path, "--out", outDir()],
+			d
+		);
 
 		expect(code).toBe(1);
 		expect(errors.join("\n")).toContain("does not exist");
@@ -455,7 +567,10 @@ describe("text mode, a prompt file instead of a subject", () => {
 	test("an empty prompt file returns 1 and sends nothing", async () => {
 		const path = promptFile("   \n\n ");
 		const { d, errors, calls } = deps();
-		const code = await runCli(["--prompt-file", path, "--out", outDir()], d);
+		const code = await runCli(
+			["--prompt-file", path, "--out", outDir()],
+			d
+		);
 
 		expect(code).toBe(1);
 		expect(errors.join("\n")).toContain("is empty");
@@ -468,7 +583,7 @@ describe("text mode, a prompt file instead of a subject", () => {
 		const { d, errors, calls } = deps();
 		const code = await runCli(
 			["--prompt-file", path, "--subject", dir, "--out", outDir()],
-			d,
+			d
 		);
 
 		expect(code).toBe(1);
@@ -479,7 +594,10 @@ describe("text mode, a prompt file instead of a subject", () => {
 	test("--ask on a complete prompt file lists no gap and sends nothing", async () => {
 		const path = promptFile();
 		const { d, lines, calls } = deps();
-		const code = await runCli(["--prompt-file", path, "--out", outDir(), "--ask"], d);
+		const code = await runCli(
+			["--prompt-file", path, "--out", outDir(), "--ask"],
+			d
+		);
 
 		expect(code).toBe(0);
 		expect(lines.join("\n")).toContain("No gap found");

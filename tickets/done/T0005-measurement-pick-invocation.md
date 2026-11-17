@@ -8,24 +8,24 @@
 - **Blocks**: T0004 — it shares `picker.js`, and its `blocked` option lands on the handler this
   ticket rewrites.
 - **References**:
-  - `workflows/threejs/viewer/picker.js` — the recording handler
-  - `workflows/threejs/viewer/measure.js` — `readPoint`, `panelLines`, and `mmPerScreenPx`
-  - `tickets/done/T0003-orthogonal-view-zoom.md` — the left-drag pan that creates the defect
-  - `tickets/planned/T0004-knot-marquee-selection.md` — the `blocked` option added after this ticket
-  - `workflows/threejs/tools/session.ts` — the one owner of a browser session, added by T0006. A new
-    check uses it; it opens and closes on every exit path, and every `agent-browser` call has a timeout
-  - `workflows/threejs/tools/check_idle.ts` — the newest check, and the shape a check takes here
-  - MDN `pointerdown`, `pointerup`, and `pointercancel`:
-    <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerdown_event>
-    <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerup_event>
-    <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointercancel_event>
-  - MDN `MouseEvent.ctrlKey` and `MouseEvent.shiftKey`:
-    <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/ctrlKey>
-    <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/shiftKey>
-  - MDN `EventTarget.addEventListener()` and `Event.stopPropagation()` — a capture-phase listener on
-    an ancestor runs before a listener the target already holds:
-    <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener>
-    <https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation>
+    - `workflows/threejs/viewer/picker.js` — the recording handler
+    - `workflows/threejs/viewer/measure.js` — `readPoint`, `panelLines`, and `mmPerScreenPx`
+    - `tickets/done/T0003-orthogonal-view-zoom.md` — the left-drag pan that creates the defect
+    - `tickets/planned/T0004-knot-marquee-selection.md` — the `blocked` option added after this ticket
+    - `workflows/threejs/tools/session.ts` — the one owner of a browser session, added by T0006. A new
+      check uses it; it opens and closes on every exit path, and every `agent-browser` call has a timeout
+    - `workflows/threejs/tools/check_idle.ts` — the newest check, and the shape a check takes here
+    - MDN `pointerdown`, `pointerup`, and `pointercancel`:
+      <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerdown_event>
+      <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerup_event>
+      <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointercancel_event>
+    - MDN `MouseEvent.ctrlKey` and `MouseEvent.shiftKey`:
+      <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/ctrlKey>
+      <https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/shiftKey>
+    - MDN `EventTarget.addEventListener()` and `Event.stopPropagation()` — a capture-phase listener on
+      an ancestor runs before a listener the target already holds:
+      <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener>
+      <https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation>
 
 ## Context & Goal
 
@@ -66,12 +66,12 @@ Do **not** touch:
 A measurement point is invoked by `Ctrl` + left click. `Shift` keeps its current meaning, the model
 instead of the plate:
 
-| Chord | `source` | Records |
-| :--- | :--- | :--- |
-| `Ctrl` + left click | `"calque"` | one point, on release, if the pointer moved under 3 px |
-| `Ctrl` + `Shift` + left click | `"model"` | one point, on release, if the pointer moved under 3 px |
-| `Ctrl` + left drag | — | nothing |
-| plain left click or drag | — | nothing. The camera owns it |
+| Chord                         | `source`   | Records                                                |
+| :---------------------------- | :--------- | :----------------------------------------------------- |
+| `Ctrl` + left click           | `"calque"` | one point, on release, if the pointer moved under 3 px |
+| `Ctrl` + `Shift` + left click | `"model"`  | one point, on release, if the pointer moved under 3 px |
+| `Ctrl` + left drag            | —          | nothing                                                |
+| plain left click or drag      | —          | nothing. The camera owns it                            |
 
 `ctrlKey` only. `metaKey` is deliberately **not** accepted: on macOS a `Meta` click is the
 secondary-click gesture, and the art director asked for `Ctrl`.
@@ -92,8 +92,8 @@ is:
 ### One press, one possible point
 
 ```js
-const DRAG_PX = 3;   // the same threshold T0004 uses for a degenerate marquee rectangle
-let pending = null;  // { pointerId, clientX, clientY, source } | null
+const DRAG_PX = 3; // the same threshold T0004 uses for a degenerate marquee rectangle
+let pending = null; // { pointerId, clientX, clientY, source } | null
 ```
 
 - **`pointerdown`**, chord matched: store
@@ -102,10 +102,10 @@ let pending = null;  // { pointerId, clientX, clientY, source } | null
   which surface the point lands on.
 - **`pointerup`** on the canvas, with `pending !== null` and
   `event.pointerId === pending.pointerId`:
-  - `hypot(event.clientX - pending.clientX, event.clientY - pending.clientY) < DRAG_PX` — record the
-    point at the **release** position, through the existing `pickAt` / `record` path, with
-    `pending.source`. Then clear `pending`.
-  - Otherwise — record nothing, and clear `pending`.
+    - `hypot(event.clientX - pending.clientX, event.clientY - pending.clientY) < DRAG_PX` — record the
+      point at the **release** position, through the existing `pickAt` / `record` path, with
+      `pending.source`. Then clear `pending`.
+    - Otherwise — record nothing, and clear `pending`.
 - **`pointercancel`**, `window.blur`, and a `pointerdown` with a different button clear `pending`
   without recording.
 - A `pointerup` with `pending === null` records nothing. This is what makes T0004's press claim safe:
@@ -271,13 +271,13 @@ by the CTO and not by the coder:
   on the canvas with the `pointerId` match and the `< 3 px` test; the `pointercancel` and `window`
   `blur` paths. `metaKey` appears nowhere.
 - **Every assertion the contract asks for exists.** The gate's twelve `ok` lines cover all seven
-  numbered items: the plain drag records nothing *and* moves the camera, the plain click records
+  numbered items: the plain drag records nothing _and_ moves the camera, the plain click records
   nothing, the `Ctrl` click records one point whose `u`/`v` match `measurePick()` to 1e-4 and whose
-  source is the plate, the `Ctrl` drag records nothing *and* leaves the target still, `Ctrl` + `Shift`
+  source is the plate, the `Ctrl` drag records nothing _and_ leaves the target still, `Ctrl` + `Shift`
   reads the model, a `pointercancel` drops the point, and a free view keeps its rotate with the tool
   off and loses it with the tool on.
 - **The failing-first proof is the right one**: `assertion 1 failed: a plain left drag records no
-  point  {"before":0,"after":1}` — a pan was dropping a point, which is exactly the defect, and not a
+point  {"before":0,"after":1}` — a pan was dropping a point, which is exactly the defect, and not a
   missing server.
 - **Gates**: `bun test` → 34 pass, 0 fail. `check_measure.ts` → exit 0. `check_idle.ts` → exit 0.
   `check_zoom.ts` → exit 0. `bun run check` → exit 1, 17.5 s, `height 1490.4 / 1404.5`, `delta -85.9 mm`,

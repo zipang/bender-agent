@@ -16,25 +16,32 @@ const DOCTYPE_START = "<!doctype html";
 const HTML_END = "</html>";
 
 /**
- * Return the document, from the first `<!DOCTYPE html` or `<html` to the last `</html>`.
+ * Return the document, from the first `<!DOCTYPE html` or `<html` to the last
+ * `</html>`.
  *
- * A leading fence and a trailing fence are outside the returned span, and a trailing prose
- * paragraph is dropped. The response must hold an `<html` and a `</html>`, or this throws.
+ * A leading fence and a trailing fence are outside the returned span, and a
+ * trailing prose paragraph is dropped. The response must hold an `<html` and a
+ * `</html>`, or this throws.
  */
 export function extractHtml(raw: string): string {
 	const lower = raw.toLowerCase();
 	const htmlStart = lower.indexOf(HTML_START);
 	if (htmlStart < 0) {
-		throw new NoHtmlError("The response holds no <html>. Nothing was written.");
+		throw new NoHtmlError(
+			"The response holds no <html>. Nothing was written."
+		);
 	}
 
 	const doctypeStart = lower.indexOf(DOCTYPE_START);
-	const start = doctypeStart >= 0 && doctypeStart < htmlStart ? doctypeStart : htmlStart;
+	const start =
+		doctypeStart >= 0 && doctypeStart < htmlStart
+			? doctypeStart
+			: htmlStart;
 
 	const end = lower.lastIndexOf(HTML_END);
 	if (end < start) {
 		throw new NoHtmlError(
-			"The response holds no </html>. The run is incomplete, so nothing was written.",
+			"The response holds no </html>. The run is incomplete, so nothing was written."
 		);
 	}
 

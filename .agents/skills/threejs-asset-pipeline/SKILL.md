@@ -34,17 +34,22 @@ const sun = new THREE.DirectionalLight(0xffffff, 2); // glTF PBR materials rende
 sun.position.set(3, 5, 2);
 scene.add(sun, new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	50,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(2, 1.5, 3);
 camera.lookAt(0, 0, 0);
 
 const gltf = await new GLTFLoader()
-  .setDRACOLoader(new DRACOLoader()) // the Draco WASM decoder loads from the three package
-  .loadAsync("model.opt.glb");
+	.setDRACOLoader(new DRACOLoader()) // the Draco WASM decoder loads from the three package
+	.loadAsync("model.opt.glb");
 scene.add(gltf.scene);
 
 function animate() {
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -153,9 +158,9 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 // Wire every codec the pipeline may emit; a missing one throws at load time
 const gltfLoader = new GLTFLoader()
-  .setDRACOLoader(new DRACOLoader()) // KHR_draco_mesh_compression
-  .setMeshoptDecoder(MeshoptDecoder) // EXT_meshopt_compression
-  .setKTX2Loader(new KTX2Loader().detectSupport(renderer)); // KHR_texture_basisu
+	.setDRACOLoader(new DRACOLoader()) // KHR_draco_mesh_compression
+	.setMeshoptDecoder(MeshoptDecoder) // EXT_meshopt_compression
+	.setKTX2Loader(new KTX2Loader().detectSupport(renderer)); // KHR_texture_basisu
 
 const gltf = await gltfLoader.loadAsync("model.opt.glb");
 scene.add(gltf.scene);
@@ -175,18 +180,18 @@ import { dedup, prune, weld, draco } from "@gltf-transform/functions";
 import draco3d from "draco3dgltf";
 
 const io = new NodeIO()
-  .registerExtensions(ALL_EXTENSIONS) // an extension left out is dropped on read, or throws if required
-  .registerDependencies({
-    "draco3d.decoder": await draco3d.createDecoderModule(), // reads Draco input
-    "draco3d.encoder": await draco3d.createEncoderModule(),
-  });
+	.registerExtensions(ALL_EXTENSIONS) // an extension left out is dropped on read, or throws if required
+	.registerDependencies({
+		"draco3d.decoder": await draco3d.createDecoderModule(), // reads Draco input
+		"draco3d.encoder": await draco3d.createEncoderModule()
+	});
 
 const document = await io.read("model.glb");
 await document.transform(
-  dedup(),
-  weld(), // shared vertices, before compression
-  prune(), // drop what no Scene references
-  draco({ method: "edgebreaker", quantizePosition: 14 }),
+	dedup(),
+	weld(), // shared vertices, before compression
+	prune(), // drop what no Scene references
+	draco({ method: "edgebreaker", quantizePosition: 14 })
 );
 await io.write("model.opt.glb", document);
 ```
@@ -212,8 +217,9 @@ import * as THREE from "three/webgpu";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 // renderer is an initialized WebGPURenderer (its init() was awaited)
-const gltfLoader = new GLTFLoader()
-  .setKTX2Loader(new KTX2Loader().detectSupport(renderer));
+const gltfLoader = new GLTFLoader().setKTX2Loader(
+	new KTX2Loader().detectSupport(renderer)
+);
 const gltf = await gltfLoader.loadAsync("model.opt.glb");
 scene.add(gltf.scene);
 ```

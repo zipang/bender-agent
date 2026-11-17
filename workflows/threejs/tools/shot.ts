@@ -29,121 +29,165 @@ const VIEWS_TABLE = await Bun.file(VIEW_TABLE).json();
 const VIEWS: string[] = Object.keys(VIEWS_TABLE.views);
 
 type Options = {
-  url: string;
-  scene: string | null;
-  out: string;
-  prefix: string;
-  views: string[];
-  width: number;
-  height: number;
-  quality: number;
-  session: string | null;
+	url: string;
+	scene: string | null;
+	out: string;
+	prefix: string;
+	views: string[];
+	width: number;
+	height: number;
+	quality: number;
+	session: string | null;
 };
 
 function readOptions(argv: string[]): Options {
-  const value = (name: string): string | null => {
-    const index = argv.indexOf(`--${name}`);
-    return index >= 0 ? (argv[index + 1] ?? null) : null;
-  };
-  const prefix = value("prefix");
-  if (!prefix) throw new Error("--prefix <name> is required, for example r5-L3");
-  const out = value("out");
-  if (!out) throw new Error("--out <directory> is required");
+	const value = (name: string): string | null => {
+		const index = argv.indexOf(`--${name}`);
+		return index >= 0 ? (argv[index + 1] ?? null) : null;
+	};
+	const prefix = value("prefix");
+	if (!prefix)
+		throw new Error("--prefix <name> is required, for example r5-L3");
+	const out = value("out");
+	if (!out) throw new Error("--out <directory> is required");
 
-  const views = (value("views") ?? VIEWS.join(","))
-    .split(",")
-    .map((v) => v.trim().toLowerCase())
-    .filter(Boolean);
-  const unknown = views.filter((v) => !VIEWS.includes(v));
-  if (unknown.length > 0) {
-    throw new Error(`Unknown view: ${unknown.join(", ")}. Valid: ${VIEWS.join(", ")}`);
-  }
+	const views = (value("views") ?? VIEWS.join(","))
+		.split(",")
+		.map((v) => v.trim().toLowerCase())
+		.filter(Boolean);
+	const unknown = views.filter((v) => !VIEWS.includes(v));
+	if (unknown.length > 0) {
+		throw new Error(
+			`Unknown view: ${unknown.join(", ")}. Valid: ${VIEWS.join(", ")}`
+		);
+	}
 
-  return {
-    url: value("url") ?? "http://127.0.0.1:5180/",
-    scene: value("scene"),
-    out: resolve(value("out")!),
-    prefix,
-    views,
-    width: Number(value("width") ?? 1400),
-    height: Number(value("height") ?? 1000),
-    quality: Number(value("quality") ?? 92),
-    session: value("session"),
-  };
+	return {
+		url: value("url") ?? "http://127.0.0.1:5180/",
+		scene: value("scene"),
+		out: resolve(value("out")!),
+		prefix,
+		views,
+		width: Number(value("width") ?? 1400),
+		height: Number(value("height") ?? 1000),
+		quality: Number(value("quality") ?? 92),
+		session: value("session")
+	};
 }
 
-async function waitFor(session: Session, script: string, label: string, tries = 40): Promise<void> {
-  for (let i = 0; i < tries; i += 1) {
-    const value = await session.evaluate(script);
-    if (value === true) return;
-    await Bun.sleep(150);
-  }
-  // A page that failed to load never becomes ready, and "timed out" alone sends the reader looking
-  // at the timing. The viewer records its reason in `window.__error`; quote it.
-  const reason = await session.evaluate("window.__error ?? null").catch(() => null);
-  throw new Error(
-    `timed out waiting for ${label}` + (reason ? `\n  the page reports: ${reason}` : ""),
-  );
+async function waitFor(
+	session: Session,
+	script: string,
+	label: string,
+	tries = 40
+): Promise<void> {
+	for (let i = 0; i < tries; i += 1) {
+		const value = await session.evaluate(script);
+		if (value === true) return;
+		await Bun.sleep(150);
+	}
+	// A page that failed to load never becomes ready, and "timed out" alone sends the reader looking
+	// at the timing. The viewer records its reason in `window.__error`; quote it.
+	const reason = await session
+		.evaluate("window.__error ?? null")
+		.catch(() => null);
+	throw new Error(
+		`timed out waiting for ${label}` +
+			(reason ? `\n  the page reports: ${reason}` : "")
+	);
 }
 
 async function main(): Promise<void> {
-  const options = readOptions(Bun.argv.slice(2));
-  await mkdir(options.out, { recursive: true });
-  const scratch = `${REPORTS}/shot-${options.prefix}`;
-  await rm(scratch, { recursive: true, force: true });
-  await mkdir(scratch, { recursive: true });
+	const options = readOptions(Bun.argv.slice(2));
+	await mkdir(options.out, { recursive: true });
+	const scratch = `${REPORTS}/shot-${options.prefix}`;
+	await rm(scratch, { recursive: true, force: true });
+	await mkdir(scratch, { recursive: true });
 
-  // The scene travels in the query, because the page is shared. The server redirect keeps it, so the
-  // root URL stays the entry point and no script has to know the viewer's path.
-  const query = new URLSearchParams({ shot: "1" });
-  if (options.scene) query.set("scene", options.scene);
-  const url = `${options.url.replace(/\/$/, "")}/?${query.toString()}`;
-  // This tool owns its session: the name carries the process id, so two captures cannot collide,
-  // and a leftover of an interrupted run is swept at open and closed on Ctrl-C.
-  const session = new Session("shot", options.session ? { name: options.session, owned: true } : {});
-  const s = session.name;
+	// The scene travels in the query, because the page is shared. The server redirect keeps it, so the
+	// root URL stays the entry point and no script has to know the viewer's path.
+	const query = new URLSearchParams({ shot: "1" });
+	if (options.scene) query.set("scene", options.scene);
+	const url = `${options.url.replace(/\/$/, "")}/?${query.toString()}`;
+	// This tool owns its session: the name carries the process id, so two captures cannot collide,
+	// and a leftover of an interrupted run is swept at open and closed on Ctrl-C.
+	const session = new Session(
+		"shot",
+		options.session ? { name: options.session, owned: true } : {}
+	);
+	const s = session.name;
 
-  const written: string[] = [];
-  let stats: Record<string, unknown> | null = null;
+	const written: string[] = [];
+	let stats: Record<string, unknown> | null = null;
 
-  // The browser is closed from here on, including the case where the page never loads. A scene that
-  // fails to load is the most likely failure, so the guard must start before the first request.
-  try {
-    // One page, reused for every view: the scene builds once.
-    await session.open(url);
-    // Device scale 1 keeps the screenshot at the CSS size, which the references match.
-    await session.ab(["set", "viewport", String(options.width), String(options.height), "1", "--session", s], "set viewport");
-    await waitFor(session, "window.__ready === true", "the first frame");
+	// The browser is closed from here on, including the case where the page never loads. A scene that
+	// fails to load is the most likely failure, so the guard must start before the first request.
+	try {
+		// One page, reused for every view: the scene builds once.
+		await session.open(url);
+		// Device scale 1 keeps the screenshot at the CSS size, which the references match.
+		await session.ab(
+			[
+				"set",
+				"viewport",
+				String(options.width),
+				String(options.height),
+				"1",
+				"--session",
+				s
+			],
+			"set viewport"
+		);
+		await waitFor(session, "window.__ready === true", "the first frame");
 
-    for (const view of options.views) {
-      await session.evaluate(`window.__setView(${JSON.stringify(view)}).then(() => true)`);
-      // A capture is always at 100 %: a hand-set zoom could clip the subject, and a clipped subject
-      // corrupts the scale the silhouette comparison derives from its bounding box.
-      await session.evaluate("window.__ctl.zoom(100)");
-      const pngPath = `${scratch}/${view}.png`;
-      await session.ab(["screenshot", "canvas", pngPath, "--session", s], `screenshot ${view}`);
-      const png = await Bun.file(pngPath).bytes();
-      const webp = await new Bun.Image(png).webp({ quality: options.quality }).bytes();
-      const path = `${options.out}/${options.prefix}-${view}.webp`;
-      await Bun.write(path, webp);
-      console.log(`render  ${toRepoPath(path)}  ${webp.byteLength} bytes  (${view}, ${png.byteLength} png)`);
-      written.push(path);
-      if (!stats) stats = (await session.evaluate("window.__stats()")) as Record<string, unknown>;
-    }
+		for (const view of options.views) {
+			await session.evaluate(
+				`window.__setView(${JSON.stringify(view)}).then(() => true)`
+			);
+			// A capture is always at 100 %: a hand-set zoom could clip the subject, and a clipped subject
+			// corrupts the scale the silhouette comparison derives from its bounding box.
+			await session.evaluate("window.__ctl.zoom(100)");
+			const pngPath = `${scratch}/${view}.png`;
+			await session.ab(
+				["screenshot", "canvas", pngPath, "--session", s],
+				`screenshot ${view}`
+			);
+			const png = await Bun.file(pngPath).bytes();
+			const webp = await new Bun.Image(png)
+				.webp({ quality: options.quality })
+				.bytes();
+			const path = `${options.out}/${options.prefix}-${view}.webp`;
+			await Bun.write(path, webp);
+			console.log(
+				`render  ${toRepoPath(path)}  ${webp.byteLength} bytes  (${view}, ${png.byteLength} png)`
+			);
+			written.push(path);
+			if (!stats)
+				stats = (await session.evaluate("window.__stats()")) as Record<
+					string,
+					unknown
+				>;
+		}
 
-    if (stats) {
-      console.log("");
-      console.log(`size     ${(stats.size as number[]).map((v) => v.toFixed(3)).join(" × ")} m`);
-      console.log(`bounds   ${JSON.stringify(stats.min)} .. ${JSON.stringify(stats.max)}`);
-      console.log(`tris     ${stats.triangles}   meshes ${stats.meshes}   draws ${stats.calls}`);
-    }
-    console.log(`${written.length} file(s) written`);
-  } finally {
-    // This script owns the session: it opened the page, so it closes the browser. The dev loop
-    // calls it many times per pass, and a browser left per call is how a machine ends up with two
-    // hundred processes. A close failure must not hide the files that were already written.
-    await session.close();
-  }
+		if (stats) {
+			console.log("");
+			console.log(
+				`size     ${(stats.size as number[]).map((v) => v.toFixed(3)).join(" × ")} m`
+			);
+			console.log(
+				`bounds   ${JSON.stringify(stats.min)} .. ${JSON.stringify(stats.max)}`
+			);
+			console.log(
+				`tris     ${stats.triangles}   meshes ${stats.meshes}   draws ${stats.calls}`
+			);
+		}
+		console.log(`${written.length} file(s) written`);
+	} finally {
+		// This script owns the session: it opened the page, so it closes the browser. The dev loop
+		// calls it many times per pass, and a browser left per call is how a machine ends up with two
+		// hundred processes. A close failure must not hide the files that were already written.
+		await session.close();
+	}
 }
 
 await main();

@@ -46,29 +46,41 @@ type ModelEntry = { id?: unknown };
  *
  * The rules, in order:
  *
- * 1. The connection throws or the status is not 2xx: a failure with the URL and the error text.
- * 2. The body is not a JSON object with a `data` array: a failure with the URL and the first 200
- *    characters received.
- * 3. `data[]` holds no entry whose `id` equals `--model`: a failure with the requested id and the
- *    available ids, comma-separated. An empty list says that the endpoint names no model.
+ * 1. The connection throws or the status is not 2xx: a failure with the URL and
+ *    the error text.
+ * 2. The body is not a JSON object with a `data` array: a failure with the URL and
+ *    the first 200 characters received.
+ * 3. `data[]` holds no entry whose `id` equals `--model`: a failure with the
+ *    requested id and the available ids, comma-separated. An empty list says
+ *    that the endpoint names no model.
  * 4. Otherwise success, carrying the exact `id` string that matched.
  *
- * Extra fields, unknown values, and more than one entry are tolerated: the reference service lists
- * two models.
+ * Extra fields, unknown values, and more than one entry are tolerated: the
+ * reference service lists two models.
  */
-export async function checkEndpoint(options: PreflightOptions): Promise<PreflightResult> {
+export async function checkEndpoint(
+	options: PreflightOptions
+): Promise<PreflightResult> {
 	const url = `${options.baseUrl}${MODELS_ROUTE}`;
 	const fetchImpl = options.fetchImpl ?? fetch;
 	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 10000);
+	const timer = setTimeout(
+		() => controller.abort(),
+		options.timeoutMs ?? 10000
+	);
 
 	let response: Response;
 	try {
-		response = await fetchImpl(url, { method: "GET", signal: controller.signal });
+		response = await fetchImpl(url, {
+			method: "GET",
+			signal: controller.signal
+		});
 	} catch (error) {
 		clearTimeout(timer);
 		const text = (error as Error)?.message ?? String(error);
-		return failure(`The endpoint at ${url} is unreachable: ${text}. ${PREREQUISITE}`);
+		return failure(
+			`The endpoint at ${url} is unreachable: ${text}. ${PREREQUISITE}`
+		);
 	}
 
 	let raw: string;
@@ -78,14 +90,14 @@ export async function checkEndpoint(options: PreflightOptions): Promise<Prefligh
 		clearTimeout(timer);
 		const text = (error as Error)?.message ?? String(error);
 		return failure(
-			`The endpoint at ${url} did not return its model list: ${text}. ${PREREQUISITE}`,
+			`The endpoint at ${url} did not return its model list: ${text}. ${PREREQUISITE}`
 		);
 	}
 	clearTimeout(timer);
 
 	if (!response.ok) {
 		return failure(
-			`The endpoint at ${url} answered ${response.status}: ${preview(raw)}. ${PREREQUISITE}`,
+			`The endpoint at ${url} answered ${response.status}: ${preview(raw)}. ${PREREQUISITE}`
 		);
 	}
 
@@ -94,7 +106,7 @@ export async function checkEndpoint(options: PreflightOptions): Promise<Prefligh
 		body = JSON.parse(raw);
 	} catch {
 		return failure(
-			`The endpoint at ${url} did not return JSON. First ${BODY_PREVIEW} characters received: ${preview(raw)}. ${PREREQUISITE}`,
+			`The endpoint at ${url} did not return JSON. First ${BODY_PREVIEW} characters received: ${preview(raw)}. ${PREREQUISITE}`
 		);
 	}
 
@@ -104,7 +116,7 @@ export async function checkEndpoint(options: PreflightOptions): Promise<Prefligh
 		!Array.isArray((body as { data?: unknown }).data)
 	) {
 		return failure(
-			`The endpoint at ${url} returned no model list: the body is not a JSON object with a "data" array. First ${BODY_PREVIEW} characters received: ${preview(raw)}. ${PREREQUISITE}`,
+			`The endpoint at ${url} returned no model list: the body is not a JSON object with a "data" array. First ${BODY_PREVIEW} characters received: ${preview(raw)}. ${PREREQUISITE}`
 		);
 	}
 
@@ -115,14 +127,14 @@ export async function checkEndpoint(options: PreflightOptions): Promise<Prefligh
 
 	if (ids.length === 0) {
 		return failure(
-			`The endpoint at ${url} names no model. The requested model is "${options.model}". ${PREREQUISITE}`,
+			`The endpoint at ${url} names no model. The requested model is "${options.model}". ${PREREQUISITE}`
 		);
 	}
 
 	const match = ids.find((id) => id === options.model);
 	if (match === undefined) {
 		return failure(
-			`The endpoint at ${url} does not publish the requested model "${options.model}". Available ids: ${ids.join(", ")}. ${PREREQUISITE}`,
+			`The endpoint at ${url} does not publish the requested model "${options.model}". Available ids: ${ids.join(", ")}. ${PREREQUISITE}`
 		);
 	}
 

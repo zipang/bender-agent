@@ -7,26 +7,26 @@
 - **Depends on**: T0002 (the knot editor defines what the zoom must serve)
 - **Blocks**: T0005 — the measurement pick chord and release; T0004 — knot editing by marquee selection
 - **References**:
-  - `workflows/threejs/viewer/camera.js` — the rig: two cameras, one `OrbitControls`, one state
-  - `workflows/threejs/viewer/measure.js` — `mmPerScreenPx()`
-  - `workflows/threejs/AGENTS.md` — "Camera rules", "Knot rules"
-  - `workflows/threejs/README.md` §7 — the viewer
-  - `tickets/done/T0002-contour-smoothing.md` §6.8 — the knot editor, and why it is hard to use
-  - three.js `OrthographicCamera`, `.zoom` and `.updateProjectionMatrix()`:
-    <https://threejs.org/docs/#api/en/cameras/OrthographicCamera>
-    (source of record: <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/OrthographicCamera.html.md>)
-  - three.js `OrbitControls`, `.zoomToCursor`, `.minZoom`, `.maxZoom`, `.mouseButtons`, `.pan()`,
-    `.dollyIn()`, `.dollyOut()`, `.getAzimuthalAngle()`:
-    <https://threejs.org/docs/#examples/en/controls/OrbitControls>
-    (source of record: <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/OrbitControls.html.md>)
-  - three.js `Controls`, `.enabled`:
-    <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/Controls.html.md>
-  - three.js `OrbitControls` source, pinned to r187, `onMouseDown`: the swap between the `ROTATE` and
-    `PAN` actions when `ctrlKey`, `metaKey`, or `shiftKey` is held. **This swap is in the source and
-    not in the documentation.** It is the one non-documented behavior this ticket depends on, it is
-    written into the contract with its exact shape, and assertion 8 of the check fails loudly if a
-    version bump changes it.
-    <https://raw.githubusercontent.com/mrdoob/three.js/r187/examples/jsm/controls/OrbitControls.js>
+    - `workflows/threejs/viewer/camera.js` — the rig: two cameras, one `OrbitControls`, one state
+    - `workflows/threejs/viewer/measure.js` — `mmPerScreenPx()`
+    - `workflows/threejs/AGENTS.md` — "Camera rules", "Knot rules"
+    - `workflows/threejs/README.md` §7 — the viewer
+    - `tickets/done/T0002-contour-smoothing.md` §6.8 — the knot editor, and why it is hard to use
+    - three.js `OrthographicCamera`, `.zoom` and `.updateProjectionMatrix()`:
+      <https://threejs.org/docs/#api/en/cameras/OrthographicCamera>
+      (source of record: <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/OrthographicCamera.html.md>)
+    - three.js `OrbitControls`, `.zoomToCursor`, `.minZoom`, `.maxZoom`, `.mouseButtons`, `.pan()`,
+      `.dollyIn()`, `.dollyOut()`, `.getAzimuthalAngle()`:
+      <https://threejs.org/docs/#examples/en/controls/OrbitControls>
+      (source of record: <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/OrbitControls.html.md>)
+    - three.js `Controls`, `.enabled`:
+      <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/Controls.html.md>
+    - three.js `OrbitControls` source, pinned to r187, `onMouseDown`: the swap between the `ROTATE` and
+      `PAN` actions when `ctrlKey`, `metaKey`, or `shiftKey` is held. **This swap is in the source and
+      not in the documentation.** It is the one non-documented behavior this ticket depends on, it is
+      written into the contract with its exact shape, and assertion 8 of the check fails loudly if a
+      version bump changes it.
+      <https://raw.githubusercontent.com/mrdoob/three.js/r187/examples/jsm/controls/OrbitControls.js>
 
 ## Context & Goal
 
@@ -103,10 +103,10 @@ drifted, and the art director would have had two zoom feels for one page.
 `OrbitControls` takes the camera in its constructor, and the docs name no supported way to re-target
 it (`new OrbitControls(object, domElement)`). So the rig holds **two** instances on the same canvas:
 
-| Instance | Camera | Used when |
-| :--- | :--- | :--- |
-| `orbit` (exists) | perspective | `state.perspective === true` |
-| `flat` (new) | orthographic | `state.perspective === false` |
+| Instance         | Camera       | Used when                     |
+| :--------------- | :----------- | :---------------------------- |
+| `orbit` (exists) | perspective  | `state.perspective === true`  |
+| `flat` (new)     | orthographic | `state.perspective === false` |
 
 `enabled` is the documented switch — "Whether the controls responds to user input or not." Exactly
 one instance is enabled at a time; `applyCamera()` does the swap.
@@ -121,26 +121,37 @@ enforced by construction and a later edit cannot reach one without the other:
 // Both instances receive every field. A pair the projection ignores is still written, because
 // "identical" is a property of the table, not of what the projection happens to read.
 const SHARED = {
-  enableDamping: true,   dampingFactor: 0.08,   // the value the perspective view already uses
-  enableZoom: true,      enablePan: true,
-  zoomSpeed: 1,          panSpeed: 1,           rotateSpeed: 1,
-  zoomToCursor: true,
-  screenSpacePanning: true,
-  minZoom: 1,            maxZoom: 4,            // orthographic only: the 100 % floor, the 400 % cap
-  minDistance: 3,        maxDistance: 24,       // perspective only
-  maxPolarAngle: Math.PI / 2,
-  // A left drag moves the view on BOTH families. The middle keeps its default, the dolly. The right
-  // button is bound to no action: it is kept for the context menu the art director reserves, and
-  // `null` matches no case in `OrbitControls`' own `switch`, so a right drag is inert.
-  mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: null },
+	enableDamping: true,
+	dampingFactor: 0.08, // the value the perspective view already uses
+	enableZoom: true,
+	enablePan: true,
+	zoomSpeed: 1,
+	panSpeed: 1,
+	rotateSpeed: 1,
+	zoomToCursor: true,
+	screenSpacePanning: true,
+	minZoom: 1,
+	maxZoom: 4, // orthographic only: the 100 % floor, the 400 % cap
+	minDistance: 3,
+	maxDistance: 24, // perspective only
+	maxPolarAngle: Math.PI / 2,
+	// A left drag moves the view on BOTH families. The middle keeps its default, the dolly. The right
+	// button is bound to no action: it is kept for the context menu the art director reserves, and
+	// `null` matches no case in `OrbitControls`' own `switch`, so a right drag is inert.
+	mouseButtons: {
+		LEFT: THREE.MOUSE.PAN,
+		MIDDLE: THREE.MOUSE.DOLLY,
+		RIGHT: null
+	}
 };
 
 function configure(controls) {
-  for (const [key, value] of Object.entries(SHARED)) {
-    // `mouseButtons` and `touches` are objects: each instance gets its own copy, so no later
-    // mutation of one can reach the other.
-    controls[key] = value && typeof value === "object" ? { ...value } : value;
-  }
+	for (const [key, value] of Object.entries(SHARED)) {
+		// `mouseButtons` and `touches` are objects: each instance gets its own copy, so no later
+		// mutation of one can reach the other.
+		controls[key] =
+			value && typeof value === "object" ? { ...value } : value;
+	}
 }
 ```
 
@@ -196,8 +207,8 @@ check proves the parity instead of trusting this paragraph.
 
 ```js
 flat.addEventListener("change", () => {
-  state.zoom = ortho.zoom;
-  state.target.copy(flat.target);   // a pan moves the target, and `state` must see it
+	state.zoom = ortho.zoom;
+	state.target.copy(flat.target); // a pan moves the target, and `state` must see it
 });
 ```
 
@@ -218,11 +229,11 @@ called after any change of camera properties" — is called by whoever writes `z
 ### Rig API
 
 ```js
-zoomPercent()                    // integer, 100..400
-setZoom(percent)                 // clamped float, then updateProjectionMatrix() + flat.update()
-panBy(dxPx, dyPx)                // flat.pan(dx, dy) + flat.update(); pixels, as documented
-resetFraming()                   // ortho.zoom = 1, height = frame.orthoHeight, target = frame.target
-activeControls                   // getter: the instance that is currently enabled
+zoomPercent(); // integer, 100..400
+setZoom(percent); // clamped float, then updateProjectionMatrix() + flat.update()
+panBy(dxPx, dyPx); // flat.pan(dx, dy) + flat.update(); pixels, as documented
+resetFraming(); // ortho.zoom = 1, height = frame.orthoHeight, target = frame.target
+activeControls; // getter: the instance that is currently enabled
 ```
 
 `setZoom` divides by 100 **after** clamping the float to `[1, 4]` through
@@ -273,15 +284,21 @@ A cursor says what a button will do before it is pressed. The page styles the ca
 classes, so one rule per state and no inline style competes with another:
 
 ```css
-canvas { cursor: default; }
-body.pan-ready canvas { cursor: grab; }
-body.pan-dragging canvas { cursor: grabbing; }
+canvas {
+	cursor: default;
+}
+body.pan-ready canvas {
+	cursor: grab;
+}
+body.pan-dragging canvas {
+	cursor: grabbing;
+}
 ```
 
-| State | Class | Cursor |
-| :--- | :--- | :--- |
-| A view at rest: a left drag pans | `pan-ready` | `grab` — the open hand |
-| A left-drag pan in progress | `pan-dragging` | `grabbing` — the closed hand |
+| State                            | Class          | Cursor                       |
+| :------------------------------- | :------------- | :--------------------------- |
+| A view at rest: a left drag pans | `pan-ready`    | `grab` — the open hand       |
+| A left-drag pan in progress      | `pan-dragging` | `grabbing` — the closed hand |
 
 `canvas { cursor: default; }` is the floor, not a state. Every view of the page can be panned with a
 left drag now, so `pan-ready` is the resting cursor on a free view as well as on a flat one. The
@@ -305,7 +322,8 @@ open hand, and a pan already in progress still shows the closed hand.
 `#hud` gains one row, after `size`:
 
 ```html
-<dt>zoom</dt><dd id="hud-zoom">—</dd>
+<dt>zoom</dt>
+<dd id="hud-zoom">—</dd>
 ```
 
 `stage.updateHud(name)` writes `zoomPercent() + " %"` when the active camera is the orthographic one,
@@ -315,11 +333,11 @@ change, so the number is live.
 ### Script and command surface
 
 ```js
-__ctl.zoom()          // { percent, applied, mmPerPx, visibleHeight }
-__ctl.zoom(200)       // set, clamped; applied: false on a perspective view
-__ctl.pan(12, -8)     // pixels; returns { target: [x, y, z], percent }
-__ctl.controls()      // { orbit: {...}, flat: {...} }: the compared configuration, field by field
-__ctl.state()         // gains zoomPercent
+__ctl.zoom(); // { percent, applied, mmPerPx, visibleHeight }
+__ctl.zoom(200); // set, clamped; applied: false on a perspective view
+__ctl.pan(12, -8); // pixels; returns { target: [x, y, z], percent }
+__ctl.controls(); // { orbit: {...}, flat: {...} }: the compared configuration, field by field
+__ctl.state(); // gains zoomPercent
 ```
 
 `__stats()` and the capture sidecar gain `zoom` (the factor). `orthoHeight` stays the 100 % frame
@@ -345,42 +363,28 @@ headless tool that opens the page, asserts through `__ctl`, and exits non-zero o
 It runs before the feature exists and must fail for the right reason.
 
 - [x] **T3.1 — The check, written first**: `tools/check_zoom.ts` opens `?scene=r5-tl-1972`, waits
-      for ready, and asserts:
-      1. On `left`: `percent` is 100, and `mmPerPx` equals `orthoHeight * 1000 / innerHeight`.
-      2. `zoom(200)`: `mmPerPx` is exactly half to 1e-9, `percent` is 200. `zoom(400)`: a quarter.
-      3. `zoom(500)` stays 400. `zoom(50)` stays 100.
-      4. **Cursor anchoring, through the real wheel**: with the plate on `left`, `knotProbe(nx, ny)`
-         returns a view coordinate; one wheel event at that NDC, then the probe at the same NDC,
-         returns the same coordinate within 0.5 mm, while a probe at `(-0.5, -0.5)` has moved.
-      5. **The two instances are configured alike**: `__ctl.controls()` returns, for `orbit` and
-         `flat`, the same `zoomSpeed`, `panSpeed`, `rotateSpeed`, `dampingFactor`, `zoomToCursor`,
-         `screenSpacePanning`, `enableZoom`, `enablePan`, `minZoom`, `maxZoom`, `minDistance`,
-         `maxDistance`, `maxPolarAngle`, and a deep-equal `touches`. `mouseButtons` is exactly
-         `{ LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: null }` on both. `enableRotate` is the
-         single documented difference: `true` on `orbit`, `false` on `flat`.
-      6. **Parity of the wheel**: one wheel event of `deltaY = -100` on `left` and one on `front-3q`
-         change the apparent size **in the same direction** and by the **same ratio ±2 %** (measured
-         on `left` through `mmPerPx`, on `front-3q` through the screen size of a known world
-         distance). A second event on each keeps the ratio.
-      7. **Parity of the drags**: on `left`, a synthesized middle drag changes the percent and leaves
-         the target alone; a synthesized **left** drag moves the target and leaves the percent alone,
-         with `knotEdit` on **and** off, as long as the press does not land inside a knot's grab
-         threshold; a synthesized right drag changes neither. The same three drags on `front-3q`
-         behave the same way, and a `Shift` + left drag there changes `getAzimuthalAngle()`.
-      8. **The modifier swap, asserted** — the one non-documented dependency of this ticket: on
-         `front-3q`, `controls().orbit.enableRotate` is `true` and a `Shift` + left drag rotates (the
-         camera position changes, `getAzimuthalAngle()` moves). On `left`, `enableRotate` is `false`
-         and the same gesture leaves the camera position and the target untouched.
-      9. A zoom leaves `state().view` equal to `left`; a left-drag pan leaves it `left` too.
-      10. `view("top")` then `view("left")` after a pan and a zoom: `percent` is 100 and the target is
-         `frame.target` again.
-      11. On `front-3q`: `zoom(200)` returns `applied: false` and the percent stays 100.
-      12. After one wheel notch on a flat view, `#hud-zoom` shows the reported percent and not `—`;
-         on a perspective view it shows `—`. The value is read from `__ctl.zoom()`, not guessed: the
-         ratio per notch belongs to the library.
-      13. `zoom(400)`, then `__stats()` reports `zoom: 1` after a capture prepared by `shot`.
-      14. The computed cursor on the canvas is `grab` on `left` at rest, `grabbing` while a left drag
-          is in progress, and `grab` on `front-3q` too.
+      for ready, and asserts: 1. On `left`: `percent` is 100, and `mmPerPx` equals `orthoHeight * 1000 / innerHeight`. 2. `zoom(200)`: `mmPerPx` is exactly half to 1e-9, `percent` is 200. `zoom(400)`: a quarter. 3. `zoom(500)` stays 400. `zoom(50)` stays 100. 4. **Cursor anchoring, through the real wheel**: with the plate on `left`, `knotProbe(nx, ny)`
+      returns a view coordinate; one wheel event at that NDC, then the probe at the same NDC,
+      returns the same coordinate within 0.5 mm, while a probe at `(-0.5, -0.5)` has moved. 5. **The two instances are configured alike**: `__ctl.controls()` returns, for `orbit` and
+      `flat`, the same `zoomSpeed`, `panSpeed`, `rotateSpeed`, `dampingFactor`, `zoomToCursor`,
+      `screenSpacePanning`, `enableZoom`, `enablePan`, `minZoom`, `maxZoom`, `minDistance`,
+      `maxDistance`, `maxPolarAngle`, and a deep-equal `touches`. `mouseButtons` is exactly
+      `{ LEFT: MOUSE.PAN, MIDDLE: MOUSE.DOLLY, RIGHT: null }` on both. `enableRotate` is the
+      single documented difference: `true` on `orbit`, `false` on `flat`. 6. **Parity of the wheel**: one wheel event of `deltaY = -100` on `left` and one on `front-3q`
+      change the apparent size **in the same direction** and by the **same ratio ±2 %** (measured
+      on `left` through `mmPerPx`, on `front-3q` through the screen size of a known world
+      distance). A second event on each keeps the ratio. 7. **Parity of the drags**: on `left`, a synthesized middle drag changes the percent and leaves
+      the target alone; a synthesized **left** drag moves the target and leaves the percent alone,
+      with `knotEdit` on **and** off, as long as the press does not land inside a knot's grab
+      threshold; a synthesized right drag changes neither. The same three drags on `front-3q`
+      behave the same way, and a `Shift` + left drag there changes `getAzimuthalAngle()`. 8. **The modifier swap, asserted** — the one non-documented dependency of this ticket: on
+      `front-3q`, `controls().orbit.enableRotate` is `true` and a `Shift` + left drag rotates (the
+      camera position changes, `getAzimuthalAngle()` moves). On `left`, `enableRotate` is `false`
+      and the same gesture leaves the camera position and the target untouched. 9. A zoom leaves `state().view` equal to `left`; a left-drag pan leaves it `left` too. 10. `view("top")` then `view("left")` after a pan and a zoom: `percent` is 100 and the target is
+      `frame.target` again. 11. On `front-3q`: `zoom(200)` returns `applied: false` and the percent stays 100. 12. After one wheel notch on a flat view, `#hud-zoom` shows the reported percent and not `—`;
+      on a perspective view it shows `—`. The value is read from `__ctl.zoom()`, not guessed: the
+      ratio per notch belongs to the library. 13. `zoom(400)`, then `__stats()` reports `zoom: 1` after a capture prepared by `shot`. 14. The computed cursor on the canvas is `grab` on `left` at rest, `grabbing` while a left drag
+      is in progress, and `grab` on `front-3q` too.
 - [x] **T3.2 — The instrument, failing**: `tools/ctl.ts zoom` and `__ctl.zoom` / `__ctl.pan` exist
       and report. Until T3.3 they return the 100 % value on a flat view and the check fails on
       assertion 2.
@@ -413,7 +417,7 @@ It runs before the feature exists and must fail for the right reason.
    the one that makes a flat view flat.
 6. The left drag moves the view on both families, except within a knot's grab threshold on a flat
    view with the editor on, where it belongs to the editor; the middle drag zooms on both; a `Shift`
-   + left drag rotates a free view and does nothing on a flat one; a right drag does nothing.
+    - left drag rotates a free view and does nothing on a flat one; a right drag does nothing.
 7. The plate, the contour line, and the knot handles keep their alignment at every zoom, and the
    ten-screen-pixel grab threshold follows the zoom, so a handle stays as easy to grab at 400 % as at
    100 %.

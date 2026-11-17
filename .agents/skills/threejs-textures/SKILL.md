@@ -18,7 +18,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	60,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(0, 0, 2);
 
 // Color images must be tagged sRGB or they render too bright and washed out
@@ -26,16 +31,16 @@ const texture = new THREE.TextureLoader().load("diffuse.jpg");
 texture.colorSpace = THREE.SRGBColorSpace;
 
 const mesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(2, 2),
-  new THREE.MeshBasicMaterial({ map: texture }),
+	new THREE.PlaneGeometry(2, 2),
+	new THREE.MeshBasicMaterial({ map: texture })
 );
 scene.add(mesh);
 
 renderer.setAnimationLoop(animate);
 
 function animate() {
-  mesh.rotation.z += 0.01;
-  renderer.render(scene, camera);
+	mesh.rotation.z += 0.01;
+	renderer.render(scene, camera);
 }
 ```
 
@@ -56,7 +61,8 @@ TextureLoader's `onProgress` parameter is unsupported and never fires; a `Loadin
 
 ```javascript
 const manager = new THREE.LoadingManager();
-manager.onProgress = (url, loaded, total) => console.log(`${loaded}/${total}: ${url}`);
+manager.onProgress = (url, loaded, total) =>
+	console.log(`${loaded}/${total}: ${url}`);
 const loader = new THREE.TextureLoader(manager);
 ```
 
@@ -134,13 +140,13 @@ image.onload = () => (imageTexture.needsUpdate = true); // upload once the pixel
 const size = 256;
 const data = new Uint8Array(size * size * 4); // RGBA, one byte per channel
 for (let i = 0; i < size; i++) {
-  for (let j = 0; j < size; j++) {
-    const index = (i * size + j) * 4;
-    data[index] = i;
-    data[index + 1] = j;
-    data[index + 2] = 128;
-    data[index + 3] = 255;
-  }
+	for (let j = 0; j < size; j++) {
+		const index = (i * size + j) * 4;
+		data[index] = i;
+		data[index + 1] = j;
+		data[index + 2] = 128;
+		data[index + 3] = 255;
+	}
 }
 const dataTexture = new THREE.DataTexture(data, size, size);
 dataTexture.needsUpdate = true;
@@ -185,11 +191,12 @@ videoTexture.colorSpace = THREE.SRGBColorSpace;
 const frameTexture = new THREE.VideoFrameTexture();
 frameTexture.colorSpace = THREE.SRGBColorSpace;
 const decoder = new VideoDecoder({
-  output(frame) {
-    if (frameTexture.image instanceof VideoFrame) frameTexture.image.close(); // free the replaced frame, or decoding stalls
-    frameTexture.setFrame(frame);
-  },
-  error: (e) => console.error(e),
+	output(frame) {
+		if (frameTexture.image instanceof VideoFrame)
+			frameTexture.image.close(); // free the replaced frame, or decoding stalls
+		frameTexture.setFrame(frame);
+	},
+	error: (e) => console.error(e)
 });
 ```
 
@@ -217,9 +224,12 @@ Cube maps (the loader tags the result sRGB itself):
 
 ```javascript
 const cubeTexture = new THREE.CubeTextureLoader().load([
-  "px.jpg", "nx.jpg", // +X, -X
-  "py.jpg", "ny.jpg", // +Y, -Y
-  "pz.jpg", "nz.jpg", // +Z, -Z
+	"px.jpg",
+	"nx.jpg", // +X, -X
+	"py.jpg",
+	"ny.jpg", // +Y, -Y
+	"pz.jpg",
+	"nz.jpg" // +Z, -Z
 ]);
 
 scene.background = cubeTexture;
@@ -271,7 +281,9 @@ Do not run a loaded equirect file through PMREMGenerator "for better reflections
 ```javascript
 const renderTarget = new THREE.WebGLRenderTarget(512, 512);
 const rtScene = new THREE.Scene(); // must not contain the mesh that samples the target
-rtScene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshNormalMaterial())); // unlit, visible without lights
+rtScene.add(
+	new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshNormalMaterial())
+); // unlit, visible without lights
 
 renderer.setRenderTarget(renderTarget);
 renderer.render(rtScene, camera);
@@ -304,8 +316,8 @@ const secondAttachment = mrtTarget.textures[1];
 
 ```javascript
 const cubeRenderTarget = new THREE.WebGLCubeRenderTarget(256, {
-  generateMipmaps: true,
-  minFilter: THREE.LinearMipmapLinearFilter,
+	generateMipmaps: true,
+	minFilter: THREE.LinearMipmapLinearFilter
 });
 const cubeCamera = new THREE.CubeCamera(0.1, 1000, cubeRenderTarget);
 scene.add(cubeCamera);
@@ -348,10 +360,10 @@ atlas.colorSpace = THREE.SRGBColorSpace;
 
 // one clone per sprite: clones share the image source, so WebGLRenderer uploads it once
 function spriteTexture(row, col, gridSize = 2) {
-  const sprite = atlas.clone();
-  sprite.offset.set(col / gridSize, 1 - (row + 1) / gridSize);
-  sprite.repeat.set(1 / gridSize, 1 / gridSize);
-  return sprite;
+	const sprite = atlas.clone();
+	sprite.offset.set(col / gridSize, 1 - (row + 1) / gridSize);
+	sprite.repeat.set(1 / gridSize, 1 / gridSize);
+	return sprite;
 }
 
 mesh.material.map = spriteTexture(0, 0); // top-left sprite of a 2x2 sheet
@@ -370,13 +382,13 @@ emissiveMap.colorSpace = THREE.SRGBColorSpace;
 // normalMap keeps NoColorSpace, as do roughness, metalness, ao, alpha and displacement maps
 
 const material = new THREE.MeshStandardMaterial({
-  map: colorMap,
-  normalMap: normalMap,
-  normalScale: new THREE.Vector2(1, 1),
-  emissiveMap: emissiveMap,
-  emissive: 0xffffff, // non-black, so the emissive map contributes
-  roughness: 1, // scalar multipliers for the matching maps
-  metalness: 0,
+	map: colorMap,
+	normalMap: normalMap,
+	normalScale: new THREE.Vector2(1, 1),
+	emissiveMap: emissiveMap,
+	emissive: 0xffffff, // non-black, so the emissive map contributes
+	roughness: 1, // scalar multipliers for the matching maps
+	metalness: 0
 });
 
 material.aoMap = new THREE.TextureLoader().load("ao.jpg");
@@ -391,13 +403,13 @@ material.aoMapIntensity = 1;
 
 ```javascript
 function disposeMaterial(material) {
-  for (const key of Object.keys(material)) {
-    const value = material[key];
-    if (value && value.isTexture) {
-      value.dispose();
-    }
-  }
-  material.dispose();
+	for (const key of Object.keys(material)) {
+		const value = material[key];
+		if (value && value.isTexture) {
+			value.dispose();
+		}
+	}
+	material.dispose();
 }
 ```
 
@@ -423,22 +435,30 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111); // the WebGPU canvas starts transparent
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	60,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(0, 0, 2);
 
 const map = new THREE.TextureLoader().load("diffuse.jpg");
 map.colorSpace = THREE.SRGBColorSpace;
 map.anisotropy = renderer.getMaxAnisotropy(); // no capabilities object under WebGPU
 
-const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicNodeMaterial());
+const mesh = new THREE.Mesh(
+	new THREE.PlaneGeometry(2, 2),
+	new THREE.MeshBasicNodeMaterial()
+);
 mesh.material.colorNode = texture(map, uv().mul(0.5).add(0.25)); // custom UV transform in TSL: the center half, zoomed 2x
 scene.add(mesh);
 
 renderer.setAnimationLoop(animate);
 
 function animate() {
-  mesh.rotation.z += 0.01;
-  renderer.render(scene, camera);
+	mesh.rotation.z += 0.01;
+	renderer.render(scene, camera);
 }
 ```
 

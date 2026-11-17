@@ -1,6 +1,6 @@
 {
-  "id": "r5-tl-1972",
-  "name": "R5 TL 1972",
-  "subject": "blueprints/vehicules/r5-tl-1972",
-  "model": "./model.js"
+	"id": "r5-tl-1972",
+	"name": "R5 TL 1972",
+	"subject": "blueprints/vehicules/r5-tl-1972",
+	"model": "./model.js"
 }

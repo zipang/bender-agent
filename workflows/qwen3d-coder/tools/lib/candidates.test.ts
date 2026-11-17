@@ -4,7 +4,14 @@
 // file is never overwritten. No code path deletes or renames a candidate.
 
 import { describe, expect, test, afterEach } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	rmSync,
+	writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -12,7 +19,7 @@ import {
 	COUNTER_FILE,
 	candidateFileName,
 	nextNumber,
-	writeCandidate,
+	writeCandidate
 } from "./candidates";
 
 const roots: string[] = [];
@@ -24,7 +31,8 @@ function tempDir(): string {
 }
 
 afterEach(() => {
-	for (const dir of roots.splice(0)) rmSync(dir, { recursive: true, force: true });
+	for (const dir of roots.splice(0))
+		rmSync(dir, { recursive: true, force: true });
 });
 
 describe("candidateFileName", () => {
@@ -81,7 +89,9 @@ describe("writeCandidate", () => {
 		const dir = join(tempDir(), "generated");
 		const path = writeCandidate(dir, "x");
 		expect(existsSync(path)).toBe(true);
-		expect(readdirSync(dir).sort()).toEqual([COUNTER_FILE, candidateFileName(1)].sort());
+		expect(readdirSync(dir).sort()).toEqual(
+			[COUNTER_FILE, candidateFileName(1)].sort()
+		);
 	});
 
 	test("never overwrites an existing file", () => {
@@ -92,7 +102,7 @@ describe("writeCandidate", () => {
 		expect(path.endsWith(candidateFileName(2))).toBe(true);
 		expect(readFileSync(existing, "utf8")).toBe("the first run");
 		expect(readdirSync(dir).sort()).toEqual(
-			[COUNTER_FILE, candidateFileName(1), candidateFileName(2)].sort(),
+			[COUNTER_FILE, candidateFileName(1), candidateFileName(2)].sort()
 		);
 	});
 
@@ -109,8 +119,17 @@ describe("writeCandidate", () => {
 	});
 
 	test("the module holds no delete and no rename path", () => {
-		const source = readFileSync(join(import.meta.dir, "candidates.ts"), "utf8");
-		for (const call of ["unlink", "rmSync", "rmdir", "rename", "truncate"]) {
+		const source = readFileSync(
+			join(import.meta.dir, "candidates.ts"),
+			"utf8"
+		);
+		for (const call of [
+			"unlink",
+			"rmSync",
+			"rmdir",
+			"rename",
+			"truncate"
+		]) {
 			expect(source).not.toContain(call);
 		}
 	});

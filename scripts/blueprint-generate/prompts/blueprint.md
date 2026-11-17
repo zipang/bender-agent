@@ -1,14 +1,25 @@
 # Blueprint Prompt Template
+
 #
+
 # Edit this file to tune every generation. No code change is required.
+
 # Sections start with a name in square brackets. Do not remove [shared] or a view section.
+
 #
+
 # Placeholders:
-#   {subjectType}  vehicule | character | object
-#   {style}        rendering style, from --style
-#   {view}         front | left | back | right | top | bottom
-#   {subjectName}  subject folder name, for reference only
+
+# {subjectType} vehicule | character | object
+
+# {style} rendering style, from --style
+
+# {view} front | left | back | right | top | bottom
+
+# {subjectName} subject folder name, for reference only
+
 #
+
 # [shared] is used for every view. Each view section is appended after it.
 
 [shared]

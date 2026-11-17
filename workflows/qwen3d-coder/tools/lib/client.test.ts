@@ -11,7 +11,7 @@ import {
 	endpoint,
 	RequestError,
 	streamChat,
-	TimeoutError,
+	TimeoutError
 } from "./client";
 
 const SYSTEM = "system prompt, byte for byte";
@@ -26,17 +26,21 @@ const SSE_OK = [
 	"",
 	'data: {"choices":[{"delta":{"content":"IGNORED"}}]}',
 	"",
-	"",
+	""
 ].join("\n");
 
 describe("buildRequestBody", () => {
 	test("holds every documented field and no absent key", () => {
-		const body = buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER });
+		const body = buildRequestBody({
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER
+		});
 		expect(body).toEqual({
 			model: "qwen3.5-4b-3d-coder",
 			messages: [
 				{ role: "system", content: SYSTEM },
-				{ role: "user", content: USER },
+				{ role: "user", content: USER }
 			],
 			temperature: 0.6,
 			top_p: 0.95,
@@ -44,7 +48,7 @@ describe("buildRequestBody", () => {
 			repeat_penalty: 1.0,
 			max_tokens: DEFAULT_MAX_TOKENS,
 			stream: true,
-			chat_template_kwargs: { enable_thinking: false },
+			chat_template_kwargs: { enable_thinking: false }
 		});
 		expect(DEFAULT_MAX_TOKENS).toBe(16384);
 		for (const key of [
@@ -55,30 +59,38 @@ describe("buildRequestBody", () => {
 			"dynatemp_range",
 			"presence_penalty",
 			"frequency_penalty",
-			"seed",
+			"seed"
 		]) {
 			expect(body).not.toHaveProperty(key);
 		}
 	});
 
 	test("max_tokens changes alone", () => {
-		const base = buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER });
+		const base = buildRequestBody({
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER
+		});
 		const capped = buildRequestBody({
 			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
-			maxTokens: 512,
+			maxTokens: 512
 		});
 		expect(capped).toEqual({ ...base, max_tokens: 512 });
 	});
 
 	test("--seed 42 adds seed and changes nothing else", () => {
-		const base = buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER });
+		const base = buildRequestBody({
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER
+		});
 		const seeded = buildRequestBody({
 			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
-			seed: 42,
+			seed: 42
 		});
 		expect(seeded).toEqual({ ...base, seed: 42 });
 		expect(Object.keys(seeded)).toEqual([...Object.keys(base), "seed"]);
@@ -89,21 +101,27 @@ describe("buildRequestBody", () => {
 			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
 			user: USER,
-			image: { mime: "image/png", data: "QUJD" },
+			image: { mime: "image/png", data: "QUJD" }
 		});
-		const messages = body.messages as Array<{ role: string; content: unknown }>;
+		const messages = body.messages as Array<{
+			role: string;
+			content: unknown;
+		}>;
 		expect(messages[1]!.content).toEqual([
 			{ type: "text", text: USER },
-			{ type: "image_url", image_url: { url: "data:image/png;base64,QUJD" } },
+			{
+				type: "image_url",
+				image_url: { url: "data:image/png;base64,QUJD" }
+			}
 		]);
 	});
 
 	test("the endpoint is the chat route of the given base URL", () => {
 		expect(endpoint("http://127.0.0.1:9931/v1")).toBe(
-			"http://127.0.0.1:9931/v1/chat/completions",
+			"http://127.0.0.1:9931/v1/chat/completions"
 		);
 		expect(endpoint("https://gateway.example/api/v1")).toBe(
-			"https://gateway.example/api/v1/chat/completions",
+			"https://gateway.example/api/v1/chat/completions"
 		);
 	});
 });
@@ -116,8 +134,10 @@ describe("the body on the wire", () => {
 			hostname: "127.0.0.1",
 			fetch: async (request) => {
 				captured = (await request.json()) as Record<string, unknown>;
-				return new Response(SSE_OK, { headers: { "content-type": "text/event-stream" } });
-			},
+				return new Response(SSE_OK, {
+					headers: { "content-type": "text/event-stream" }
+				});
+			}
 		});
 		try {
 			const result = await streamChat({
@@ -125,12 +145,16 @@ describe("the body on the wire", () => {
 				model: "qwen3.5-4b-3d-coder",
 				system: SYSTEM,
 				user: USER,
-				timeoutMs: 5000,
+				timeoutMs: 5000
 			});
 			expect(result.content).toBe("<!DOCTYPE html><html></html>");
 			expect(captured).not.toBeNull();
 			expect(captured).toEqual(
-				buildRequestBody({ model: "qwen3.5-4b-3d-coder", system: SYSTEM, user: USER }),
+				buildRequestBody({
+					model: "qwen3.5-4b-3d-coder",
+					system: SYSTEM,
+					user: USER
+				})
 			);
 		} finally {
 			server.stop(true);
@@ -147,7 +171,9 @@ describe("streamChat", () => {
 			user: USER,
 			timeoutMs: 1000,
 			fetchImpl: async () =>
-				new Response(SSE_OK, { headers: { "content-type": "text/event-stream" } }),
+				new Response(SSE_OK, {
+					headers: { "content-type": "text/event-stream" }
+				})
 		});
 		expect(result.content).toBe("<!DOCTYPE html><html></html>");
 	});
@@ -159,7 +185,7 @@ describe("streamChat", () => {
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
-			fetchImpl: async () => new Response(SSE_OK),
+			fetchImpl: async () => new Response(SSE_OK)
 		});
 		expect(result.content).not.toContain("IGNORED");
 	});
@@ -174,7 +200,7 @@ describe("streamChat", () => {
 			"",
 			"data: [DONE]",
 			"",
-			"",
+			""
 		].join("\n");
 		const result = await streamChat({
 			baseUrl: "http://127.0.0.1:9931/v1",
@@ -182,7 +208,7 @@ describe("streamChat", () => {
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
-			fetchImpl: async () => new Response(fixture),
+			fetchImpl: async () => new Response(fixture)
 		});
 		expect(result.content).toBe("ab");
 	});
@@ -191,10 +217,14 @@ describe("streamChat", () => {
 		const encoder = new TextEncoder();
 		const stream = new ReadableStream<Uint8Array>({
 			start(controller) {
-				controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"con'));
-				controller.enqueue(encoder.encode('tent":"ab"}}]}\n\ndata: [DONE]\n\n'));
+				controller.enqueue(
+					encoder.encode('data: {"choices":[{"delta":{"con')
+				);
+				controller.enqueue(
+					encoder.encode('tent":"ab"}}]}\n\ndata: [DONE]\n\n')
+				);
 				controller.close();
-			},
+			}
 		});
 		const result = await streamChat({
 			baseUrl: "http://127.0.0.1:9931/v1",
@@ -202,7 +232,7 @@ describe("streamChat", () => {
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
-			fetchImpl: async () => new Response(stream),
+			fetchImpl: async () => new Response(stream)
 		});
 		expect(result.content).toBe("ab");
 	});
@@ -215,7 +245,9 @@ describe("streamChat", () => {
 			user: USER,
 			timeoutMs: 1000,
 			fetchImpl: async () =>
-				new Response('data: {"choices":[{"delta":{"content":"<html></html>"}}]}'),
+				new Response(
+					'data: {"choices":[{"delta":{"content":"<html></html>"}}]}'
+				)
 		});
 		expect(result.content).toBe("<html></html>");
 	});
@@ -228,7 +260,7 @@ describe("streamChat", () => {
 			"",
 			"data: [DONE]",
 			"",
-			"",
+			""
 		].join("\n");
 		const result = await streamChat({
 			baseUrl: "http://127.0.0.1:9931/v1",
@@ -236,7 +268,7 @@ describe("streamChat", () => {
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
-			fetchImpl: async () => new Response(fixture),
+			fetchImpl: async () => new Response(fixture)
 		});
 		expect(result.tokens).toBe(7);
 		expect(result.tokensPerSecond).toBe(14.5);
@@ -249,7 +281,7 @@ describe("streamChat", () => {
 			system: SYSTEM,
 			user: USER,
 			timeoutMs: 1000,
-			fetchImpl: async () => new Response(SSE_OK),
+			fetchImpl: async () => new Response(SSE_OK)
 		});
 		expect(result.tokens).toBe(2);
 		expect(result.tokensPerSecond).toBeGreaterThan(0);
@@ -260,10 +292,12 @@ describe("streamChat", () => {
 		const stream = new ReadableStream<Uint8Array>({
 			start(controller) {
 				controller.enqueue(
-					encoder.encode('data: {"choices":[{"delta":{"content":"a"}}]}\n\n'),
+					encoder.encode(
+						'data: {"choices":[{"delta":{"content":"a"}}]}\n\n'
+					)
 				);
 				// Never closed: the read must be bounded by the timeout, not by the server.
-			},
+			}
 		});
 		const started = performance.now();
 		let error: unknown;
@@ -274,7 +308,7 @@ describe("streamChat", () => {
 				system: SYSTEM,
 				user: USER,
 				timeoutMs: 25,
-				fetchImpl: async () => new Response(stream),
+				fetchImpl: async () => new Response(stream)
 			});
 		} catch (caught) {
 			error = caught;
@@ -293,7 +327,8 @@ describe("streamChat", () => {
 				system: SYSTEM,
 				user: USER,
 				timeoutMs: 1000,
-				fetchImpl: async () => new Response("model not found", { status: 404 }),
+				fetchImpl: async () =>
+					new Response("model not found", { status: 404 })
 			});
 		} catch (caught) {
 			error = caught;
@@ -314,7 +349,7 @@ describe("streamChat", () => {
 				timeoutMs: 1000,
 				fetchImpl: async () => {
 					throw new TypeError("fetch failed");
-				},
+				}
 			});
 		} catch (caught) {
 			error = caught;

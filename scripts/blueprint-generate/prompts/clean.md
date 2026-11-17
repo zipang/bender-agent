@@ -1,24 +1,45 @@
 # Reference Repair Template
+
 #
+
 # Used by: blueprint-generate.ts --clean
+
 # Validated on blueprints/vehicules/blue-and-white-minivan-01 (single panel) and
+
 # blueprints/vehicules/r5-tl-1972 (two panels, with content edits).
+
 #
+
 # Placeholders:
-#   {subject}      vehicle | character | object | subject, from the subject type
-#   {subjectName}  subject folder name
-#   {defects}      artifacts to remove, from --defects
-#   {editsBlock}   content changes the art director authorized, from --edits, or the no-edit text
-#   {panelNote}    how many panels the image holds, and how to keep them
+
+# {subject} vehicle | character | object | subject, from the subject type
+
+# {subjectName} subject folder name
+
+# {defects} artifacts to remove, from --defects
+
+# {editsBlock} content changes the art director authorized, from --edits, or the no-edit text
+
+# {panelNote} how many panels the image holds, and how to keep them
+
 #
+
 # Two kinds of change, and they must not be confused:
-#   defects  an artifact that is not the subject: outline, shadow, halo, speckles. Never content.
-#   edits    a deliberate change to the subject itself: a logo to erase, the characters of a plate
-#            to remove, a window to close. Only the art director authorizes it.
+
+# defects an artifact that is not the subject: outline, shadow, halo, speckles. Never content.
+
+# edits a deliberate change to the subject itself: a logo to erase, the characters of a plate
+
+# to remove, a window to close. Only the art director authorizes it.
+
 #
+
 # An edit names what to remove, and it never authorizes removing more than it names. Most edits
+
 # target the CONTENT of a carrier, not the carrier itself: the characters of a plate, and not the
+
 # plate; the interior seen through the glass, and not the glass. The template states that rule,
+
 # because a model that is told "erase the plate" erases the plate and leaves a hole.
 
 [shared]
@@ -32,7 +53,7 @@ they are. Two things may change, and only these two:
 
 1. Artifacts to remove: {defects}.
 2. Authorized content edits, if any:
-{editsBlock}
+   {editsBlock}
 
 Do not move, rescale, recrop, rotate, or re-pose the subject. Do not change the camera angle, the
 perspective, or the framing. Do not change a shape, a proportion, a colour, a material, or a wear

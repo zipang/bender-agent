@@ -226,23 +226,23 @@ Three text files hold the prompts. Edit them to tune a generation. No code chang
 
 Placeholders:
 
-| Placeholder | Value | Source |
-| :--- | :--- | :--- |
-| `{subjectType}` | `vehicule`, `character`, or `object` | `--subject-type`, else the category folder |
-| `{subject}` | `vehicle`, `character`, or `object` | the subject type |
-| `{subjectCount}` | Number of subject images | the `subject/` folder, draft stage |
-| `{styleCount}` | Number of style images | the `style/` folder, draft stage |
-| `{styleFirst}` | Index of the first style image | the subject count + 1 |
-| `{imageCount}` | Total attached images | subject count + style count |
-| `{pose}` | Camera pose | `--pose` |
-| `{subjectNote}` | Art director words about the subject | `--subject-note`, else `notes.md` |
-| `{specificSubjectDetails}` | What to keep and how to read an ambiguous reference. Wins over every image | `--specific-subject-details`, else `## Specific subject details` in `notes.md` |
-| `{styleNote}` | Art director words about the style | `--style-note`, else `notes.md` |
-| `{style}` | Rendering style | `--style` |
-| `{view}` | `front`, `left`, `back`, `right`, `top`, `bottom` | the view being generated |
-| `{referenceViewsBlock}` | The viewpoints held by the reference image, and which panel serves this view | `--reference-views` |
-| `{defects}` | Defects to remove | `--defects` |
-| `{subjectName}` | Subject or draft folder name | the folder |
+| Placeholder                | Value                                                                        | Source                                                                         |
+| :------------------------- | :--------------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| `{subjectType}`            | `vehicule`, `character`, or `object`                                         | `--subject-type`, else the category folder                                     |
+| `{subject}`                | `vehicle`, `character`, or `object`                                          | the subject type                                                               |
+| `{subjectCount}`           | Number of subject images                                                     | the `subject/` folder, draft stage                                             |
+| `{styleCount}`             | Number of style images                                                       | the `style/` folder, draft stage                                               |
+| `{styleFirst}`             | Index of the first style image                                               | the subject count + 1                                                          |
+| `{imageCount}`             | Total attached images                                                        | subject count + style count                                                    |
+| `{pose}`                   | Camera pose                                                                  | `--pose`                                                                       |
+| `{subjectNote}`            | Art director words about the subject                                         | `--subject-note`, else `notes.md`                                              |
+| `{specificSubjectDetails}` | What to keep and how to read an ambiguous reference. Wins over every image   | `--specific-subject-details`, else `## Specific subject details` in `notes.md` |
+| `{styleNote}`              | Art director words about the style                                           | `--style-note`, else `notes.md`                                                |
+| `{style}`                  | Rendering style                                                              | `--style`                                                                      |
+| `{view}`                   | `front`, `left`, `back`, `right`, `top`, `bottom`                            | the view being generated                                                       |
+| `{referenceViewsBlock}`    | The viewpoints held by the reference image, and which panel serves this view | `--reference-views`                                                            |
+| `{defects}`                | Defects to remove                                                            | `--defects`                                                                    |
+| `{subjectName}`            | Subject or draft folder name                                                 | the folder                                                                     |
 
 The draft prompt names the role of each image range by index. The subject range comes first,
 because a subject that is merged with a style object cannot be separated later.
@@ -260,12 +260,12 @@ The catalog declares two kinds of image producer, and they use different SDK cal
 Type `image` uses `generateImage`. The reference images go in `prompt.images`, in order:
 
 ```ts
-import { generateImage } from 'ai';
+import { generateImage } from "ai";
 
 const { image } = await generateImage({
-  model: 'meta/muse-image-1.0',
-  prompt: { text: promptText, images: subjectBytes.concat(styleBytes) },
-  size: '1024x1024',
+	model: "meta/muse-image-1.0",
+	prompt: { text: promptText, images: subjectBytes.concat(styleBytes) },
+	size: "1024x1024"
 });
 ```
 
@@ -273,19 +273,19 @@ Type `language` uses `generateText`. The image is a file content part, and the g
 comes back in `result.files`:
 
 ```ts
-import { generateText } from 'ai';
+import { generateText } from "ai";
 
 const result = await generateText({
-  model: 'google/gemini-nano-banana-2.1',
-  messages: [
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: promptText },
-        { type: 'file', data: referenceBytes, mediaType: 'image/webp' },
-      ],
-    },
-  ],
+	model: "google/gemini-nano-banana-2.1",
+	messages: [
+		{
+			role: "user",
+			content: [
+				{ type: "text", text: promptText },
+				{ type: "file", data: referenceBytes, mediaType: "image/webp" }
+			]
+		}
+	]
 });
 ```
 

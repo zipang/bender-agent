@@ -15,11 +15,11 @@ whole pass, and the gate cannot see a mistake that was already accepted.
 
 ## Scope
 
-| In scope | Out of scope |
-| :--- | :--- |
-| One solid subject with a locked blueprint | Scene assembly, lighting, animation |
+| In scope                                               | Out of scope                                     |
+| :----------------------------------------------------- | :----------------------------------------------- |
+| One solid subject with a locked blueprint              | Scene assembly, lighting, animation              |
 | The outer shape: volume, silhouette, and surface parts | Texturing from photographs, retopology for games |
-| Dimensions in millimetres, traced from the views | Anything the reference does not show |
+| Dimensions in millimetres, traced from the views       | Anything the reference does not show             |
 
 The precondition is a blueprint: a set of views whose scale is not yet known but whose shape is
 accepted by the art director. If the views do not exist, stop. Use `blueprint-preparation` first.
@@ -28,11 +28,11 @@ accepted by the art director. If the views do not exist, stop. Use `blueprint-pr
 
 Not every locked view carries the same authority. Decide this before stage 1, and write it down.
 
-| View | Default | Why |
-| :--- | :--- | :--- |
-| left, right, front, back | **required** | they carry the silhouette that the deliverable is judged on |
-| top | **required** when the width or the depth varies along the length | it is the only source of the plan profile |
-| bottom | **optional, best effort** | the subject usually stands on it, so it is not seen; and an image model has almost no underside in its training data, so it invents one |
+| View                     | Default                                                          | Why                                                                                                                                     |
+| :----------------------- | :--------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- |
+| left, right, front, back | **required**                                                     | they carry the silhouette that the deliverable is judged on                                                                             |
+| top                      | **required** when the width or the depth varies along the length | it is the only source of the plan profile                                                                                               |
+| bottom                   | **optional, best effort**                                        | the subject usually stands on it, so it is not seen; and an image model has almost no underside in its training data, so it invents one |
 
 An optional view does not enter a gate, and it does not cost a pass. Model the region it shows as
 best effort, and state that the result is a hypothesis. Model it properly only when the art
@@ -70,11 +70,11 @@ That is the fact this stage exists for. Assume nothing is at scale. Measure ever
 The subject has three overall dimensions: `length`, `width`, and `height`. They are **inputs**,
 never results.
 
-| Subject | Source of the dimensions |
-| :--- | :--- |
-| A real machine, vehicle, or product | the manufacturer's figures |
-| A human, an animal | a measured individual, or a stated average |
-| A fictional or stylized subject | the art director's decision, written down |
+| Subject                             | Source of the dimensions                   |
+| :---------------------------------- | :----------------------------------------- |
+| A real machine, vehicle, or product | the manufacturer's figures                 |
+| A human, an animal                  | a measured individual, or a stated average |
+| A fictional or stylized subject     | the art director's decision, written down  |
 
 Never derive an overall dimension from the views that the model will be checked against. That makes
 the check circular: any error is normalized away and every gate passes. Write the source of each
@@ -84,11 +84,11 @@ value, and treat `estimate` as unproven.
 
 Each view spans two of the three dimensions, and each axis of the image carries one of them:
 
-| View | Horizontal | Vertical |
-| :--- | :--- | :--- |
-| left, right | length | height |
-| front, back | width | height |
-| top, bottom | width | length |
+| View        | Horizontal | Vertical |
+| :---------- | :--------- | :------- |
+| left, right | length     | height   |
+| front, back | width      | height   |
+| top, bottom | width      | length   |
 
 So a view gives **two** scales:
 
@@ -109,11 +109,11 @@ anisotropy = ky / kx
 the drawing was stretched, and the stretch is a **correction to apply**, not a defect to reject: a
 per-axis scale restores a stretched circle to a circle.
 
-| Drift from 1.0 | Verdict | What it means |
-| :--- | :--- | :--- |
-| up to 5% | `pass` | uniform enough; one scale is acceptable |
-| 5% to 25% | `corrected` | stretched; **both scales are mandatory** |
-| over 25% | `reject` | the drawing has lost the subject's shape; do not trace it |
+| Drift from 1.0 | Verdict     | What it means                                             |
+| :------------- | :---------- | :-------------------------------------------------------- |
+| up to 5%       | `pass`      | uniform enough; one scale is acceptable                   |
+| 5% to 25%      | `corrected` | stretched; **both scales are mandatory**                  |
+| over 25%       | `reject`    | the drawing has lost the subject's shape; do not trace it |
 
 A rejected view is not a small error. At that drift, a curve that must be circular is an ellipse,
 and rescaling cannot recover the detail the generator destroyed. Regenerate it.
@@ -197,10 +197,10 @@ only used once the annotated copy has been looked at.
 http://127.0.0.1:5180/measure/?subject=blueprints/<category>/<subject>&view=<view>
 ```
 
-Click to place a point, drag nothing, name what it is, select two rows, and press *Measure the two
-selected points*. The page reads the scale of that view from `dimensions.json`, converts the
+Click to place a point, drag nothing, name what it is, select two rows, and press _Measure the two
+selected points_. The page reads the scale of that view from `dimensions.json`, converts the
 distance **per axis** — `dx` with `kx`, `dy` with `ky` — and draws the result on the image. Arrow
-keys nudge the selected point by 1 px, Shift by 10 px. *Save to the subject folder* writes
+keys nudge the selected point by 1 px, Shift by 10 px. _Save to the subject folder_ writes
 `measurements.json`.
 
 **`scripts/measure/report.py`** does the arithmetic and the check:
@@ -246,12 +246,12 @@ verdict, and the landmark cross-check.
 The body is the volume that holds the whole subject together. It is what remains when every
 separate part is removed.
 
-| Subject | The body is |
-| :--- | :--- |
-| Vehicle | the shell: bonnet, flanks, roof, tailgate, and the closed wheel arches |
-| Character | the naked body volume: head, torso, limbs |
-| Creature | the body between the head and the extremities |
-| Product or machine | the main casing, the chassis, the housing |
+| Subject            | The body is                                                            |
+| :----------------- | :--------------------------------------------------------------------- |
+| Vehicle            | the shell: bonnet, flanks, roof, tailgate, and the closed wheel arches |
+| Character          | the naked body volume: head, torso, limbs                              |
+| Creature           | the body between the head and the extremities                          |
+| Product or machine | the main casing, the chassis, the housing                              |
 
 Everything else is an accessory: glass, lamps, bumpers, grille, mirrors, trim, wheels, wheels
 arches if they are separate parts, hair, clothes, tools, props.
@@ -370,10 +370,10 @@ error then looks like a modelling error.
 
 Two depth modes, and they answer different questions:
 
-| `--depth` | What you see | Use it to |
-| :--- | :--- | :--- |
-| `behind` | the model occludes the reference | find where the silhouette leaves the reference |
-| `front` | the reference line lies over the model | catch a stray vertex before the silhouette hides it |
+| `--depth` | What you see                           | Use it to                                           |
+| :-------- | :------------------------------------- | :-------------------------------------------------- |
+| `behind`  | the model occludes the reference       | find where the silhouette leaves the reference      |
+| `front`   | the reference line lies over the model | catch a stray vertex before the silhouette hides it |
 
 The plate is **masked to its own axis**: it is an elevation, so from any other angle it is a picture
 of a car that is not there. A perspective view gets nothing. The mask tests the angle, not the name
@@ -411,7 +411,7 @@ broken model:
 - pick a known landmark on two views — the wheelbase at the rim centres — and confirm the two
   agree. On this subject the scene reads 2414.1 mm where `dimensions.json` records 2414.2.
 
-`ctl.ts shot` hides the calque unless you pass `--plate`. This is not a convenience. The plate *is*
+`ctl.ts shot` hides the calque unless you pass `--plate`. This is not a convenience. The plate _is_
 the reference, so a silhouette comparison that included it would compare the reference to itself and
 report a perfect score for any model, including an empty scene.
 
@@ -479,12 +479,12 @@ Pick the accessory on a view where it is fully visible. Write its record before 
 
 ```json
 {
-  "name": "windscreen_front",
-  "view": "front",
-  "landmarks": ["body top edge", "A-pillar on both sides", "bonnet break"],
-  "size_mm": { "width": 1180, "height": 520, "thickness": 18 },
-  "measured_from": ["front", "left"],
-  "gate": "pending"
+	"name": "windscreen_front",
+	"view": "front",
+	"landmarks": ["body top edge", "A-pillar on both sides", "bonnet break"],
+	"size_mm": { "width": 1180, "height": 520, "thickness": 18 },
+	"measured_from": ["front", "left"],
+	"gate": "pending"
 }
 ```
 
@@ -562,16 +562,16 @@ The modelling is finished when every accessory in the list has passed G3.
 Write these down while the model is built, not after. They are the last gate, and they cannot be
 retrofitted cheaply.
 
-| Item | Rule |
-| :--- | :--- |
-| Unit | `1 unit = 1 m` for a game asset, `1 unit = 1 mm` for fabrication |
-| Axis | +Y up, +Z forward, +X right. glTF and Three.js are +Y up; Blender and vcad are +Z up |
-| Origin | centre of the base, so the subject stands on `Y = 0` |
-| Pivots | on the axis of each part that can move |
-| Names | stable, one node per part: `Body`, `Windscreen`, `Wheel_FL`, `Door_L` |
-| Transforms | scale `1, 1, 1`, rest rotation `0, 0, 0`, applied |
-| Materials | `Principled BSDF` only; it maps to `MeshStandardMaterial` on export |
-| Budget | a triangle and draw-call ceiling, decided before the detail passes |
+| Item       | Rule                                                                                 |
+| :--------- | :----------------------------------------------------------------------------------- |
+| Unit       | `1 unit = 1 m` for a game asset, `1 unit = 1 mm` for fabrication                     |
+| Axis       | +Y up, +Z forward, +X right. glTF and Three.js are +Y up; Blender and vcad are +Z up |
+| Origin     | centre of the base, so the subject stands on `Y = 0`                                 |
+| Pivots     | on the axis of each part that can move                                               |
+| Names      | stable, one node per part: `Body`, `Windscreen`, `Wheel_FL`, `Door_L`                |
+| Transforms | scale `1, 1, 1`, rest rotation `0, 0, 0`, applied                                    |
+| Materials  | `Principled BSDF` only; it maps to `MeshStandardMaterial` on export                  |
+| Budget     | a triangle and draw-call ceiling, decided before the detail passes                   |
 
 ## What to report, at every gate
 
@@ -586,58 +586,58 @@ director judges.
 
 ## Failure modes
 
-| Symptom | Cause | Rule |
-| :--- | :--- | :--- |
-| Every gate passes, the model looks wrong | the real dimension came from the same views | take the dimensions from outside the view set |
-| Silhouette matches on one view, not on the others | one profile fitted, the others assumed | measure all views at the same stations |
-| The scale differs between views | a view was generated with stretched proportions | cross-check each view against a dimension it does not span |
-| A width-based view drifts by 5 to 12% | a protruding accessory — mirror, antenna, bumper corner — inflates the silhouette | measure the body only, or declare the accessory and subtract its span |
-| A "plan" view drifts by 15% or more | the view is a high three-quarter, not an elevation: it shows the roof and the flanks at once | regenerate it, or drop it and say what the width is no longer measured by |
-| The underside view shows parts the subject does not have | it is optional by nature, and often invented | best effort only; it does not enter a gate |
-| Accessories cannot be placed | the body was modelled after them, or with them | stage 2 is the body only |
-| A part sits at an angle on the body | orientation and translation applied in the wrong order | orient, then translate |
-| The body changes every time a part is added | parts are merged into the body | one named node per part |
-| A mirrored comparison passes | the two images show opposite flanks | check which side carries the roof mass in both |
-| A correct roof measures wrong | perspective camera against an orthographic view | use the orthographic camera for flat views |
-| A capture shows an angle nobody asked for | the page was live, and a hand had orbited it | `shot --view <name>` re-applies the view and verifies it |
-| A stage-2 body looks 265 mm too short everywhere | the comparison anchored its sill on the reference's tyre contact | lift the model by the sill, and exclude the wheel band |
-| The model appears smeared across the whole canvas | out-of-range samples clamped to the border instead of left empty | resample to empty, never to the edge |
-| The calque loads and draws nothing | `real.height` is `{ value, source }`, and reading it as a number gives NaN | read `.value`, and check the plane's world box |
-| The calque sits off by a few hundred pixels | the subject box is in the source image but the plane is built on the crop | use `offset`, which is the box inside the cropped file |
-| Every calque measurement is ~0.3 % short | the scale was built on the cropped file, margin included, instead of the subject box | scale on `subject_box`, never on `crop_box` |
-| The calque disappears when you zoom | the mask tested the view's NAME, and zooming renames it `custom` | mask by angle, not by name |
-| A measurement is a few millimetres off | the click is one screen pixel at a coarse zoom | raise the zoom until mm/px matches the image |
-| The calque is missing after a restart of the dev server | the running server predates the `/repo/` route | restart it; a 404 on `/repo/` is the tell |
-| A silhouette comparison scores a perfect match | the calque was in the capture | `shot` hides it; only `--plate` shows it |
-| A distance is off by a few percent on a stretched view | the diagonal was scaled by one factor | convert per axis: `dx` with `kx`, `dy` with `ky` |
-| A stretched view reports a small drift | the span was smoothed, and the smoothing ate the roof or the nose | read the span from the cropped box, not from a profile |
-| The crop is expected to fix the proportions | cropping is a translation and a trim | it cannot: the anisotropy is a ratio, and it survives the crop |
-| A landmark agrees because both views are wrong | the two measurements share the same mistake | check each against the annotated image, not only against each other |
-| The material is white in the viewer | material set on the viewport field, not on the shader | set the base colour on the BSDF node |
+| Symptom                                                  | Cause                                                                                        | Rule                                                                      |
+| :------------------------------------------------------- | :------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------ |
+| Every gate passes, the model looks wrong                 | the real dimension came from the same views                                                  | take the dimensions from outside the view set                             |
+| Silhouette matches on one view, not on the others        | one profile fitted, the others assumed                                                       | measure all views at the same stations                                    |
+| The scale differs between views                          | a view was generated with stretched proportions                                              | cross-check each view against a dimension it does not span                |
+| A width-based view drifts by 5 to 12%                    | a protruding accessory — mirror, antenna, bumper corner — inflates the silhouette            | measure the body only, or declare the accessory and subtract its span     |
+| A "plan" view drifts by 15% or more                      | the view is a high three-quarter, not an elevation: it shows the roof and the flanks at once | regenerate it, or drop it and say what the width is no longer measured by |
+| The underside view shows parts the subject does not have | it is optional by nature, and often invented                                                 | best effort only; it does not enter a gate                                |
+| Accessories cannot be placed                             | the body was modelled after them, or with them                                               | stage 2 is the body only                                                  |
+| A part sits at an angle on the body                      | orientation and translation applied in the wrong order                                       | orient, then translate                                                    |
+| The body changes every time a part is added              | parts are merged into the body                                                               | one named node per part                                                   |
+| A mirrored comparison passes                             | the two images show opposite flanks                                                          | check which side carries the roof mass in both                            |
+| A correct roof measures wrong                            | perspective camera against an orthographic view                                              | use the orthographic camera for flat views                                |
+| A capture shows an angle nobody asked for                | the page was live, and a hand had orbited it                                                 | `shot --view <name>` re-applies the view and verifies it                  |
+| A stage-2 body looks 265 mm too short everywhere         | the comparison anchored its sill on the reference's tyre contact                             | lift the model by the sill, and exclude the wheel band                    |
+| The model appears smeared across the whole canvas        | out-of-range samples clamped to the border instead of left empty                             | resample to empty, never to the edge                                      |
+| The calque loads and draws nothing                       | `real.height` is `{ value, source }`, and reading it as a number gives NaN                   | read `.value`, and check the plane's world box                            |
+| The calque sits off by a few hundred pixels              | the subject box is in the source image but the plane is built on the crop                    | use `offset`, which is the box inside the cropped file                    |
+| Every calque measurement is ~0.3 % short                 | the scale was built on the cropped file, margin included, instead of the subject box         | scale on `subject_box`, never on `crop_box`                               |
+| The calque disappears when you zoom                      | the mask tested the view's NAME, and zooming renames it `custom`                             | mask by angle, not by name                                                |
+| A measurement is a few millimetres off                   | the click is one screen pixel at a coarse zoom                                               | raise the zoom until mm/px matches the image                              |
+| The calque is missing after a restart of the dev server  | the running server predates the `/repo/` route                                               | restart it; a 404 on `/repo/` is the tell                                 |
+| A silhouette comparison scores a perfect match           | the calque was in the capture                                                                | `shot` hides it; only `--plate` shows it                                  |
+| A distance is off by a few percent on a stretched view   | the diagonal was scaled by one factor                                                        | convert per axis: `dx` with `kx`, `dy` with `ky`                          |
+| A stretched view reports a small drift                   | the span was smoothed, and the smoothing ate the roof or the nose                            | read the span from the cropped box, not from a profile                    |
+| The crop is expected to fix the proportions              | cropping is a translation and a trim                                                         | it cannot: the anisotropy is a ratio, and it survives the crop            |
+| A landmark agrees because both views are wrong           | the two measurements share the same mistake                                                  | check each against the annotated image, not only against each other       |
+| The material is white in the viewer                      | material set on the viewport field, not on the shader                                        | set the base colour on the BSDF node                                      |
 
 ## Files this skill reads and writes
 
-| File | Role |
-| :--- | :--- |
-| `blueprints/<category>/<subject>/<view>/reference.<ext>` | the locked views, read only |
-| `blueprints/<category>/<subject>/notes.md` | the camera note, the hidden parts, the subject notes |
-| `blueprints/<category>/<subject>/dimensions.json` | **written by stage 1**, read by every later stage |
-| `workflows/threejs/scenes/<subject>/model.js` | the asset: sections, body, accessories. `build()` (or `buildBody()`), `measure`, `target`, `deviation` |
-| `workflows/threejs/viewer/` | the shared viewer: one page, every scene. `main.js`, `camera.js`, `calque.js`, `picker.js`, `stage.js`, `frame.js`, `measure.js`, `api.js`, `contract.js`, `views.json` |
-| `scripts/blueprint/crop_reference.py` | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json` |
-| `blueprints/<category>/<subject>/cropped/` | the cropped views, and the derived manifest. Rebuildable at any time |
-| `scripts/blueprint/view_scale.py` | **stage 1 tool**: the two scales of a view, its drift, its verdict |
-| `scripts/blueprint/read_reference.py` | reads a silhouette into profile data |
-| `scripts/blueprint/measure_view.py` | the same landmarks for both images, in millimetres |
-| `workflows/threejs/tools/silhouette.ts` | the overlay: red is reference only, blue is model only |
-| `workflows/threejs/tools/check.ts` | capture, overlay, measure, and the orientation guard |
-| `workflows/threejs/tools/compare_silhouette.py` | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm |
-| `workflows/threejs/scenes/<subject>/scene.json` | the subject path and the model module, so the viewer can load both |
-| `blueprints/<category>/<subject>/cropped/manifest.json` | each crop's box, offset, size, and the file it came from |
-| `scripts/measure/index.html` | **stage 1 tool**: the point picker, served at `/measure/` |
-| `scripts/measure/report.py` | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict |
-| `blueprints/<category>/<subject>/measurements.json` | **written by the picker**, read by the report |
-| `blueprints/<category>/<subject>/measured/` | the annotated copies, one per view |
-| `workflows/threejs/tools/ctl.ts` | **render control**: camera, projection, wireframe, isolate, nodes, shot |
-| `workflows/threejs/tools/shot.ts` | captures every named view in one pass |
-| `workflows/threejs/tools/serve.ts` | the dev server: the shared viewer, the `/api/*` scene API, `/measure/` |
+| File                                                     | Role                                                                                                                                                                    |
+| :------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blueprints/<category>/<subject>/<view>/reference.<ext>` | the locked views, read only                                                                                                                                             |
+| `blueprints/<category>/<subject>/notes.md`               | the camera note, the hidden parts, the subject notes                                                                                                                    |
+| `blueprints/<category>/<subject>/dimensions.json`        | **written by stage 1**, read by every later stage                                                                                                                       |
+| `workflows/threejs/scenes/<subject>/model.js`            | the asset: sections, body, accessories. `build()` (or `buildBody()`), `measure`, `target`, `deviation`                                                                  |
+| `workflows/threejs/viewer/`                              | the shared viewer: one page, every scene. `main.js`, `camera.js`, `calque.js`, `picker.js`, `stage.js`, `frame.js`, `measure.js`, `api.js`, `contract.js`, `views.json` |
+| `scripts/blueprint/crop_reference.py`                    | **stage 1 tool**: crop each view to its subject, and write `cropped/manifest.json`                                                                                      |
+| `blueprints/<category>/<subject>/cropped/`               | the cropped views, and the derived manifest. Rebuildable at any time                                                                                                    |
+| `scripts/blueprint/view_scale.py`                        | **stage 1 tool**: the two scales of a view, its drift, its verdict                                                                                                      |
+| `scripts/blueprint/read_reference.py`                    | reads a silhouette into profile data                                                                                                                                    |
+| `scripts/blueprint/measure_view.py`                      | the same landmarks for both images, in millimetres                                                                                                                      |
+| `workflows/threejs/tools/silhouette.ts`                  | the overlay: red is reference only, blue is model only                                                                                                                  |
+| `workflows/threejs/tools/check.ts`                       | capture, overlay, measure, and the orientation guard                                                                                                                    |
+| `workflows/threejs/tools/compare_silhouette.py`          | **stage 2 tool**: binary silhouette overlay, IoU, per-station deltas in mm                                                                                              |
+| `workflows/threejs/scenes/<subject>/scene.json`          | the subject path and the model module, so the viewer can load both                                                                                                      |
+| `blueprints/<category>/<subject>/cropped/manifest.json`  | each crop's box, offset, size, and the file it came from                                                                                                                |
+| `scripts/measure/index.html`                             | **stage 1 tool**: the point picker, served at `/measure/`                                                                                                               |
+| `scripts/measure/report.py`                              | **stage 1 tool**: points to millimetres, landmark spread, G1 verdict                                                                                                    |
+| `blueprints/<category>/<subject>/measurements.json`      | **written by the picker**, read by the report                                                                                                                           |
+| `blueprints/<category>/<subject>/measured/`              | the annotated copies, one per view                                                                                                                                      |
+| `workflows/threejs/tools/ctl.ts`                         | **render control**: camera, projection, wireframe, isolate, nodes, shot                                                                                                 |
+| `workflows/threejs/tools/shot.ts`                        | captures every named view in one pass                                                                                                                                   |
+| `workflows/threejs/tools/serve.ts`                       | the dev server: the shared viewer, the `/api/*` scene API, `/measure/`                                                                                                  |

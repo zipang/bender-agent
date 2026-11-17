@@ -1,444 +1,435 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Voxel Christmas Tree</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: #101010;
-      color: #ffffff;
-      font-family: system-ui, sans-serif;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    #info {
-      position: fixed;
-      top: 18px;
-      left: 20px;
-      max-width: 320px;
-      padding: 12px 15px;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(8px);
-      pointer-events: none;
-      user-select: none;
-    }
-
-    #info h1 {
-      margin: 0 0 5px;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-    }
-
-    #info p {
-      margin: 0;
-      color: #d7d7d7;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    #help {
-      position: fixed;
-      right: 20px;
-      bottom: 18px;
-      padding: 8px 11px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 6px;
-      background: rgba(0, 0, 0, 0.45);
-      color: #e6e6e6;
-      font-size: 11px;
-      pointer-events: none;
-      user-select: none;
-    }
-  </style>
-</head>
-<body>
-  <div id="info">
-    <h1>Voxel Christmas Tree</h1>
-    <p>Seven-tier pine tree in a brick-red pot, constructed entirely from unit cubes.</p>
-  </div>
-  <div id="help">Drag to orbit · Scroll to zoom</div>
-
-  <script type="module">
-    import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js";
-
-    const scene = new THREE.Scene();
-
-    const camera = new THREE.PerspectiveCamera(
-      42,
-      innerWidth / innerHeight,
-      0.1,
-      100
-    );
-
-    // Camera is manually controlled; no animation or addons.
-    let azimuth = 0.72;
-    let polar = 1.18;
-    let radius = 10.5;
-    const target = new THREE.Vector3(0, 3.2, 0);
-
-    function updateCamera() {
-      camera.position.set(
-        target.x + radius * Math.sin(polar) * Math.sin(azimuth),
-        target.y + radius * Math.cos(polar),
-        target.z + radius * Math.sin(polar) * Math.cos(azimuth)
-      );
-      camera.lookAt(target);
-    }
-
-    updateCamera();
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false
-    });
-
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    document.body.appendChild(renderer.domElement);
-
-    const hemisphere = new THREE.HemisphereLight(
-      0xc8e6ff,
-      0x28170e,
-      1.65
-    );
-    scene.add(hemisphere);
-
-    const keyLight = new THREE.DirectionalLight(0xfff1cf, 3.2);
-    keyLight.position.set(5, 9, 6);
-    keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(2048, 2048);
-    keyLight.shadow.camera.left = -7;
-    keyLight.shadow.camera.right = 7;
-    keyLight.shadow.camera.top = 8;
-    keyLight.shadow.camera.bottom = -6;
-    keyLight.shadow.camera.near = 0.5;
-    keyLight.shadow.camera.far = 25;
-    keyLight.shadow.bias = -0.0005;
-    scene.add(keyLight);
-
-    const rimLight = new THREE.DirectionalLight(0x8fc9ff, 1.8);
-    rimLight.position.set(-6, 5, -5);
-    scene.add(rimLight);
-
-    const warmFill = new THREE.PointLight(0xff9b45, 18, 12, 2);
-    warmFill.position.set(2.5, 4.5, 3.5);
-    scene.add(warmFill);
-
-    const unit = 1;
-
-    function cube(x, y, z, material, size = unit) {
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size, size, size),
-        material
-      );
-      mesh.position.set(x, y, z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-      return mesh;
-    }
-
-    // Materials.
-    const potMaterial = new THREE.MeshStandardMaterial({
-      color: 0x9d2525,
-      roughness: 0.82,
-      metalness: 0.02
-    });
-
-    const potDarkMaterial = new THREE.MeshStandardMaterial({
-      color: 0x74181b,
-      roughness: 0.9
-    });
-
-    const potRimMaterial = new THREE.MeshStandardMaterial({
-      color: 0xb6322d,
-      roughness: 0.76
-    });
-
-    const trunkMaterial = new THREE.MeshStandardMaterial({
-      color: 0x5b2b18,
-      roughness: 0.95
-    });
-
-    const trunkTipMaterial = new THREE.MeshStandardMaterial({
-      color: 0x38170f,
-      roughness: 1
-    });
-
-    const pineMaterial = new THREE.MeshStandardMaterial({
-      color: 0x174b3b,
-      roughness: 0.94
-    });
-
-    const darkPineMaterial = new THREE.MeshStandardMaterial({
-      color: 0x0d2f27,
-      roughness: 0.98
-    });
-
-    const goldMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf3bd35,
-      roughness: 0.3,
-      metalness: 0.72
-    });
-
-    const whiteMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf5f2df,
-      roughness: 0.55
-    });
-
-    // Pot: 5 wide, 4 high, 5 deep.
-    // Coordinates x/z = -2..2, y = 1..4.
-    for (let y = 1; y <= 4; y++) {
-      for (let x = -2; x <= 2; x++) {
-        for (let z = -2; z <= 2; z++) {
-          const edge = Math.max(
-            Math.abs(x),
-            Math.abs(z)
-          );
-
-          // Leave the top layer mostly open, retaining a 3x3 base.
-          if (y === 4 && edge < 2) {
-            cube(x, y, z, potDarkMaterial);
-            continue;
-          }
-
-          const rim = y >= 4;
-          const side = edge === 2;
-
-          cube(
-            x,
-            y,
-            z,
-            rim ? potRimMaterial : potMaterial,
-            rim && side ? unit * 1.04 : unit
-          );
-        }
-      }
-    }
-
-    // Pot rim: 7 wide, 1 high, 7 deep.
-    // Coordinates x/z = -3..3, y = 5.
-    for (let x = -3; x <= 3; x++) {
-      for (let z = -3; z <= 3; z++) {
-        const edge = Math.max(
-          Math.abs(x),
-          Math.abs(z)
-        );
-
-        // The central 3x3 area is open to reveal the pot.
-        if (edge < 2) {
-          continue;
-        }
-
-        cube(
-          x,
-          5,
-          z,
-          edge === 3 ? potRimMaterial : potDarkMaterial,
-          1
-        );
-      }
-    }
-
-    // Trunk: 1 wide, 3 high, centered on the rim.
-    for (let y = 5; y < 8; y++) {
-      cube(0, y, 0, trunkMaterial);
-    }
-
-    // A slightly darker top tip.
-    cube(0, 8, 0, trunkTipMaterial);
-
-    // Crown tiers:
-    // 13, 11, 9, 7, 5, 3, 1 cubes wide
-    // 2 cubes high
-    // one empty cube between two tiers
-    // four corners of each tier missing
-    const tiers = [
-      { width: 13, y: 8 },
-      { width: 11, y: 10 },
-      { width: 9, y: 12 },
-      { width: 7, y: 14 },
-      { width: 5, y: 16 },
-      { width: 3, y: 18 },
-      { width: 1, y: 20 }
-    ];
-
-    let tierIndex = 0;
-
-    for (const tier of tiers) {
-      const half = Math.floor(tier.width / 2);
-
-      for (let x = -half; x <= half; x++) {
-        for (let z = -half; z <= half; z++) {
-          const corner =
-            (Math.abs(x) === half && Math.abs(z) === half) ||
-            (x === -half && z === half) ||
-            (x === half && z === half) ||
-            (x === -half && z === -half);
-
-          // Four corners missing per tier.
-          if (corner) {
-            continue;
-          }
-
-          // One empty cube between two tiers.
-          if (
-            tierIndex < tiers.length - 1 &&
-            Math.abs(x) === 1 &&
-            Math.abs(z) === 1
-          ) {
-            continue;
-          }
-
-          const isCornerNeighbor =
-            (
-              (x === -half && z === -half) ||
-              (x === -half && z === half) ||
-              (x === half && z === -half) ||
-              (x === half && z === half)
-            ) &&
-            !corner;
-
-          if (isCornerNeighbor) {
-            cube(x, tier.y, z, darkPineMaterial);
-            continue;
-          }
-
-          const ornamentPosition =
-            (x === -half && z === -half) ||
-            (x === half && z === -half) ||
-            (x === -half && z === half) ||
-            (x === half && z === half);
-
-          if (ornamentPosition && tierIndex < 6) {
-            cube(x, tier.y, z, goldMaterial);
-            cube(
-              x,
-              tier.y + 1,
-              z,
-              whiteMaterial,
-              0.72
-            );
-            continue;
-          }
-
-          const material =
-            tierIndex % 2 === 0 ? pineMaterial : darkPineMaterial;
-
-          cube(x, tier.y, z, material);
-        }
-      }
-
-      tierIndex++;
-    }
-
-    // One gold cube on the top.
-    cube(0, 21, 0, goldMaterial);
-
-    // Small white cube at the very top.
-    cube(0, 21.65, 0, whiteMaterial, 0.72);
-
-    // Custom camera controls implemented directly.
-    const pointer = new THREE.Vector2();
-    const pointers = new Map();
-    let dragging = false;
-    let previousX = 0;
-    let previousY = 0;
-    let previousDistance = 0;
-
-    renderer.domElement.addEventListener("pointerdown", (event) => {
-      renderer.domElement.setPointerCapture(event.pointerId);
-      dragging = true;
-      previousX = event.clientX;
-      previousY = event.clientY;
-      previousDistance = event.distance;
-    });
-
-    renderer.domElement.addEventListener("pointermove", (event) => {
-      if (!dragging) {
-        return;
-      }
-
-      const deltaX = event.clientX - previousX;
-      const deltaY = event.clientY - previousY;
-
-      azimuth -= deltaX * 0.006;
-      polar = THREE.MathUtils.clamp(
-        polar - deltaY * 0.005,
-        0.55,
-        1.48
-      );
-
-      previousX = event.clientX;
-      previousY = event.clientY;
-      updateCamera();
-    });
-
-    renderer.domElement.addEventListener("pointerup", (event) => {
-      dragging = false;
-      if (renderer.domElement.hasPointerCapture(event.pointerId)) {
-        renderer.domElement.releasePointerCapture(event.pointerId);
-      }
-    });
-
-    renderer.domElement.addEventListener("pointercancel", () => {
-      dragging = false;
-    });
-
-    renderer.domElement.addEventListener(
-      "wheel",
-      (event) => {
-        event.preventDefault();
-
-        const zoomFactor = 1 + event.deltaY * 0.001;
-        const newDistance = THREE.MathUtils.clamp(
-          radius * zoomFactor,
-          6.2,
-          16
-        );
-
-        radius = newDistance;
-        updateCamera();
-      },
-      { passive: false }
-    );
-
-    window.addEventListener("resize", () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
-      renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    });
-
-    function animate() {
-      requestAnimationFrame(animate);
-      renderer.render(scene, camera);
-    }
-
-    animate();
-  </script>
-</body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Voxel Christmas Tree</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				width: 100%;
+				height: 100%;
+				margin: 0;
+				overflow: hidden;
+				background: #101010;
+				color: #ffffff;
+				font-family: system-ui, sans-serif;
+			}
+
+			canvas {
+				display: block;
+				width: 100%;
+				height: 100%;
+			}
+
+			#info {
+				position: fixed;
+				top: 18px;
+				left: 20px;
+				max-width: 320px;
+				padding: 12px 15px;
+				border: 1px solid rgba(255, 255, 255, 0.14);
+				border-radius: 8px;
+				background: rgba(0, 0, 0, 0.55);
+				backdrop-filter: blur(8px);
+				pointer-events: none;
+				user-select: none;
+			}
+
+			#info h1 {
+				margin: 0 0 5px;
+				font-size: 18px;
+				font-weight: 700;
+				letter-spacing: 0.04em;
+			}
+
+			#info p {
+				margin: 0;
+				color: #d7d7d7;
+				font-size: 12px;
+				line-height: 1.45;
+			}
+
+			#help {
+				position: fixed;
+				right: 20px;
+				bottom: 18px;
+				padding: 8px 11px;
+				border: 1px solid rgba(255, 255, 255, 0.12);
+				border-radius: 6px;
+				background: rgba(0, 0, 0, 0.45);
+				color: #e6e6e6;
+				font-size: 11px;
+				pointer-events: none;
+				user-select: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="info">
+			<h1>Voxel Christmas Tree</h1>
+			<p>
+				Seven-tier pine tree in a brick-red pot, constructed entirely
+				from unit cubes.
+			</p>
+		</div>
+		<div id="help">Drag to orbit · Scroll to zoom</div>
+
+		<script type="module">
+			import * as THREE from "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js";
+
+			const scene = new THREE.Scene();
+
+			const camera = new THREE.PerspectiveCamera(
+				42,
+				innerWidth / innerHeight,
+				0.1,
+				100
+			);
+
+			// Camera is manually controlled; no animation or addons.
+			let azimuth = 0.72;
+			let polar = 1.18;
+			let radius = 10.5;
+			const target = new THREE.Vector3(0, 3.2, 0);
+
+			function updateCamera() {
+				camera.position.set(
+					target.x + radius * Math.sin(polar) * Math.sin(azimuth),
+					target.y + radius * Math.cos(polar),
+					target.z + radius * Math.sin(polar) * Math.cos(azimuth)
+				);
+				camera.lookAt(target);
+			}
+
+			updateCamera();
+
+			const renderer = new THREE.WebGLRenderer({
+				antialias: true,
+				alpha: false
+			});
+
+			renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+			renderer.setSize(innerWidth, innerHeight);
+			renderer.shadowMap.enabled = true;
+			renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+			renderer.outputColorSpace = THREE.SRGBColorSpace;
+			renderer.toneMapping = THREE.ACESFilmicToneMapping;
+			renderer.toneMappingExposure = 1.15;
+			document.body.appendChild(renderer.domElement);
+
+			const hemisphere = new THREE.HemisphereLight(
+				0xc8e6ff,
+				0x28170e,
+				1.65
+			);
+			scene.add(hemisphere);
+
+			const keyLight = new THREE.DirectionalLight(0xfff1cf, 3.2);
+			keyLight.position.set(5, 9, 6);
+			keyLight.castShadow = true;
+			keyLight.shadow.mapSize.set(2048, 2048);
+			keyLight.shadow.camera.left = -7;
+			keyLight.shadow.camera.right = 7;
+			keyLight.shadow.camera.top = 8;
+			keyLight.shadow.camera.bottom = -6;
+			keyLight.shadow.camera.near = 0.5;
+			keyLight.shadow.camera.far = 25;
+			keyLight.shadow.bias = -0.0005;
+			scene.add(keyLight);
+
+			const rimLight = new THREE.DirectionalLight(0x8fc9ff, 1.8);
+			rimLight.position.set(-6, 5, -5);
+			scene.add(rimLight);
+
+			const warmFill = new THREE.PointLight(0xff9b45, 18, 12, 2);
+			warmFill.position.set(2.5, 4.5, 3.5);
+			scene.add(warmFill);
+
+			const unit = 1;
+
+			function cube(x, y, z, material, size = unit) {
+				const mesh = new THREE.Mesh(
+					new THREE.BoxGeometry(size, size, size),
+					material
+				);
+				mesh.position.set(x, y, z);
+				mesh.castShadow = true;
+				mesh.receiveShadow = true;
+				scene.add(mesh);
+				return mesh;
+			}
+
+			// Materials.
+			const potMaterial = new THREE.MeshStandardMaterial({
+				color: 0x9d2525,
+				roughness: 0.82,
+				metalness: 0.02
+			});
+
+			const potDarkMaterial = new THREE.MeshStandardMaterial({
+				color: 0x74181b,
+				roughness: 0.9
+			});
+
+			const potRimMaterial = new THREE.MeshStandardMaterial({
+				color: 0xb6322d,
+				roughness: 0.76
+			});
+
+			const trunkMaterial = new THREE.MeshStandardMaterial({
+				color: 0x5b2b18,
+				roughness: 0.95
+			});
+
+			const trunkTipMaterial = new THREE.MeshStandardMaterial({
+				color: 0x38170f,
+				roughness: 1
+			});
+
+			const pineMaterial = new THREE.MeshStandardMaterial({
+				color: 0x174b3b,
+				roughness: 0.94
+			});
+
+			const darkPineMaterial = new THREE.MeshStandardMaterial({
+				color: 0x0d2f27,
+				roughness: 0.98
+			});
+
+			const goldMaterial = new THREE.MeshStandardMaterial({
+				color: 0xf3bd35,
+				roughness: 0.3,
+				metalness: 0.72
+			});
+
+			const whiteMaterial = new THREE.MeshStandardMaterial({
+				color: 0xf5f2df,
+				roughness: 0.55
+			});
+
+			// Pot: 5 wide, 4 high, 5 deep.
+			// Coordinates x/z = -2..2, y = 1..4.
+			for (let y = 1; y <= 4; y++) {
+				for (let x = -2; x <= 2; x++) {
+					for (let z = -2; z <= 2; z++) {
+						const edge = Math.max(Math.abs(x), Math.abs(z));
+
+						// Leave the top layer mostly open, retaining a 3x3 base.
+						if (y === 4 && edge < 2) {
+							cube(x, y, z, potDarkMaterial);
+							continue;
+						}
+
+						const rim = y >= 4;
+						const side = edge === 2;
+
+						cube(
+							x,
+							y,
+							z,
+							rim ? potRimMaterial : potMaterial,
+							rim && side ? unit * 1.04 : unit
+						);
+					}
+				}
+			}
+
+			// Pot rim: 7 wide, 1 high, 7 deep.
+			// Coordinates x/z = -3..3, y = 5.
+			for (let x = -3; x <= 3; x++) {
+				for (let z = -3; z <= 3; z++) {
+					const edge = Math.max(Math.abs(x), Math.abs(z));
+
+					// The central 3x3 area is open to reveal the pot.
+					if (edge < 2) {
+						continue;
+					}
+
+					cube(
+						x,
+						5,
+						z,
+						edge === 3 ? potRimMaterial : potDarkMaterial,
+						1
+					);
+				}
+			}
+
+			// Trunk: 1 wide, 3 high, centered on the rim.
+			for (let y = 5; y < 8; y++) {
+				cube(0, y, 0, trunkMaterial);
+			}
+
+			// A slightly darker top tip.
+			cube(0, 8, 0, trunkTipMaterial);
+
+			// Crown tiers:
+			// 13, 11, 9, 7, 5, 3, 1 cubes wide
+			// 2 cubes high
+			// one empty cube between two tiers
+			// four corners of each tier missing
+			const tiers = [
+				{ width: 13, y: 8 },
+				{ width: 11, y: 10 },
+				{ width: 9, y: 12 },
+				{ width: 7, y: 14 },
+				{ width: 5, y: 16 },
+				{ width: 3, y: 18 },
+				{ width: 1, y: 20 }
+			];
+
+			let tierIndex = 0;
+
+			for (const tier of tiers) {
+				const half = Math.floor(tier.width / 2);
+
+				for (let x = -half; x <= half; x++) {
+					for (let z = -half; z <= half; z++) {
+						const corner =
+							(Math.abs(x) === half && Math.abs(z) === half) ||
+							(x === -half && z === half) ||
+							(x === half && z === half) ||
+							(x === -half && z === -half);
+
+						// Four corners missing per tier.
+						if (corner) {
+							continue;
+						}
+
+						// One empty cube between two tiers.
+						if (
+							tierIndex < tiers.length - 1 &&
+							Math.abs(x) === 1 &&
+							Math.abs(z) === 1
+						) {
+							continue;
+						}
+
+						const isCornerNeighbor =
+							((x === -half && z === -half) ||
+								(x === -half && z === half) ||
+								(x === half && z === -half) ||
+								(x === half && z === half)) &&
+							!corner;
+
+						if (isCornerNeighbor) {
+							cube(x, tier.y, z, darkPineMaterial);
+							continue;
+						}
+
+						const ornamentPosition =
+							(x === -half && z === -half) ||
+							(x === half && z === -half) ||
+							(x === -half && z === half) ||
+							(x === half && z === half);
+
+						if (ornamentPosition && tierIndex < 6) {
+							cube(x, tier.y, z, goldMaterial);
+							cube(x, tier.y + 1, z, whiteMaterial, 0.72);
+							continue;
+						}
+
+						const material =
+							tierIndex % 2 === 0
+								? pineMaterial
+								: darkPineMaterial;
+
+						cube(x, tier.y, z, material);
+					}
+				}
+
+				tierIndex++;
+			}
+
+			// One gold cube on the top.
+			cube(0, 21, 0, goldMaterial);
+
+			// Small white cube at the very top.
+			cube(0, 21.65, 0, whiteMaterial, 0.72);
+
+			// Custom camera controls implemented directly.
+			const pointer = new THREE.Vector2();
+			const pointers = new Map();
+			let dragging = false;
+			let previousX = 0;
+			let previousY = 0;
+			let previousDistance = 0;
+
+			renderer.domElement.addEventListener("pointerdown", (event) => {
+				renderer.domElement.setPointerCapture(event.pointerId);
+				dragging = true;
+				previousX = event.clientX;
+				previousY = event.clientY;
+				previousDistance = event.distance;
+			});
+
+			renderer.domElement.addEventListener("pointermove", (event) => {
+				if (!dragging) {
+					return;
+				}
+
+				const deltaX = event.clientX - previousX;
+				const deltaY = event.clientY - previousY;
+
+				azimuth -= deltaX * 0.006;
+				polar = THREE.MathUtils.clamp(
+					polar - deltaY * 0.005,
+					0.55,
+					1.48
+				);
+
+				previousX = event.clientX;
+				previousY = event.clientY;
+				updateCamera();
+			});
+
+			renderer.domElement.addEventListener("pointerup", (event) => {
+				dragging = false;
+				if (renderer.domElement.hasPointerCapture(event.pointerId)) {
+					renderer.domElement.releasePointerCapture(event.pointerId);
+				}
+			});
+
+			renderer.domElement.addEventListener("pointercancel", () => {
+				dragging = false;
+			});
+
+			renderer.domElement.addEventListener(
+				"wheel",
+				(event) => {
+					event.preventDefault();
+
+					const zoomFactor = 1 + event.deltaY * 0.001;
+					const newDistance = THREE.MathUtils.clamp(
+						radius * zoomFactor,
+						6.2,
+						16
+					);
+
+					radius = newDistance;
+					updateCamera();
+				},
+				{ passive: false }
+			);
+
+			window.addEventListener("resize", () => {
+				camera.aspect = innerWidth / innerHeight;
+				camera.updateProjectionMatrix();
+				renderer.setSize(innerWidth, innerHeight);
+				renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+			});
+
+			function animate() {
+				requestAnimationFrame(animate);
+				renderer.render(scene, camera);
+			}
+
+			animate();
+		</script>
+	</body>
 </html>

@@ -233,7 +233,10 @@ would layer two mechanisms on one behaviour.
 {
 	"model": "<--model>",
 	"messages": [
-		{ "role": "system", "content": "<prompts/3d-coder-system.txt, byte for byte>" },
+		{
+			"role": "system",
+			"content": "<prompts/3d-coder-system.txt, byte for byte>"
+		},
 		{ "role": "user", "content": "<lib/prompt.ts>" }
 	],
 	"temperature": 0.6,
@@ -727,7 +730,6 @@ A completion on `qwen3.5-4b-3d-coder` returned HTTP 200, cold load 5.1 s, and co
 
 Phase 1 is kept as the commit `f544140`, a checkpoint that is superseded, not a state to restore.
 
-
 ### Revision 2 — implementation
 
 Implemented by the coding sub-agent on 2026-11-16. Tasks T1.14, T1.15, T1.16, and T1.17 are complete.
@@ -829,13 +831,13 @@ run used the workflow's own modules (`buildUserPrompt`, `buildRequestBody`, `str
 `extractHtml`) from a throwaway script outside the repository: no image part was sent, and no
 candidate entered `blueprints/`.
 
-| Fact       | Value                                                                   |
-| :--------- | :---------------------------------------------------------------------- |
-| Prompt     | a Christmas tree in its pot, voxel style, cubes only                     |
-| Output     | 451 lines, 11 611 bytes, one `BoxGeometry`, no other primitive           |
-| Wall clock | 125.3 s, cold load included                                             |
-| Tokens     | 3 898 generated, 32.0 tok/s                                             |
-| Memory     | 871 MB resident for `llama-server`, weights in `mmap`                   |
+| Fact       | Value                                                          |
+| :--------- | :------------------------------------------------------------- |
+| Prompt     | a Christmas tree in its pot, voxel style, cubes only           |
+| Output     | 451 lines, 11 611 bytes, one `BoxGeometry`, no other primitive |
+| Wall clock | 125.3 s, cold load included                                    |
+| Tokens     | 3 898 generated, 32.0 tok/s                                    |
+| Memory     | 871 MB resident for `llama-server`, weights in `mmap`          |
 
 The art director kept it as a marker: `demos/voxel-christmas-tree.html`, with its prompt and its
 measurements in `demos/README.md`.

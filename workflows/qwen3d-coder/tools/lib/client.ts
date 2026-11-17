@@ -7,12 +7,15 @@
 /** The output guard of decision D5. `--max-tokens -1` removes the cap. */
 export const DEFAULT_MAX_TOKENS = 16384;
 
-/** The sampling values of the model card, at the deterministic end of every range. */
+/**
+ * The sampling values of the model card, at the deterministic end of every
+ * range.
+ */
 export const SAMPLING = {
 	temperature: 0.6,
 	top_p: 0.95,
 	top_k: 20,
-	repeat_penalty: 1.0,
+	repeat_penalty: 1.0
 } as const;
 
 export type ChatImage = {
@@ -78,21 +81,26 @@ export function endpoint(baseUrl: string, path = "/chat/completions"): string {
 /**
  * Build the request body of section 5.
  *
- * `min_p`, `typical_p`, the XTC pair, `dynatemp_range`, the two OpenAI penalties, and `seed` are
- * absent on purpose. The server default applies to each one, and the effective values are recorded
- * in the workflow `README.md`.
+ * `min_p`, `typical_p`, the XTC pair, `dynatemp_range`, the two OpenAI
+ * penalties, and `seed` are absent on purpose. The server default applies to
+ * each one, and the effective values are recorded in the workflow `README.md`.
  *
- * `chat_template_kwargs.enable_thinking` is `false` and is mandatory: without it the model answers in
- * `reasoning_content`, `content` can stay empty, and the extractor exits 4.
+ * `chat_template_kwargs.enable_thinking` is `false` and is mandatory: without
+ * it the model answers in `reasoning_content`, `content` can stay empty, and
+ * the extractor exits 4.
  */
-export function buildRequestBody(options: BuildRequestOptions): Record<string, unknown> {
+export function buildRequestBody(
+	options: BuildRequestOptions
+): Record<string, unknown> {
 	const content = options.image
 		? [
 				{ type: "text", text: options.user },
 				{
 					type: "image_url",
-					image_url: { url: `data:${options.image.mime};base64,${options.image.data}` },
-				},
+					image_url: {
+						url: `data:${options.image.mime};base64,${options.image.data}`
+					}
+				}
 			]
 		: options.user;
 
@@ -100,7 +108,7 @@ export function buildRequestBody(options: BuildRequestOptions): Record<string, u
 		model: options.model,
 		messages: [
 			{ role: "system", content: options.system },
-			{ role: "user", content },
+			{ role: "user", content }
 		],
 		temperature: SAMPLING.temperature,
 		top_p: SAMPLING.top_p,
@@ -108,10 +116,11 @@ export function buildRequestBody(options: BuildRequestOptions): Record<string, u
 		repeat_penalty: SAMPLING.repeat_penalty,
 		max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
 		stream: true,
-		chat_template_kwargs: { enable_thinking: false },
+		chat_template_kwargs: { enable_thinking: false }
 	};
 
-	if (options.seed !== undefined && options.seed !== null) body.seed = options.seed;
+	if (options.seed !== undefined && options.seed !== null)
+		body.seed = options.seed;
 	return body;
 }
 
@@ -151,38 +160,46 @@ function parseFrame(frame: string): Frame {
 
 	const rawDelta = json.choices?.[0]?.delta?.content;
 	const delta = typeof rawDelta === "string" ? rawDelta : "";
-	const timings = json.timings && typeof json.timings === "object" ? json.timings : null;
+	const timings =
+		json.timings && typeof json.timings === "object" ? json.timings : null;
 	return { delta, done: false, timings };
 }
 
 function readWithin(
 	reader: ReadableStreamDefaultReader<Uint8Array>,
-	deadline: number,
+	deadline: number
 ): Promise<ReadableStreamReadResult<Uint8Array>> {
 	const remaining = deadline - Date.now();
 	if (remaining <= 0) return Promise.reject(new DeadlineReached());
-	return new Promise<ReadableStreamReadResult<Uint8Array>>((resolve, reject) => {
-		const timer = setTimeout(() => reject(new DeadlineReached()), remaining);
-		reader.read().then(
-			(result) => {
-				clearTimeout(timer);
-				resolve(result);
-			},
-			(error) => {
-				clearTimeout(timer);
-				reject(error);
-			},
-		);
-	});
+	return new Promise<ReadableStreamReadResult<Uint8Array>>(
+		(resolve, reject) => {
+			const timer = setTimeout(
+				() => reject(new DeadlineReached()),
+				remaining
+			);
+			reader.read().then(
+				(result) => {
+					clearTimeout(timer);
+					resolve(result);
+				},
+				(error) => {
+					clearTimeout(timer);
+					reject(error);
+				}
+			);
+		}
+	);
 }
 
 /**
  * Send one streamed request and return the whole content.
  *
- * The deltas concatenate in order. `data: [DONE]` ends the read. A broken frame is skipped. The
- * call aborts at `timeoutMs`, and the error carries exit code 3.
+ * The deltas concatenate in order. `data: [DONE]` ends the read. A broken frame
+ * is skipped. The call aborts at `timeoutMs`, and the error carries exit code 3.
  */
-export async function streamChat(options: StreamChatOptions): Promise<ChatResult> {
+export async function streamChat(
+	options: StreamChatOptions
+): Promise<ChatResult> {
 	const fetchImpl = options.fetchImpl ?? fetch;
 	const controller = new AbortController();
 	const timer = setTimeout(() => controller.abort(), options.timeoutMs);
@@ -198,14 +215,17 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 				method: "POST",
 				headers: { "content-type": "application/json" },
 				body: JSON.stringify(buildRequestBody(options)),
-				signal: controller.signal,
+				signal: controller.signal
 			});
 		} catch (error) {
-			if (controller.signal.aborted || (error as Error)?.name === "AbortError") {
+			if (
+				controller.signal.aborted ||
+				(error as Error)?.name === "AbortError"
+			) {
 				throw new TimeoutError(options.timeoutMs);
 			}
 			throw new RequestError(
-				`The request to ${endpoint(options.baseUrl)} failed: ${(error as Error).message}`,
+				`The request to ${endpoint(options.baseUrl)} failed: ${(error as Error).message}`
 			);
 		}
 
@@ -213,10 +233,11 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 			const body = await response.text().catch(() => "");
 			throw new RequestError(
 				`The server answered ${response.status}: ${body.slice(0, 200)}`,
-				response.status,
+				response.status
 			);
 		}
-		if (!response.body) throw new RequestError("The server answered without a body.");
+		if (!response.body)
+			throw new RequestError("The server answered without a body.");
 
 		reader = response.body.getReader();
 		const decoder = new TextDecoder();
@@ -240,7 +261,10 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 
 		while (!finished) {
 			const { value, done } = await readWithin(reader, deadline);
-			if (value) buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+			if (value)
+				buffer += decoder
+					.decode(value, { stream: true })
+					.replace(/\r\n/g, "\n");
 
 			for (;;) {
 				const separator = buffer.indexOf("\n\n");
@@ -263,14 +287,19 @@ export async function streamChat(options: StreamChatOptions): Promise<ChatResult
 		// The body never asks for `timings`. llama.cpp appends it to the last chunk; a plain
 		// OpenAI-compatible gateway does not, so the fallback is the non-empty delta frame count.
 		const count = timings?.predicted_n ?? frames;
-		const rate = timings?.predicted_per_second ?? (seconds > 0 ? count / seconds : 0);
+		const rate =
+			timings?.predicted_per_second ??
+			(seconds > 0 ? count / seconds : 0);
 		return { content, tokens: count, tokensPerSecond: rate, seconds };
 	} catch (error) {
 		if (error instanceof RequestError) throw error;
 		if (error instanceof DeadlineReached || controller.signal.aborted)
 			throw new TimeoutError(options.timeoutMs);
-		if ((error as Error)?.name === "AbortError") throw new TimeoutError(options.timeoutMs);
-		throw new RequestError(`The stream failed: ${(error as Error).message}`);
+		if ((error as Error)?.name === "AbortError")
+			throw new TimeoutError(options.timeoutMs);
+		throw new RequestError(
+			`The stream failed: ${(error as Error).message}`
+		);
 	} finally {
 		clearTimeout(timer);
 		controller.abort();

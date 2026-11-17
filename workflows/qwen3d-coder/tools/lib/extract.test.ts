@@ -11,7 +11,7 @@ const DOCUMENT = [
 	'<html lang="en">',
 	'<head><meta charset="utf-8"><title>Scene</title></head>',
 	'<body><script type="module">console.log("hi");</script></body>',
-	"</html>",
+	"</html>"
 ].join("\n");
 
 describe("extractHtml", () => {
@@ -26,7 +26,13 @@ describe("extractHtml", () => {
 	});
 
 	test("a fenced document is unwrapped", () => {
-		const raw = ["Here is the file:", "```html", DOCUMENT, "```", "Enjoy."].join("\n");
+		const raw = [
+			"Here is the file:",
+			"```html",
+			DOCUMENT,
+			"```",
+			"Enjoy."
+		].join("\n");
 		expect(extractHtml(raw)).toBe(DOCUMENT);
 	});
 

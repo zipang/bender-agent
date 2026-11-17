@@ -15,7 +15,7 @@ Add a spiral copper coil (Archimedean) to the PCB — the primitive for PCB-moto
 
 ### `add_coil_array`
 
-Lay a ring of `count` spiral coils evenly around `center` at `pitch_radius` — the placement primitive for a PCB-motor stator. Net per coil comes from 
+Lay a ring of `count` spiral coils evenly around `center` at `pitch_radius` — the placement primitive for a PCB-motor stator. Net per coil comes from
 
 **args:** document_id, document, count*, center*, pitch_radius*, start_angle_deg, turns*, inner_radius*, outer_radius*, trace_width*, layer, clearance, net_sequence, net, chirality, segments_per_turn, inner_via, via_to_layer
 
@@ -63,7 +63,7 @@ Add a copper pour (ground/power plane) on a net+layer — fills are not traces. 
 
 ### `analyze_antenna`
 
-Thin-wire method-of-moments antenna analysis over a frequency band: per-frequency Z_in and S11 sweep rows, minimum-S11 point, in-band resonance (Im Z 
+Thin-wire method-of-moments antenna analysis over a frequency band: per-frequency Z_in and S11 sweep rows, minimum-S11 point, in-band resonance (Im Z
 
 **args:** spec*, parameters, band*, options
 
@@ -93,7 +93,7 @@ Apply an ordered list of edit ops (create/update/delete/set_material) to a sessi
 
 ### `authorize_spend`
 
-Propose a spend authorization for a QUOTED order. Creates a DB-backed, revocable authorization (status pending_human) and records the proposal on the 
+Propose a spend authorization for a QUOTED order. Creates a DB-backed, revocable authorization (status pending_human) and records the proposal on the
 
 **args:** order_id*, max_amount_minor
 
@@ -111,7 +111,7 @@ Reset all environments in a batch to their initial state. Returns initial observ
 
 ### `batch_step`
 
-Step all environments in a batch simultaneously with per-env actions. Returns observations, rewards, and done flags for all environments. action_type 
+Step all environments in a batch simultaneously with per-env actions. Returns observations, rewards, and done flags for all environments. action_type
 
 **args:** batch_id*, action_type*, actions*
 
@@ -147,7 +147,7 @@ Create a project bill of materials — the deliverable that collects every manuf
 
 ### `bom_export`
 
-Render a BOM as markdown (the shareable deliverable: manufactured-parts table with vendors/prices/artifact sources, COTS table with specs and example 
+Render a BOM as markdown (the shareable deliverable: manufactured-parts table with vendors/prices/artifact sources, COTS table with specs and example
 
 **args:** bom_id*, format
 
@@ -159,7 +159,7 @@ Re-open a checkpoint (from checkpoint_document). Omit `into` to BRANCH into a fr
 
 ### `build_receipt`
 
-Build a re-runnable verification Receipt for the session PCB: a content hash, the DRC backend, a canonicalized DRC summary, and per-part provenance — 
+Build a re-runnable verification Receipt for the session PCB: a content hash, the DRC backend, a canonicalized DRC summary, and per-part provenance —
 
 **args:** document_id, enclosure_document_id, clearance
 
@@ -189,7 +189,7 @@ Frequency-domain (AC) analysis of an RLC resonator: sweeps complex impedance ove
 
 ### `call_loon`
 
-Instantiate a stored loon macro into a new document: positional numeric args in the macro's declared order (see list_loons). Returns the document and 
+Instantiate a stored loon macro into a new document: positional numeric args in the macro's declared order (see list_loons). Returns the document and
 
 **args:** name*, args*, material, macro, format
 
@@ -201,7 +201,7 @@ Measure the minimum distance between two groups of parts in a CAD session and as
 
 ### `check_enclosure_fit`
 
-Cross-check a board (board session) against the enclosure it ships in (a CAD session holding the case solid) — the verification axis no EDA tool has, 
+Cross-check a board (board session) against the enclosure it ships in (a CAD session holding the case solid) — the verification axis no EDA tool has,
 
 **args:** document_id*, enclosure_document_id*, enclosure_part_id, clearance, standoff_height, board_offset, board_rotation_deg, hole_tolerance, derive
 
@@ -273,7 +273,7 @@ Audit one net's routing without changing anything: total length, via/layer-chang
 
 ### `define_loon`
 
-Add a reusable parametric macro to the loon library. Provide loon source defining [let <name> [fn [params...] <Solid-expr>]] plus parameter docs with 
+Add a reusable parametric macro to the loon library. Provide loon source defining [let <name> [fn [params...] <Solid-expr>]] plus parameter docs with
 
 **args:** name*, description*, params*, source*
 
@@ -309,7 +309,7 @@ Remove a single via by `index` (0-based, the add order) or by an unambiguous `ne
 
 ### `delete_zone`
 
-Remove a copper pour from the board — the take-back for a bad add_zone, without rebuilding the session. Target by `index` (0-based, the add order) or 
+Remove a copper pour from the board — the take-back for a bad add_zone, without rebuilding the session. Target by `index` (0-based, the add order) or
 
 **args:** document_id*, document, index, net, layer
 
@@ -375,7 +375,7 @@ Export the session as a native, editable KiCad 9 file. filename ending in .kicad
 
 ### `export_video`
 
-Render the timeline to an animated GIF or MP4 through the kernel renderer, with the verification HUD (time, animated values, clearance status) burned 
+Render the timeline to an animated GIF or MP4 through the kernel renderer, with the verification HUD (time, animated values, clearance status) burned
 
 **args:** document_id*, timeline, keyframes, fps, format, view, azimuth, elevation, width_px, hud, verify
 
@@ -387,7 +387,7 @@ Take a routed board to fab-ready in one call, and return the DRC-delta receipt t
 
 ### `find_alternatives`
 
-Propose spec-compatible substitutes for the part a query resolves to. Each alternative keeps the value, varies the package, and is labelled identical 
+Propose spec-compatible substitutes for the part a query resolves to. Each alternative keeps the value, varies the package, and is labelled identical
 
 **args:** query*
 
@@ -465,7 +465,7 @@ Return the recorded joint trajectory and per-step instance transforms for a phys
 
 ### `get_sim_version`
 
-Return a cheap {env_id, step_count, version} change token for a physics env (no FK eval). Internal to the inline viewer's replay poll — agents should 
+Return a cheap {env_id, step_count, version} change token for a physics env (no FK eval). Internal to the inline viewer's replay poll — agents should
 
 **args:** env_id*
 
@@ -507,7 +507,7 @@ Import an Altium .PcbDoc board into a live session — board outline, footprints
 
 ### `import_altium_library`
 
-Read an Altium .PcbLib footprint library (binary or ASCII) and return its footprint patterns with pads, shapes, and drills. A library is not a board, 
+Read an Altium .PcbLib footprint library (binary or ASCII) and return its footprint patterns with pads, shapes, and drills. A library is not a board,
 
 **args:** filename, content_base64
 
@@ -543,7 +543,7 @@ Inspect an open session document to get aggregate geometry properties: volume, s
 
 ### `inspect_faces`
 
-List a part's B-rep faces: stable face id, surface type, area, bbox, centroid, plus the exact surface parameters — a cylinder's radius/diameter, axis 
+List a part's B-rep faces: stable face id, surface type, area, bbox, centroid, plus the exact surface parameters — a cylinder's radius/diameter, axis
 
 **args:** document_id*, part, surface_type, face_id, radius_mm, radius_tolerance_mm, min_area_mm2, summary_only, limit, offset
 
@@ -633,13 +633,13 @@ Run molecular dynamics (velocity-Verlet, optional Berendsen thermostat) for N st
 
 ### `measure`
 
-Measure geometry in an open session. Pass `part_ids` with two ids to get the minimum distance between those parts (0/negative = contact/overlap) plus 
+Measure geometry in an open session. Pass `part_ids` with two ids to get the minimum distance between those parts (0/negative = contact/overlap) plus
 
 **args:** document_id*, part_ids*, joint_state, sweep
 
 ### `measure_outer_diameter`
 
-Measure a part's true outer diameter: the largest cylinder coaxial with a given axis (omit `axis` to use the part's dominant axis — do not assume Z). 
+Measure a part's true outer diameter: the largest cylinder coaxial with a given axis (omit `axis` to use the part's dominant axis — do not assume Z).
 
 **args:** document_id*, part, axis
 
@@ -705,7 +705,7 @@ Create a chain of tubes through a sequence of world-space points. Each consecuti
 
 ### `predict_physics`
 
-Fast static structural analysis (voxel FEA): max displacement, max von Mises stress, and compliance for a part or box under world-frame loads (N) and 
+Fast static structural analysis (voxel FEA): max displacement, max von Mises stress, and compliance for a part or box under world-frame loads (N) and
 
 **args:** document_id, part, domain_box, loads*, supports*, fidelity, resolution, youngs_modulus_mpa, poisson, max_displacement_mm, max_von_mises_mpa
 
@@ -747,13 +747,13 @@ Render a molecule as an isometric ball-and-stick (or space-filling) SVG with CPK
 
 ### `render_pcb`
 
-Render a flat, top-down, per-layer 2D image of a PCB (copper, silk, drills, outline) — agent eyes for boards. Pick `layers` (e.g. ["F.Cu", "F.SilkS", 
+Render a flat, top-down, per-layer 2D image of a PCB (copper, silk, drills, outline) — agent eyes for boards. Pick `layers` (e.g. ["F.Cu", "F.SilkS",
 
 **args:** document_id*, layers, width_px, theme, highlight, net_labels, values, hero
 
 ### `render_ratsnest`
 
-Render the board with its unrouted-connection ratsnest (per-net MST airwires) overlaid as dashed lines — judge placement quality and crossing density 
+Render the board with its unrouted-connection ratsnest (per-net MST airwires) overlaid as dashed lines — judge placement quality and crossing density
 
 **args:** document_id*, layers, width_px
 
@@ -861,7 +861,7 @@ Set the board design rules run_drc enforces (clearance, track width, via, edge/h
 
 ### `set_material`
 
-Set a part's material preset. Keys — metals: aluminum, steel, brass, copper, titanium, chrome, gold, silver; plastics: abs-white, abs-black, abs-red, 
+Set a part's material preset. Keys — metals: aluminum, steel, brass, copper, titanium, chrome, gold, silver; plastics: abs-white, abs-black, abs-red,
 
 **args:** document_id*, material*, part_id*
 
@@ -885,7 +885,7 @@ Set the board stackup copper weight (e.g. copper_oz: 2) and/or per-layer thickne
 
 ### `set_tool_packs`
 
-Enable or disable optional tool packs at runtime (see list_tool_packs for names). Pass `enable` and/or `disable` as arrays of pack names, or `set` to 
+Enable or disable optional tool packs at runtime (see list_tool_packs for names). Pass `enable` and/or `disable` as arrays of pack names, or `set` to
 
 **args:** enable, disable, set
 
@@ -999,7 +999,7 @@ Hear a part before it's cut: simulate a mallet strike on a flat free-free bar (g
 
 ### `size_coil`
 
-Inverse of calc_coil: solve the turn count for a target inductance in a given annulus (Wheeler L ∝ turns², so it's closed-form). Reports continuous + 
+Inverse of calc_coil: solve the turn count for a target inductance in a given annulus (Wheeler L ∝ turns², so it's closed-form). Reports continuous +
 
 **args:** target_inductance_nh*, inner_radius*, outer_radius*, trace_width*, clearance, copper_thickness, resistivity, geometry, tolerance_pct
 
@@ -1023,7 +1023,7 @@ IPC-2221 conductor ampacity solved for trace width: given current, copper weight
 
 ### `solid_from_board`
 
-Materialize the session PCB as a solid CAD part — the inverse of board_from_solid. Extrudes the board outline to its thickness through the hole-aware 
+Materialize the session PCB as a solid CAD part — the inverse of board_from_solid. Extrudes the board outline to its thickness through the hole-aware
 
 **args:** document_id*, document_id_target, include_components, part_name
 
@@ -1053,13 +1053,13 @@ SIMP topology optimization: find the stiffest material layout under given loads 
 
 ### `tube`
 
-Create a cylindrical pipe/tube between two world-space points. One call, no trigonometry: pass start and end and radius, and the tube is created with 
+Create a cylindrical pipe/tube between two world-space points. One call, no trigonometry: pass start and end and radius, and the tube is created with
 
 **args:** document_id*, start*, end*, radius, arc_segments, name
 
 ### `tune_circuit`
 
-Adjoint-driven circuit tuning: gradient descent in log-parameter space (backtracking line search, scale-invariant stop) moves the freeDevices' values 
+Adjoint-driven circuit tuning: gradient descent in log-parameter space (backtracking line search, scale-invariant stop) moves the freeDevices' values
 
 **args:** devices*, target*, freeDevices*, maxIters
 
@@ -1089,7 +1089,7 @@ Edit a schematic session in place: replace the root sheet body, add / replace / 
 
 ### `validate_for_fab`
 
-The single 'is this board ready to fabricate?' oracle. Runs the whole readiness gate in one call and returns ONE structured verdict: DRC (fail-closed 
+The single 'is this board ready to fabricate?' oracle. Runs the whole readiness gate in one call and returns ONE structured verdict: DRC (fail-closed
 
 **args:** document_id, document
 

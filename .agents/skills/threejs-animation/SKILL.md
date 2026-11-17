@@ -19,24 +19,32 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	75,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(0, 0.5, 3);
 
-const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshNormalMaterial());
+const mesh = new THREE.Mesh(
+	new THREE.BoxGeometry(1, 1, 1),
+	new THREE.MeshNormalMaterial()
+);
 scene.add(mesh);
 
 const timer = new THREE.Timer();
 timer.connect(document); // also keeps deltas small after the tab was hidden
 
 function animate() {
-  timer.update(); // first thing each frame: fixes getDelta()/getElapsed() for this frame
-  const delta = timer.getDelta();
-  const elapsed = timer.getElapsed();
+	timer.update(); // first thing each frame: fixes getDelta()/getElapsed() for this frame
+	const delta = timer.getDelta();
+	const elapsed = timer.getElapsed();
 
-  mesh.rotation.y += delta; // frame-rate-independent spin
-  mesh.position.y = Math.sin(elapsed * 2) * 0.25; // bob on absolute time
+	mesh.rotation.y += delta; // frame-rate-independent spin
+	mesh.position.y = Math.sin(elapsed * 2) * 0.25; // bob on absolute time
 
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -70,14 +78,21 @@ Track names follow `nodeName.objectName[objectIndex].propertyName[propertyIndex]
 new THREE.NumberKeyframeTrack(".material.opacity", [0, 1], [1, 0]);
 
 // Vector track (value size 3: x, y, z per keyframe)
-new THREE.VectorKeyframeTrack(".position", [0, 1, 2], [0, 0, 0, 1, 2, 0, 0, 0, 0]);
+new THREE.VectorKeyframeTrack(
+	".position",
+	[0, 1, 2],
+	[0, 0, 0, 1, 2, 0, 0, 0, 0]
+);
 
 // Rotation track (value size 4): quaternion x, y, z, w per keyframe, not Euler angles
-const q2 = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+const q2 = new THREE.Quaternion().setFromAxisAngle(
+	new THREE.Vector3(0, 1, 0),
+	Math.PI
+);
 new THREE.QuaternionKeyframeTrack(
-  ".quaternion",
-  [0, 1],
-  [0, 0, 0, 1, q2.x, q2.y, q2.z, q2.w], // identity, then q2
+	".quaternion",
+	[0, 1],
+	[0, 0, 0, 1, q2.x, q2.y, q2.z, q2.w] // identity, then q2
 );
 
 // Color track (value size 3)
@@ -91,9 +106,9 @@ new THREE.BooleanKeyframeTrack(".visible", [0, 1], [true, false]);
 
 ```javascript
 const track = new THREE.VectorKeyframeTrack(
-  ".position",
-  [0, 1, 2],
-  [0, 0, 0, 1, 2, 0, 0, 0, 0],
+	".position",
+	[0, 1, 2],
+	[0, 0, 0, 1, 2, 0, 0, 0, 0]
 );
 
 track.setInterpolation(THREE.InterpolateLinear); // default
@@ -103,9 +118,9 @@ track.setInterpolation(THREE.InterpolateDiscrete); // step, no in-between values
 // Bezier takes absolute (time, value) control points, two numbers per keyframe per
 // component: a stride-1 two-keyframe track needs four entries per array
 const morphTrack = new THREE.NumberKeyframeTrack(
-  ".morphTargetInfluences[smile]",
-  [0, 1],
-  [0, 1],
+	".morphTargetInfluences[smile]",
+	[0, 1],
+	[0, 1]
 );
 morphTrack.setInterpolation(THREE.InterpolateBezier);
 morphTrack.settings = { inTangents: [0, 0, 1, 1], outTangents: [0, 1, 1, 0] };
@@ -114,7 +129,11 @@ morphTrack.settings = { inTangents: [0, 0, 1, 1], outTangents: [0, 1, 1, 0] };
 ## AnimationMixer
 
 ```javascript
-const track = new THREE.NumberKeyframeTrack(".rotation[y]", [0, 2], [0, Math.PI * 2]);
+const track = new THREE.NumberKeyframeTrack(
+	".rotation[y]",
+	[0, 2],
+	[0, Math.PI * 2]
+);
 const clip = new THREE.AnimationClip("spin", 2, [track]);
 
 // One mixer per animated root; it reaches the root and all descendants
@@ -126,16 +145,20 @@ const timer = new THREE.Timer();
 timer.connect(document);
 
 function animate() {
-  timer.update();
-  mixer.update(timer.getDelta()); // required: advances every active action
-  renderer.render(scene, camera);
+	timer.update();
+	mixer.update(timer.getDelta()); // required: advances every active action
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
 
 // Events fire on the mixer while it updates; "finished" needs LoopOnce or finite repetitions
-mixer.addEventListener("finished", (e) => console.log("finished:", e.action.getClip().name));
-mixer.addEventListener("loop", (e) => console.log("looped:", e.action.getClip().name));
+mixer.addEventListener("finished", (e) =>
+	console.log("finished:", e.action.getClip().name)
+);
+mixer.addEventListener("loop", (e) =>
+	console.log("looped:", e.action.getClip().name)
+);
 ```
 
 ## AnimationAction
@@ -143,7 +166,7 @@ mixer.addEventListener("loop", (e) => console.log("looped:", e.action.getClip().
 ```javascript
 const mixer = new THREE.AnimationMixer(mesh);
 const clip = new THREE.AnimationClip("spin", 2, [
-  new THREE.NumberKeyframeTrack(".rotation[y]", [0, 2], [0, Math.PI * 2]),
+	new THREE.NumberKeyframeTrack(".rotation[y]", [0, 2], [0, Math.PI * 2])
 ]);
 const action = mixer.clipAction(clip);
 
@@ -167,10 +190,10 @@ action.clampWhenFinished = true; // hold the final pose instead of resetting
 ```javascript
 const mixer = new THREE.AnimationMixer(mesh);
 const idleClip = new THREE.AnimationClip("idle", 2, [
-  new THREE.NumberKeyframeTrack(".position[y]", [0, 1, 2], [0, 0.05, 0]),
+	new THREE.NumberKeyframeTrack(".position[y]", [0, 1, 2], [0, 0.05, 0])
 ]);
 const walkClip = new THREE.AnimationClip("walk", 1, [
-  new THREE.NumberKeyframeTrack(".rotation[y]", [0, 1], [0, Math.PI]),
+	new THREE.NumberKeyframeTrack(".rotation[y]", [0, 1], [0, Math.PI])
 ]);
 
 const idle = mixer.clipAction(idleClip).play();
@@ -218,11 +241,11 @@ const timer = new THREE.Timer();
 timer.connect(document);
 
 function animate() {
-  timer.update();
-  const delta = timer.getDelta();
-  mixer.update(delta);
-  mixer2.update(delta);
-  renderer.render(scene, camera);
+	timer.update();
+	const delta = timer.getDelta();
+	mixer.update(delta);
+	mixer2.update(delta);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -255,12 +278,12 @@ const timer = new THREE.Timer();
 timer.connect(document);
 
 function animate() {
-  timer.update();
-  mixer.update(timer.getDelta()); // clips write their bone pose here
+	timer.update();
+	mixer.update(timer.getDelta()); // clips write their bone pose here
 
-  // Override afterwards: update() overwrites every property the playing clips animate
-  if (headBone) headBone.rotation.y = Math.sin(timer.getElapsed()) * 0.3;
-  renderer.render(scene, camera);
+	// Override afterwards: update() overwrites every property the playing clips animate
+	if (headBone) headBone.rotation.y = Math.sin(timer.getElapsed()) * 0.3;
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -273,13 +296,13 @@ const skinnedMesh = mesh.getObjectByProperty("type", "SkinnedMesh");
 const handBone = skinnedMesh.skeleton.bones.find((b) => b.name === "RightHand");
 
 const weapon = new THREE.Mesh(
-  new THREE.BoxGeometry(0.08, 0.08, 0.5),
-  new THREE.MeshNormalMaterial(),
+	new THREE.BoxGeometry(0.08, 0.08, 0.5),
+	new THREE.MeshNormalMaterial()
 );
 if (handBone) {
-  handBone.add(weapon); // weapon now follows the hand's bone transform
-  weapon.position.set(0, 0, 0.25); // offset within the bone's space
-  weapon.rotation.set(0, Math.PI / 2, 0);
+	handBone.add(weapon); // weapon now follows the hand's bone transform
+	weapon.position.set(0, 0, 0.25); // offset within the bone's space
+	weapon.rotation.set(0, Math.PI / 2, 0);
 }
 ```
 
@@ -304,7 +327,7 @@ const geometry = mesh.geometry;
 // A morph target is a full-size position (or normal) attribute beside the base one
 const raised = geometry.attributes.position.array.slice(); // same vertex count
 for (let i = 1; i < raised.length; i += 3) {
-  raised[i] += 0.5; // y is every third component: lift every vertex
+	raised[i] += 0.5; // y is every third component: lift every vertex
 }
 
 const target = new THREE.Float32BufferAttribute(raised, 3);
@@ -322,9 +345,9 @@ Driving morph targets:
 
 // Keyframed: a Number track drives one target by name — never a String track
 const track = new THREE.NumberKeyframeTrack(
-  ".morphTargetInfluences[raised]",
-  [0, 0.5, 1],
-  [0, 1, 0],
+	".morphTargetInfluences[raised]",
+	[0, 0.5, 1],
+	[0, 1, 0]
 );
 const clip = new THREE.AnimationClip("pulse", 1, [track]);
 const mixer = new THREE.AnimationMixer(mesh);
@@ -336,10 +359,10 @@ mixer.clipAction(clip).play();
 ```javascript
 const mixer = new THREE.AnimationMixer(mesh);
 const idleClip = new THREE.AnimationClip("idle", 2, [
-  new THREE.NumberKeyframeTrack(".position[y]", [0, 1, 2], [0, 0.05, 0]),
+	new THREE.NumberKeyframeTrack(".position[y]", [0, 1, 2], [0, 0.05, 0])
 ]);
 const runClip = new THREE.AnimationClip("run", 1, [
-  new THREE.NumberKeyframeTrack(".position[y]", [0, 0.5, 1], [0, 0.3, 0]),
+	new THREE.NumberKeyframeTrack(".position[y]", [0, 0.5, 1], [0, 0.3, 0])
 ]);
 
 const idle = mixer.clipAction(idleClip).play();
@@ -347,9 +370,9 @@ const run = mixer.clipAction(runClip).play();
 
 // Both sample every frame; the weights mix their poses
 function setBlend(speed) {
-  const t = Math.min(speed / 5, 1); // 0 = idle, 5 and up = full run
-  idle.setEffectiveWeight(1 - t);
-  run.setEffectiveWeight(t);
+	const t = Math.min(speed / 5, 1); // 0 = idle, 5 and up = full run
+	idle.setEffectiveWeight(1 - t);
+	run.setEffectiveWeight(t);
 }
 
 setBlend(2.5); // half idle, half run
@@ -360,10 +383,10 @@ setBlend(2.5); // half idle, half run
 ```javascript
 const mixer = new THREE.AnimationMixer(mesh);
 const walkClip = new THREE.AnimationClip("walk", 1, [
-  new THREE.NumberKeyframeTrack(".rotation[y]", [0, 1], [0, Math.PI]),
+	new THREE.NumberKeyframeTrack(".rotation[y]", [0, 1], [0, Math.PI])
 ]);
 const breathClip = new THREE.AnimationClip("breath", 2, [
-  new THREE.NumberKeyframeTrack(".position[y]", [0, 1, 2], [0, 0.02, 0]),
+	new THREE.NumberKeyframeTrack(".position[y]", [0, 1, 2], [0, 0.02, 0])
 ]);
 
 // Re-bases every track on its frame 0 and marks the clip additive
@@ -377,7 +400,11 @@ mixer.clipAction(breathClip).play(); // adds its offsets on top of the base pose
 
 ```javascript
 const clip = new THREE.AnimationClip("walk", 2, [
-  new THREE.NumberKeyframeTrack(".rotation[y]", [0, 1, 2], [0, Math.PI, Math.PI * 2]),
+	new THREE.NumberKeyframeTrack(
+		".rotation[y]",
+		[0, 1, 2],
+		[0, Math.PI, Math.PI * 2]
+	)
 ]);
 
 const walk = THREE.AnimationClip.findByName([clip], "walk"); // name lookup
@@ -401,10 +428,10 @@ timer.connect(document);
 let scale = 0;
 
 function animate() {
-  timer.update();
-  scale = THREE.MathUtils.damp(scale, 1, 4, timer.getDelta());
-  mesh.scale.setScalar(0.5 + scale * 0.5);
-  renderer.render(scene, camera);
+	timer.update();
+	scale = THREE.MathUtils.damp(scale, 1, 4, timer.getDelta());
+	mesh.scale.setScalar(0.5 + scale * 0.5);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -440,21 +467,26 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111418); // the WebGPU canvas is transparent by default
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	75,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(0, 2, 3);
 camera.lookAt(0, 0, 0);
 
 // Ripple a subdivided plane along its normal (local z) on the GPU; time drives it, no per-frame JS
 const material = new THREE.MeshBasicNodeMaterial({ wireframe: true });
 material.positionNode = positionLocal.add(
-  vec3(0, 0, positionLocal.x.mul(2).sin().mul(time.mul(2).cos()).mul(0.2)),
+	vec3(0, 0, positionLocal.x.mul(2).sin().mul(time.mul(2).cos()).mul(0.2))
 );
 const mesh = new THREE.Mesh(new THREE.PlaneGeometry(3, 3, 32, 32), material);
 mesh.rotation.x = -Math.PI / 2;
 scene.add(mesh);
 
 function animate() {
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);

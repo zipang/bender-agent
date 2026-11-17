@@ -7,11 +7,13 @@
 	// repository starts no server. Bender calls the scene drafter script and never this provider.
 	"providers": {
 		"local": {
-			"name": "Local OpenAI-compatible endpoint",
+			"name": "Local LLAMA",
 			"package": "@opencode/ai/providers/openai-compatible",
 			"settings": { "baseURL": "http://127.0.0.1:9931/v1" },
-			"models": { "qwen3.5-4b-3d-coder": { "name": "Qwen 3.5 4B 3D Coder" } },
-		},
+			"models": {
+				"qwen3.5-4b-3d-coder": { "name": "Qwen 3.5 4B 3D Coder" }
+			}
+		}
 	},
 	"mcp": {
 		"servers": {
@@ -29,10 +31,10 @@
 				"environment": {
 					"BLENDER_HOST": "localhost",
 					"BLENDER_PORT": "9876",
-					"DISABLE_TELEMETRY": "true",
-				},
-			},
-		},
+					"DISABLE_TELEMETRY": "true"
+				}
+			}
+		}
 	},
 	// A custom formatter runs only for the extensions listed here — OpenCode
 	// matches the file's final extension and has no "all files" wildcard. This
@@ -68,8 +70,8 @@
 				".graphql",
 				".gql",
 				".hbs",
-				".handlebars",
-			],
-		},
-	},
+				".handlebars"
+			]
+		}
+	}
 }

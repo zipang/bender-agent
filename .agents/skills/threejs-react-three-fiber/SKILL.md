@@ -17,32 +17,32 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 
 function Box() {
-  const ref = useRef();
-  useFrame((_, delta) => {
-    ref.current.rotation.y += delta;
-  });
-  return (
-    <mesh ref={ref} position={[0, 0.5, 0]} castShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#d9915b" />
-    </mesh>
-  );
+	const ref = useRef();
+	useFrame((_, delta) => {
+		ref.current.rotation.y += delta;
+	});
+	return (
+		<mesh ref={ref} position={[0, 0.5, 0]} castShadow>
+			<boxGeometry args={[1, 1, 1]} />
+			<meshStandardMaterial color="#d9915b" />
+		</mesh>
+	);
 }
 
 export default function App() {
-  return (
-    <Canvas shadows="percentage" camera={{ position: [3, 2, 4], fov: 50 }}>
-      <color attach="background" args={["#111827"]} />
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[3, 4, 2]} intensity={2} castShadow />
-      <Box />
-      <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[10, 10]} />
-        <meshStandardMaterial color="#20293a" />
-      </mesh>
-      <OrbitControls makeDefault />
-    </Canvas>
-  );
+	return (
+		<Canvas shadows="percentage" camera={{ position: [3, 2, 4], fov: 50 }}>
+			<color attach="background" args={["#111827"]} />
+			<ambientLight intensity={0.4} />
+			<directionalLight position={[3, 4, 2]} intensity={2} castShadow />
+			<Box />
+			<mesh rotation-x={-Math.PI / 2} receiveShadow>
+				<planeGeometry args={[10, 10]} />
+				<meshStandardMaterial color="#20293a" />
+			</mesh>
+			<OrbitControls makeDefault />
+		</Canvas>
+	);
 }
 ```
 
@@ -50,19 +50,19 @@ export default function App() {
 
 ```jsx
 export function App() {
-  return (
-    <Canvas
-      shadows="variance"
-      dpr={[1, 2]}
-      frameloop="demand"
-      flat
-      camera={{ position: [0, 2, 6], fov: 45 }}
-      gl={{ powerPreference: "high-performance" }}
-      onCreated={(state) => state.gl.setClearColor("#111827")}
-    >
-      {/* scene contents */}
-    </Canvas>
-  );
+	return (
+		<Canvas
+			shadows="variance"
+			dpr={[1, 2]}
+			frameloop="demand"
+			flat
+			camera={{ position: [0, 2, 6], fov: 45 }}
+			gl={{ powerPreference: "high-performance" }}
+			onCreated={(state) => state.gl.setClearColor("#111827")}
+		>
+			{/* scene contents */}
+		</Canvas>
+	);
 }
 ```
 
@@ -82,17 +82,17 @@ Every export of the three namespace is an element: lowercase tag, capitalized cl
 
 ```jsx
 function Torus() {
-  return (
-    <mesh position={[0, 1, 0]}>
-      <torusKnotGeometry args={[0.7, 0.25, 128, 24]} />
-      <meshStandardMaterial
-        color="#42699c"
-        roughness={0.2}
-        metalness={0.8}
-        onUpdate={(self) => console.log(self.type)}
-      />
-    </mesh>
-  );
+	return (
+		<mesh position={[0, 1, 0]}>
+			<torusKnotGeometry args={[0.7, 0.25, 128, 24]} />
+			<meshStandardMaterial
+				color="#42699c"
+				roughness={0.2}
+				metalness={0.8}
+				onUpdate={(self) => console.log(self.type)}
+			/>
+		</mesh>
+	);
 }
 ```
 
@@ -117,17 +117,17 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 
 function Spinner({ radius = 2 }) {
-  const ref = useRef();
-  useFrame((state, delta) => {
-    ref.current.rotation.y += delta;
-    ref.current.position.x = Math.sin(state.clock.elapsedTime) * radius;
-  });
-  return (
-    <mesh ref={ref}>
-      <sphereGeometry args={[0.4, 32, 16]} />
-      <meshBasicMaterial color="#e8b4a0" />
-    </mesh>
-  );
+	const ref = useRef();
+	useFrame((state, delta) => {
+		ref.current.rotation.y += delta;
+		ref.current.position.x = Math.sin(state.clock.elapsedTime) * radius;
+	});
+	return (
+		<mesh ref={ref}>
+			<sphereGeometry args={[0.4, 32, 16]} />
+			<meshBasicMaterial color="#e8b4a0" />
+		</mesh>
+	);
 }
 ```
 
@@ -151,9 +151,11 @@ import { useGraph, useLoader } from "@react-three/fiber";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 function Model({ url }) {
-  const gltf = useLoader(GLTFLoader, url, (loader) => loader.setPath("assets/"));
-  const { nodes } = useGraph(gltf.scene);
-  return <primitive object={gltf.scene} />;
+	const gltf = useLoader(GLTFLoader, url, (loader) =>
+		loader.setPath("assets/")
+	);
+	const { nodes } = useGraph(gltf.scene);
+	return <primitive object={gltf.scene} />;
 }
 ```
 
@@ -167,30 +169,35 @@ Objects with handlers are raycast on each pointer event (pointer moves test only
 import { useState } from "react";
 
 function Pickable() {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <mesh
-      onClick={(event) => {
-        event.stopPropagation(); // underlying objects along the ray no longer receive it
-        console.log(event.object.name, event.distance, event.point, event.instanceId);
-      }}
-      onPointerOver={(event) => {
-        event.stopPropagation();
-        setHovered(true);
-      }}
-      onPointerOut={() => setHovered(false)}
-      onPointerDown={(event) => {
-        event.target.setPointerCapture(event.pointerId); // this pointer's events reach the mesh off its surface until release
-      }}
-      onPointerUp={(event) => {
-        event.target.releasePointerCapture(event.pointerId);
-      }}
-      onPointerMissed={() => console.log("clicked elsewhere")}
-    >
-      <sphereGeometry args={[0.75, 32, 16]} />
-      <meshStandardMaterial color={hovered ? "#e8b4a0" : "#42699c"} />
-    </mesh>
-  );
+	const [hovered, setHovered] = useState(false);
+	return (
+		<mesh
+			onClick={(event) => {
+				event.stopPropagation(); // underlying objects along the ray no longer receive it
+				console.log(
+					event.object.name,
+					event.distance,
+					event.point,
+					event.instanceId
+				);
+			}}
+			onPointerOver={(event) => {
+				event.stopPropagation();
+				setHovered(true);
+			}}
+			onPointerOut={() => setHovered(false)}
+			onPointerDown={(event) => {
+				event.target.setPointerCapture(event.pointerId); // this pointer's events reach the mesh off its surface until release
+			}}
+			onPointerUp={(event) => {
+				event.target.releasePointerCapture(event.pointerId);
+			}}
+			onPointerMissed={() => console.log("clicked elsewhere")}
+		>
+			<sphereGeometry args={[0.75, 32, 16]} />
+			<meshStandardMaterial color={hovered ? "#e8b4a0" : "#42699c"} />
+		</mesh>
+	);
 }
 ```
 
@@ -206,27 +213,35 @@ import { Canvas } from "@react-three/fiber";
 import { useGLTF, useProgress, Environment } from "@react-three/drei";
 
 function Model({ url }) {
-  const { scene, animations, nodes, materials } = useGLTF(url);
-  return <primitive object={scene} />;
+	const { scene, animations, nodes, materials } = useGLTF(url);
+	return <primitive object={scene} />;
 }
 
 function Hud() {
-  const { active, progress, errors } = useProgress(); // tracks three's DefaultLoadingManager
-  return <div>{active ? `${progress.toFixed(0)}%` : errors.length > 0 ? "failed" : "done"}</div>;
+	const { active, progress, errors } = useProgress(); // tracks three's DefaultLoadingManager
+	return (
+		<div>
+			{active
+				? `${progress.toFixed(0)}%`
+				: errors.length > 0
+					? "failed"
+					: "done"}
+		</div>
+	);
 }
 
 export function App() {
-  return (
-    <>
-      <Hud />
-      <Canvas camera={{ position: [3, 2, 4], fov: 50 }}>
-        <Suspense fallback={null}>
-          <Environment preset="city" />
-          <Model url="model.glb" />
-        </Suspense>
-      </Canvas>
-    </>
-  );
+	return (
+		<>
+			<Hud />
+			<Canvas camera={{ position: [3, 2, 4], fov: 50 }}>
+				<Suspense fallback={null}>
+					<Environment preset="city" />
+					<Model url="model.glb" />
+				</Suspense>
+			</Canvas>
+		</>
+	);
 }
 ```
 
@@ -245,16 +260,16 @@ Controls: `OrbitControls` constructs the controls class drei bundles, connects i
 import { OrbitControls } from "@react-three/drei";
 
 <OrbitControls
-  makeDefault
-  enableDamping
-  dampingFactor={0.1}
-  target={[0, 1, 0]}
-  minDistance={2}
-  maxDistance={12}
-  maxPolarAngle={Math.PI / 2}
-  autoRotate
-  autoRotateSpeed={0.5}
-/>
+	makeDefault
+	enableDamping
+	dampingFactor={0.1}
+	target={[0, 1, 0]}
+	minDistance={2}
+	maxDistance={12}
+	maxPolarAngle={Math.PI / 2}
+	autoRotate
+	autoRotateSpeed={0.5}
+/>;
 ```
 
 `CameraControls` wraps the camera-controls library the same way (ref methods like `fitToBox` come from that library, and it updates with the frame delta).
@@ -263,36 +278,67 @@ Scene dressing:
 
 ```jsx
 import {
-  ContactShadows, Environment, Lightformer, Text, Html, Center, Bounds,
+	ContactShadows,
+	Environment,
+	Lightformer,
+	Text,
+	Html,
+	Center,
+	Bounds
 } from "@react-three/drei";
 
-export function Dressing({ overlay }) { // overlay: a ref to a DOM element laid over the Canvas
-  return (
-    <group>
-      <Environment resolution={256}>
-        <Lightformer form="rect" intensity={2} position={[0, 4, 3]} scale={[8, 2, 1]} />
-      </Environment>
-      <ContactShadows position={[0, -1, 0]} opacity={0.6} scale={12} blur={2.4} far={4} />
-      <Bounds fit clip observe margin={1.5}>
-        <mesh>
-          <sphereGeometry args={[1, 32, 16]} />
-          <meshStandardMaterial metalness={0.9} roughness={0.2} />
-        </mesh>
-        <Center top position={[2.5, -1, 0]}>
-          <mesh>
-            <boxGeometry args={[1, 0.6, 1]} />
-            <meshStandardMaterial />
-          </mesh>
-        </Center>
-      </Bounds>
-      <Text position={[0.75, 1.1, 0]} fontSize={0.4} anchorX="center" anchorY="bottom" color="#e8b4a0" outlineWidth={0.02}>
-        three.js
-      </Text>
-      <Html portal={overlay} position={[2.5, 0.2, 0]} center distanceFactor={8} occlude="raycast">
-        <div>dom overlay anchored to the scene</div>
-      </Html>
-    </group>
-  );
+export function Dressing({ overlay }) {
+	// overlay: a ref to a DOM element laid over the Canvas
+	return (
+		<group>
+			<Environment resolution={256}>
+				<Lightformer
+					form="rect"
+					intensity={2}
+					position={[0, 4, 3]}
+					scale={[8, 2, 1]}
+				/>
+			</Environment>
+			<ContactShadows
+				position={[0, -1, 0]}
+				opacity={0.6}
+				scale={12}
+				blur={2.4}
+				far={4}
+			/>
+			<Bounds fit clip observe margin={1.5}>
+				<mesh>
+					<sphereGeometry args={[1, 32, 16]} />
+					<meshStandardMaterial metalness={0.9} roughness={0.2} />
+				</mesh>
+				<Center top position={[2.5, -1, 0]}>
+					<mesh>
+						<boxGeometry args={[1, 0.6, 1]} />
+						<meshStandardMaterial />
+					</mesh>
+				</Center>
+			</Bounds>
+			<Text
+				position={[0.75, 1.1, 0]}
+				fontSize={0.4}
+				anchorX="center"
+				anchorY="bottom"
+				color="#e8b4a0"
+				outlineWidth={0.02}
+			>
+				three.js
+			</Text>
+			<Html
+				portal={overlay}
+				position={[2.5, 0.2, 0]}
+				center
+				distanceFactor={8}
+				occlude="raycast"
+			>
+				<div>dom overlay anchored to the scene</div>
+			</Html>
+		</group>
+	);
 }
 ```
 
@@ -312,22 +358,22 @@ import { useEffect, useRef } from "react";
 import { useThree } from "@react-three/fiber";
 
 function OnDemand() {
-  const ref = useRef();
-  const invalidate = useThree((state) => state.invalidate);
-  // under <Canvas frameloop="demand"> imperative changes are invisible to React — request a frame for them
-  useEffect(() => {
-    const id = setInterval(() => {
-      ref.current.rotation.y += 0.5;
-      invalidate();
-    }, 100);
-    return () => clearInterval(id);
-  }, [invalidate]);
-  return (
-    <mesh ref={ref}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshNormalMaterial />
-    </mesh>
-  );
+	const ref = useRef();
+	const invalidate = useThree((state) => state.invalidate);
+	// under <Canvas frameloop="demand"> imperative changes are invisible to React — request a frame for them
+	useEffect(() => {
+		const id = setInterval(() => {
+			ref.current.rotation.y += 0.5;
+			invalidate();
+		}, 100);
+		return () => clearInterval(id);
+	}, [invalidate]);
+	return (
+		<mesh ref={ref}>
+			<boxGeometry args={[1, 1, 1]} />
+			<meshNormalMaterial />
+		</mesh>
+	);
 }
 ```
 
@@ -339,19 +385,19 @@ Many copies of one shape share one draw call through `Instances`; each `Instance
 import { Instance, Instances } from "@react-three/drei";
 
 function Crowd({ count = 200 }) {
-  return (
-    <Instances limit={count} castShadow>
-      <capsuleGeometry args={[0.25, 0.8, 4, 12]} />
-      <meshStandardMaterial />
-      {Array.from({ length: count }, (_, i) => (
-        <Instance
-          key={i}
-          position={[(i % 15) - 7, 0.65, Math.floor(i / 15) - 7]}
-          color={`hsl(${(i * 37) % 360}, 60%, 55%)`}
-        />
-      ))}
-    </Instances>
-  );
+	return (
+		<Instances limit={count} castShadow>
+			<capsuleGeometry args={[0.25, 0.8, 4, 12]} />
+			<meshStandardMaterial />
+			{Array.from({ length: count }, (_, i) => (
+				<Instance
+					key={i}
+					position={[(i % 15) - 7, 0.65, Math.floor(i / 15) - 7]}
+					color={`hsl(${(i * 37) % 360}, 60%, 55%)`}
+				/>
+			))}
+		</Instances>
+	);
 }
 ```
 
@@ -361,10 +407,19 @@ function Crowd({ count = 200 }) {
 import { Detailed } from "@react-three/drei";
 
 <Detailed distances={[0, 15, 40]} hysteresis={0.1}>
-  <mesh><sphereGeometry args={[1, 64, 32]} /><meshStandardMaterial /></mesh>
-  <mesh><sphereGeometry args={[1, 16, 8]} /><meshStandardMaterial /></mesh>
-  <mesh><sphereGeometry args={[1, 8, 4]} /><meshStandardMaterial /></mesh>
-</Detailed>
+	<mesh>
+		<sphereGeometry args={[1, 64, 32]} />
+		<meshStandardMaterial />
+	</mesh>
+	<mesh>
+		<sphereGeometry args={[1, 16, 8]} />
+		<meshStandardMaterial />
+	</mesh>
+	<mesh>
+		<sphereGeometry args={[1, 8, 4]} />
+		<meshStandardMaterial />
+	</mesh>
+</Detailed>;
 ```
 
 Adaptive resolution: controls with `regress` drop `performance.current` to `min` (default 0.5) while dragging and restore it after 200 ms; `AdaptiveDpr` sets the pixel ratio to that value times the first ratio the Canvas resolved, so every drag ends at that first ratio. `PerformanceMonitor` samples real frame rates and reports through callbacks — it does not touch the pixel ratio itself. Drive the Canvas `dpr` prop from its callbacks through React state, because the Canvas re-applies that prop whenever it re-renders, which undoes a `setDpr` call made from inside it; keep `AdaptiveDpr` out of that Canvas, or the next drag restores the first ratio over a lowered `dpr`:
@@ -372,34 +427,38 @@ Adaptive resolution: controls with `regress` drop `performance.current` to `min`
 ```jsx
 import { useState } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, AdaptiveDpr, PerformanceMonitor } from "@react-three/drei";
+import {
+	OrbitControls,
+	AdaptiveDpr,
+	PerformanceMonitor
+} from "@react-three/drei";
 
 // lower the resolution while the controls move
 export function DragTunedApp() {
-  return (
-    <Canvas dpr={[1, 2]}>
-      <OrbitControls regress />
-      <AdaptiveDpr pixelated />
-      {/* scene contents */}
-    </Canvas>
-  );
+	return (
+		<Canvas dpr={[1, 2]}>
+			<OrbitControls regress />
+			<AdaptiveDpr pixelated />
+			{/* scene contents */}
+		</Canvas>
+	);
 }
 
 // let the measured frame rate pick the resolution through the dpr prop
 export function MonitoredApp() {
-  const [dpr, setDpr] = useState([1, 2]);
-  return (
-    <Canvas dpr={dpr}>
-      <OrbitControls />
-      <PerformanceMonitor
-        onDecline={() => setDpr(1)}
-        onIncline={() => setDpr([1, 2])}
-        flipflops={3}
-        onFallback={() => setDpr(1)}
-      />
-      {/* scene contents */}
-    </Canvas>
-  );
+	const [dpr, setDpr] = useState([1, 2]);
+	return (
+		<Canvas dpr={dpr}>
+			<OrbitControls />
+			<PerformanceMonitor
+				onDecline={() => setDpr(1)}
+				onIncline={() => setDpr([1, 2])}
+				flipflops={3}
+				onFallback={() => setDpr(1)}
+			/>
+			{/* scene contents */}
+		</Canvas>
+	);
 }
 ```
 
@@ -422,32 +481,32 @@ import { useRef } from "react";
 extend(THREE); // node materials and WebGPU classes join the element catalogue
 
 function Knot() {
-  const ref = useRef();
-  useFrame((_, delta) => {
-    ref.current.rotation.y += delta;
-  });
-  return (
-    <mesh ref={ref}>
-      <torusKnotGeometry args={[0.8, 0.3, 128, 24]} />
-      <meshBasicNodeMaterial colorNode={color(0x42699c)} />
-    </mesh>
-  );
+	const ref = useRef();
+	useFrame((_, delta) => {
+		ref.current.rotation.y += delta;
+	});
+	return (
+		<mesh ref={ref}>
+			<torusKnotGeometry args={[0.8, 0.3, 128, 24]} />
+			<meshBasicNodeMaterial colorNode={color(0x42699c)} />
+		</mesh>
+	);
 }
 
 export default function App() {
-  return (
-    <Canvas
-      camera={{ position: [3, 2, 4], fov: 50 }}
-      gl={async (props) => {
-        const renderer = new THREE.WebGPURenderer(props);
-        await renderer.init();
-        return renderer;
-      }}
-    >
-      <color attach="background" args={["#111827"]} />
-      <Knot />
-    </Canvas>
-  );
+	return (
+		<Canvas
+			camera={{ position: [3, 2, 4], fov: 50 }}
+			gl={async (props) => {
+				const renderer = new THREE.WebGPURenderer(props);
+				await renderer.init();
+				return renderer;
+			}}
+		>
+			<color attach="background" args={["#111827"]} />
+			<Knot />
+		</Canvas>
+	);
 }
 ```
 

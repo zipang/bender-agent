@@ -1,206 +1,494 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>scene</title>
-    <style>
-      :root { color-scheme: light; }
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #eef0f2; }
-      body { font: 12px/1.45 ui-monospace, "SF Mono", Menlo, monospace; color: #22262b; }
-      /* The cursor says what a left drag will do before it is pressed. `default` is the floor, not a
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>scene</title>
+		<style>
+			:root {
+				color-scheme: light;
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				overflow: hidden;
+				background: #eef0f2;
+			}
+			body {
+				font:
+					12px/1.45 ui-monospace,
+					"SF Mono",
+					Menlo,
+					monospace;
+				color: #22262b;
+			}
+			/* The cursor says what a left drag will do before it is pressed. `default` is the floor, not a
          state: every view pans with a left drag now, so the resting cursor is the open hand on the
          free views as well as the flat ones, and it closes while a pan runs. T0004 will add its
          marquee state between the two rules below. */
-      canvas { display: block; cursor: default; }
-      body.pan-ready canvas { cursor: grab; }
-      /* The selection rectangle's sight. It comes after `pan-ready`, so arming the marquee replaces
+			canvas {
+				display: block;
+				cursor: default;
+			}
+			body.pan-ready canvas {
+				cursor: grab;
+			}
+			/* The selection rectangle's sight. It comes after `pan-ready`, so arming the marquee replaces
          the open hand; `pan-dragging` comes last, so a pan already in progress keeps the closed hand
          even while Shift is held. No handler writes `canvas.style.cursor`: the default rule and the
          three classes are the whole cursor contract. */
-      body.marquee-armed canvas { cursor: crosshair; }
-      body.pan-dragging canvas { cursor: grabbing; }
+			body.marquee-armed canvas {
+				cursor: crosshair;
+			}
+			body.pan-dragging canvas {
+				cursor: grabbing;
+			}
 
-      /* The selection rectangle. A fixed, screen-aligned box drawn in client pixels; the script sets
+			/* The selection rectangle. A fixed, screen-aligned box drawn in client pixels; the script sets
          its left, top, width and height and toggles `hidden`. It never takes a pointer event. */
-      #marquee {
-        position: fixed; pointer-events: none; z-index: 15;
-        border: 1px dashed #22262b; background: rgb(34 38 43 / 0.08);
-      }
+			#marquee {
+				position: fixed;
+				pointer-events: none;
+				z-index: 15;
+				border: 1px dashed #22262b;
+				background: rgb(34 38 43 / 0.08);
+			}
 
-      #hud {
-        position: fixed; top: 16px; left: 16px; padding: 12px 14px;
-        background: rgb(255 255 255 / 0.82); border: 1px solid #d5d9de;
-        border-radius: 8px; backdrop-filter: blur(6px); pointer-events: none;
-        min-width: 190px;
-      }
-      #hud h1 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #6a7480; }
-      #hud dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 0; }
-      #hud dt { color: #6a7480; }
-      #hud dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+			#hud {
+				position: fixed;
+				top: 16px;
+				left: 16px;
+				padding: 12px 14px;
+				background: rgb(255 255 255 / 0.82);
+				border: 1px solid #d5d9de;
+				border-radius: 8px;
+				backdrop-filter: blur(6px);
+				pointer-events: none;
+				min-width: 190px;
+			}
+			#hud h1 {
+				margin: 0 0 8px;
+				font-size: 12px;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: #6a7480;
+			}
+			#hud dl {
+				display: grid;
+				grid-template-columns: auto 1fr;
+				gap: 2px 12px;
+				margin: 0;
+			}
+			#hud dt {
+				color: #6a7480;
+			}
+			#hud dd {
+				margin: 0;
+				text-align: right;
+				font-variant-numeric: tabular-nums;
+			}
 
-      #views {
-        position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-        display: flex; gap: 6px; padding: 6px; background: rgb(255 255 255 / 0.82);
-        border: 1px solid #d5d9de; border-radius: 8px; backdrop-filter: blur(6px);
-      }
-      #views button {
-        font: inherit; padding: 5px 10px; border: 1px solid transparent; border-radius: 5px;
-        background: transparent; color: #22262b; cursor: pointer;
-      }
-      #views button:hover { background: #e7eaee; }
-      #views button[aria-pressed="true"] { background: #22262b; color: #fff; }
+			#views {
+				position: fixed;
+				bottom: 16px;
+				left: 50%;
+				transform: translateX(-50%);
+				display: flex;
+				gap: 6px;
+				padding: 6px;
+				background: rgb(255 255 255 / 0.82);
+				border: 1px solid #d5d9de;
+				border-radius: 8px;
+				backdrop-filter: blur(6px);
+			}
+			#views button {
+				font: inherit;
+				padding: 5px 10px;
+				border: 1px solid transparent;
+				border-radius: 5px;
+				background: transparent;
+				color: #22262b;
+				cursor: pointer;
+			}
+			#views button:hover {
+				background: #e7eaee;
+			}
+			#views button[aria-pressed="true"] {
+				background: #22262b;
+				color: #fff;
+			}
 
-      #layers {
-        position: fixed; top: 16px; right: 16px; display: flex; gap: 6px; padding: 6px;
-        background: rgb(255 255 255 / 0.82); border: 1px solid #d5d9de; border-radius: 8px;
-        backdrop-filter: blur(6px);
-      }
-      #layers button {
-        display: flex; align-items: center; gap: 6px; font: inherit; padding: 5px 9px;
-        border: 1px solid transparent; border-radius: 5px; background: transparent;
-        color: #22262b; cursor: pointer;
-      }
-      #layers button:hover { background: #e7eaee; }
-      /* The ICON carries the state, and the label stays legible: a struck-through word is harder
+			#layers {
+				position: fixed;
+				top: 16px;
+				right: 16px;
+				display: flex;
+				gap: 6px;
+				padding: 6px;
+				background: rgb(255 255 255 / 0.82);
+				border: 1px solid #d5d9de;
+				border-radius: 8px;
+				backdrop-filter: blur(6px);
+			}
+			#layers button {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font: inherit;
+				padding: 5px 9px;
+				border: 1px solid transparent;
+				border-radius: 5px;
+				background: transparent;
+				color: #22262b;
+				cursor: pointer;
+			}
+			#layers button:hover {
+				background: #e7eaee;
+			}
+			/* The ICON carries the state, and the label stays legible: a struck-through word is harder
          to read than the eye that already says "hidden". The two icons are the same eye; the off
          one adds one diagonal stroke over it, so the pair reads as one symbol in two states. */
-      #layers button[aria-pressed="false"] { color: #9aa3ad; }
-      #layers svg { width: 18px; height: 18px; display: block; overflow: visible; }
-      #layers .off { display: none; }
-      #layers button[aria-pressed="false"] .on { display: none; }
-      #layers button[aria-pressed="false"] .off { display: block; }
+			#layers button[aria-pressed="false"] {
+				color: #9aa3ad;
+			}
+			#layers svg {
+				width: 18px;
+				height: 18px;
+				display: block;
+				overflow: visible;
+			}
+			#layers .off {
+				display: none;
+			}
+			#layers button[aria-pressed="false"] .on {
+				display: none;
+			}
+			#layers button[aria-pressed="false"] .off {
+				display: block;
+			}
 
-      body.shot #hud, body.shot #views, body.shot #layers { display: none; }
-      body.shot #marquee { display: none !important; }
-      body.shot, body.shot html { background: #fff; }
+			body.shot #hud,
+			body.shot #views,
+			body.shot #layers {
+				display: none;
+			}
+			body.shot #marquee {
+				display: none !important;
+			}
+			body.shot,
+			body.shot html {
+				background: #fff;
+			}
 
-      #knots {
-        position: fixed; top: 64px; right: 16px; display: flex; flex-wrap: wrap; gap: 6px;
-        align-items: center; padding: 6px; max-width: 380px;
-        background: rgb(255 255 255 / 0.82); border: 1px solid #d5d9de; border-radius: 8px;
-        backdrop-filter: blur(6px);
-      }
-      #knots[hidden] { display: none; }
-      #knots button, #knots input {
-        font: inherit; padding: 5px 9px; border: 1px solid #d5d9de; border-radius: 5px;
-        background: transparent; color: #22262b; cursor: pointer;
-      }
-      #knots button:hover { background: #e7eaee; }
-      #knots button[aria-pressed="true"] { background: #22262b; color: #fff; }
-      #knots input { width: 54px; cursor: text; }
-      #knots .label { color: #6a7480; }
-      #knots .sep { width: 1px; align-self: stretch; background: #d5d9de; margin: 2px 3px; }
-      body.shot #knots { display: none; }
-    </style>
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "/vendor/three/build/three.module.js",
-          "three/addons/": "/vendor/three/addons/",
-          "three-bvh-csg": "/vendor/three-bvh-csg/build/index.module.js",
-          "three-mesh-bvh": "/vendor/three-mesh-bvh/build/index.module.js"
-        }
-      }
-    </script>
-  </head>
-  <body>
-    <div id="hud">
-      <h1>scene</h1>
-      <dl>
-        <dt>view</dt><dd id="hud-view">—</dd>
-        <dt>tris</dt><dd id="hud-tris">—</dd>
-        <dt>meshes</dt><dd id="hud-meshes">—</dd>
-        <dt>draws</dt><dd id="hud-draws">—</dd>
-        <dt>size</dt><dd id="hud-size">—</dd>
-        <dt>zoom</dt><dd id="hud-zoom">—</dd>
-      </dl>
-    </div>
+			#knots {
+				position: fixed;
+				top: 64px;
+				right: 16px;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px;
+				align-items: center;
+				padding: 6px;
+				max-width: 380px;
+				background: rgb(255 255 255 / 0.82);
+				border: 1px solid #d5d9de;
+				border-radius: 8px;
+				backdrop-filter: blur(6px);
+			}
+			#knots[hidden] {
+				display: none;
+			}
+			#knots button,
+			#knots input {
+				font: inherit;
+				padding: 5px 9px;
+				border: 1px solid #d5d9de;
+				border-radius: 5px;
+				background: transparent;
+				color: #22262b;
+				cursor: pointer;
+			}
+			#knots button:hover {
+				background: #e7eaee;
+			}
+			#knots button[aria-pressed="true"] {
+				background: #22262b;
+				color: #fff;
+			}
+			#knots input {
+				width: 54px;
+				cursor: text;
+			}
+			#knots .label {
+				color: #6a7480;
+			}
+			#knots .sep {
+				width: 1px;
+				align-self: stretch;
+				background: #d5d9de;
+				margin: 2px 3px;
+			}
+			body.shot #knots {
+				display: none;
+			}
+		</style>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "/vendor/three/build/three.module.js",
+					"three/addons/": "/vendor/three/addons/",
+					"three-bvh-csg": "/vendor/three-bvh-csg/build/index.module.js",
+					"three-mesh-bvh": "/vendor/three-mesh-bvh/build/index.module.js"
+				}
+			}
+		</script>
+	</head>
+	<body>
+		<div id="hud">
+			<h1>scene</h1>
+			<dl>
+				<dt>view</dt>
+				<dd id="hud-view">—</dd>
+				<dt>tris</dt>
+				<dd id="hud-tris">—</dd>
+				<dt>meshes</dt>
+				<dd id="hud-meshes">—</dd>
+				<dt>draws</dt>
+				<dd id="hud-draws">—</dd>
+				<dt>size</dt>
+				<dd id="hud-size">—</dd>
+				<dt>zoom</dt>
+				<dd id="hud-zoom">—</dd>
+			</dl>
+		</div>
 
-    <div id="layers">
-      <button id="layer-model" type="button" aria-pressed="true" title="show or hide the model">
-        <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
-          <circle cx="12" cy="12" r="2.9"/>
-        </svg>
-        <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
-          <circle cx="12" cy="12" r="2.9"/>
-          <path d="M2 22 22 2" stroke-width="2.1"/>
-        </svg>
-        <span class="label">model</span>
-      </button>
-      <button id="layer-contour" type="button" aria-pressed="true" title="show or hide the traced contour">
-        <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
-          <circle cx="12" cy="12" r="2.9"/>
-        </svg>
-        <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
-          <circle cx="12" cy="12" r="2.9"/>
-          <path d="M2 22 22 2" stroke-width="2.1"/>
-        </svg>
-        <span class="label">contour</span>
-      </button>
-      <button id="layer-volume" type="button" aria-pressed="false" title="show or hide the volume the three contours describe">
-        <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 2.8 21 7.4v9.2L12 21.2 3 16.6V7.4z"/>
-          <path d="M3 7.4 12 12l9-4.6M12 12v9.2"/>
-        </svg>
-        <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 2.8 21 7.4v9.2L12 21.2 3 16.6V7.4z"/>
-          <path d="M3 7.4 12 12l9-4.6M12 12v9.2"/>
-          <path d="M2 22 22 2" stroke-width="2.1"/>
-        </svg>
-        <span class="label">volume</span>
-      </button>
-      <button id="layer-calque" type="button" aria-pressed="true" title="show or hide the reference plate">
-        <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
-          <circle cx="12" cy="12" r="2.9"/>
-        </svg>
-        <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"/>
-          <circle cx="12" cy="12" r="2.9"/>
-          <path d="M2 22 22 2" stroke-width="2.1"/>
-        </svg>
-        <span class="label">calque</span>
-      </button>
-    </div>
+		<div id="layers">
+			<button
+				id="layer-model"
+				type="button"
+				aria-pressed="true"
+				title="show or hide the model"
+			>
+				<svg
+					class="on"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path
+						d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"
+					/>
+					<circle cx="12" cy="12" r="2.9" />
+				</svg>
+				<svg
+					class="off"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path
+						d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"
+					/>
+					<circle cx="12" cy="12" r="2.9" />
+					<path d="M2 22 22 2" stroke-width="2.1" />
+				</svg>
+				<span class="label">model</span>
+			</button>
+			<button
+				id="layer-contour"
+				type="button"
+				aria-pressed="true"
+				title="show or hide the traced contour"
+			>
+				<svg
+					class="on"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path
+						d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"
+					/>
+					<circle cx="12" cy="12" r="2.9" />
+				</svg>
+				<svg
+					class="off"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path
+						d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"
+					/>
+					<circle cx="12" cy="12" r="2.9" />
+					<path d="M2 22 22 2" stroke-width="2.1" />
+				</svg>
+				<span class="label">contour</span>
+			</button>
+			<button
+				id="layer-volume"
+				type="button"
+				aria-pressed="false"
+				title="show or hide the volume the three contours describe"
+			>
+				<svg
+					class="on"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M12 2.8 21 7.4v9.2L12 21.2 3 16.6V7.4z" />
+					<path d="M3 7.4 12 12l9-4.6M12 12v9.2" />
+				</svg>
+				<svg
+					class="off"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path d="M12 2.8 21 7.4v9.2L12 21.2 3 16.6V7.4z" />
+					<path d="M3 7.4 12 12l9-4.6M12 12v9.2" />
+					<path d="M2 22 22 2" stroke-width="2.1" />
+				</svg>
+				<span class="label">volume</span>
+			</button>
+			<button
+				id="layer-calque"
+				type="button"
+				aria-pressed="true"
+				title="show or hide the reference plate"
+			>
+				<svg
+					class="on"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path
+						d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"
+					/>
+					<circle cx="12" cy="12" r="2.9" />
+				</svg>
+				<svg
+					class="off"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.8"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+				>
+					<path
+						d="M1.8 12s3.7-6.3 10.2-6.3S22.2 12 22.2 12s-3.7 6.3-10.2 6.3S1.8 12 1.8 12z"
+					/>
+					<circle cx="12" cy="12" r="2.9" />
+					<path d="M2 22 22 2" stroke-width="2.1" />
+				</svg>
+				<span class="label">calque</span>
+			</button>
+		</div>
 
-    <div id="views"></div>
+		<div id="views"></div>
 
-    <div id="marquee" hidden></div>
+		<div id="marquee" hidden></div>
 
-    <div id="knots">
-      <span class="label" id="knot-hint">Shift+drag selects · drag a selected knot moves all · Delete removes</span>
-      <button id="knot-edit" type="button" aria-pressed="false"
-              title="Shift+drag selects · drag a selected knot moves all · Delete removes">
-        edit
-      </button>
-      <span class="sep"></span>
-      <span class="label">join</span>
-      <button id="knot-poly" type="button" aria-pressed="true" title="straight lines between the knots">poly</button>
-      <button id="knot-bezier" type="button" aria-pressed="false" title="a smooth curve through the knots">bezier</button>
-      <span class="sep"></span>
-      <input id="knot-tol" type="number" min="1" step="1" value="12" title="tolerance in millimetres: how far the line may move when a knot is dropped" />
-      <span class="label">mm</span>
-      <button id="knot-reduce" type="button" title="drop every knot that moves the line by less than the tolerance">reduce</button>
-      <span class="sep"></span>
-      <button id="knot-reset" type="button" title="forget the hand-set knots of this view">reset</button>
-      <button id="knot-save" type="button" title="write the knots into the scene">save</button>
-      <span class="sep"></span>
-      <span class="label" id="knot-info">—</span>
-    </div>
+		<div id="knots">
+			<span class="label" id="knot-hint"
+				>Shift+drag selects · drag a selected knot moves all · Delete
+				removes</span
+			>
+			<button
+				id="knot-edit"
+				type="button"
+				aria-pressed="false"
+				title="Shift+drag selects · drag a selected knot moves all · Delete removes"
+			>
+				edit
+			</button>
+			<span class="sep"></span>
+			<span class="label">join</span>
+			<button
+				id="knot-poly"
+				type="button"
+				aria-pressed="true"
+				title="straight lines between the knots"
+			>
+				poly
+			</button>
+			<button
+				id="knot-bezier"
+				type="button"
+				aria-pressed="false"
+				title="a smooth curve through the knots"
+			>
+				bezier
+			</button>
+			<span class="sep"></span>
+			<input
+				id="knot-tol"
+				type="number"
+				min="1"
+				step="1"
+				value="12"
+				title="tolerance in millimetres: how far the line may move when a knot is dropped"
+			/>
+			<span class="label">mm</span>
+			<button
+				id="knot-reduce"
+				type="button"
+				title="drop every knot that moves the line by less than the tolerance"
+			>
+				reduce
+			</button>
+			<span class="sep"></span>
+			<button
+				id="knot-reset"
+				type="button"
+				title="forget the hand-set knots of this view"
+			>
+				reset
+			</button>
+			<button
+				id="knot-save"
+				type="button"
+				title="write the knots into the scene"
+			>
+				save
+			</button>
+			<span class="sep"></span>
+			<span class="label" id="knot-info">—</span>
+		</div>
 
-    <script type="module" src="./main.js"></script>
-  </body>
+		<script type="module" src="./main.js"></script>
+	</body>
 </html>

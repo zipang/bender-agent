@@ -12,30 +12,30 @@
   the handler T0005 leaves in place, so they run in order: T0003, then T0005, then this one.
 - **Blocks**: nothing
 - **References**:
-  - `tickets/done/T0002-contour-smoothing.md` §6.8 — the knot editor as it exists today
-  - `tickets/planned/T0003-orthogonal-view-zoom.md` — pointer precedence on a flat view
-  - `workflows/threejs/viewer/knots.js` — the knot list and the edit operations
-  - `workflows/threejs/viewer/main.js` §"knot editor" — the gesture state machine
-  - `workflows/threejs/viewer/calque.js` — the knot handles and the plate
-  - `workflows/threejs/viewer/picker.js` — the pick in the plate's own metres
-  - `workflows/threejs/AGENTS.md` — "Knot rules", "Contour rules"
-  - `workflows/threejs/README.md` §5.2 — the contour knots
-  - three.js `Ray.intersectPlane(plane, target)`, which returns the intersection point or `null`:
-    <https://threejs.org/docs/#api/en/math/Ray>
-  - three.js `Plane.setFromNormalAndCoplanarPoint(normal, point)`:
-    <https://threejs.org/docs/#api/en/math/Plane>
-  - three.js `Object3D.worldToLocal(vector)`, `getWorldPosition()`, and `getWorldQuaternion()`:
-    <https://threejs.org/docs/#api/en/core/Object3D>
-  - three.js `Vector3.project(camera)`:
-    <https://threejs.org/docs/#api/en/math/Vector3>
-  - MDN `pointerdown`, `setPointerCapture`, and the `Shift` modifier:
-    <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerdown_event>
-  - MDN `EventTarget.addEventListener()` and `Event.stopPropagation()` — a capture-phase listener on
-    an ancestor is the only way to run before a listener that the target already holds:
-    <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener>
-    <https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation>
-  - MDN `KeyboardEvent.key` values `Delete`, `Backspace`, and `Escape`:
-    <https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values>
+    - `tickets/done/T0002-contour-smoothing.md` §6.8 — the knot editor as it exists today
+    - `tickets/planned/T0003-orthogonal-view-zoom.md` — pointer precedence on a flat view
+    - `workflows/threejs/viewer/knots.js` — the knot list and the edit operations
+    - `workflows/threejs/viewer/main.js` §"knot editor" — the gesture state machine
+    - `workflows/threejs/viewer/calque.js` — the knot handles and the plate
+    - `workflows/threejs/viewer/picker.js` — the pick in the plate's own metres
+    - `workflows/threejs/AGENTS.md` — "Knot rules", "Contour rules"
+    - `workflows/threejs/README.md` §5.2 — the contour knots
+    - three.js `Ray.intersectPlane(plane, target)`, which returns the intersection point or `null`:
+      <https://threejs.org/docs/#api/en/math/Ray>
+    - three.js `Plane.setFromNormalAndCoplanarPoint(normal, point)`:
+      <https://threejs.org/docs/#api/en/math/Plane>
+    - three.js `Object3D.worldToLocal(vector)`, `getWorldPosition()`, and `getWorldQuaternion()`:
+      <https://threejs.org/docs/#api/en/core/Object3D>
+    - three.js `Vector3.project(camera)`:
+      <https://threejs.org/docs/#api/en/math/Vector3>
+    - MDN `pointerdown`, `setPointerCapture`, and the `Shift` modifier:
+      <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointerdown_event>
+    - MDN `EventTarget.addEventListener()` and `Event.stopPropagation()` — a capture-phase listener on
+      an ancestor is the only way to run before a listener that the target already holds:
+      <https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener>
+      <https://developer.mozilla.org/en-US/docs/Web/API/Event/stopPropagation>
+    - MDN `KeyboardEvent.key` values `Delete`, `Backspace`, and `Escape`:
+      <https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values>
 
 ## Context & Goal
 
@@ -107,12 +107,12 @@ place" literal — the editor's listeners are the only listeners that belong to 
 
 The split, by responsibility:
 
-| Where | What |
-| :--- | :--- |
-| `knots.js` | the four pure operations and nothing else. No DOM, no THREE, no state. |
-| `knot-editor.js` | the selection state, the marquee, the group drag, the keys, the cursor class, and every listener they need. |
-| `main.js` | constructs the editor with its dependencies, applies an edit through the existing `applyEdit`, and exposes `__ctl`. |
-| `picker.js` | `pickPlaneAt()`, and the `blocked` policy. It keeps its own `Ctrl` chord (T0005). |
+| Where            | What                                                                                                                |
+| :--------------- | :------------------------------------------------------------------------------------------------------------------ |
+| `knots.js`       | the four pure operations and nothing else. No DOM, no THREE, no state.                                              |
+| `knot-editor.js` | the selection state, the marquee, the group drag, the keys, the cursor class, and every listener they need.         |
+| `main.js`        | constructs the editor with its dependencies, applies an edit through the existing `applyEdit`, and exposes `__ctl`. |
+| `picker.js`      | `pickPlaneAt()`, and the `blocked` policy. It keeps its own `Ctrl` chord (T0005).                                   |
 
 The editor never reaches into `main.js`'s closure. It receives its dependencies and a small host
 object, and calls them:
@@ -121,15 +121,15 @@ object, and calls them:
 export function createKnotEditor({ rig, calque, picker, stage, canvas, dom, host })
 ```
 
-| Dependency | Used for |
-| :--- | :--- |
-| `rig` | `state.perspective` — the editor acts on a flat view only |
-| `calque` | `shownView()`, `current()`, `setSelection(view, indices)` |
-| `picker` | `pickPlaneAt(nx, ny)`, `state().mmPerScreenPx` |
-| `stage` | `nextFrame()` |
-| `canvas` | the pointer target, `getBoundingClientRect()`, `setPointerCapture` |
-| `dom` | `{ marquee, info }` — the `#marquee` overlay and the `#knot-info` line the editor writes |
-| `host` | the knot model it must not own, below |
+| Dependency | Used for                                                                                 |
+| :--------- | :--------------------------------------------------------------------------------------- |
+| `rig`      | `state.perspective` — the editor acts on a flat view only                                |
+| `calque`   | `shownView()`, `current()`, `setSelection(view, indices)`                                |
+| `picker`   | `pickPlaneAt(nx, ny)`, `state().mmPerScreenPx`                                           |
+| `stage`    | `nextFrame()`                                                                            |
+| `canvas`   | the pointer target, `getBoundingClientRect()`, `setPointerCapture`                       |
+| `dom`      | `{ marquee, info }` — the `#marquee` overlay and the `#knot-info` line the editor writes |
+| `host`     | the knot model it must not own, below                                                    |
 
 `host` is the seam between the editor and the knot model, which stays in `main.js`:
 
@@ -256,13 +256,13 @@ T0003 gives the left button to the camera on both families: a left drag pans, a 
 a `Shift` + left drag rotates a free view and is inert on a flat one. The editor borrows the left
 button on a flat view, and only there, in two cases:
 
-| Press | Owner | Action |
-| :--- | :--- | :--- |
-| `Ctrl` + left | the measurement tool (T0005) | one point, on release |
-| `Shift` + left, no `Ctrl`, flat view, `editor.active` | the editor | the selection rectangle |
-| left, no `Shift` and no `Ctrl`, inside a knot's grab threshold, flat view, `editor.active` | the editor | a group drag, or a selection reset |
-| left, no `Shift` and no `Ctrl`, anywhere else | the camera | pan |
-| middle, right | the camera | dolly, nothing |
+| Press                                                                                      | Owner                        | Action                             |
+| :----------------------------------------------------------------------------------------- | :--------------------------- | :--------------------------------- |
+| `Ctrl` + left                                                                              | the measurement tool (T0005) | one point, on release              |
+| `Shift` + left, no `Ctrl`, flat view, `editor.active`                                      | the editor                   | the selection rectangle            |
+| left, no `Shift` and no `Ctrl`, inside a knot's grab threshold, flat view, `editor.active` | the editor                   | a group drag, or a selection reset |
+| left, no `Shift` and no `Ctrl`, anywhere else                                              | the camera                   | pan                                |
+| middle, right                                                                              | the camera                   | dolly, nothing                     |
 
 The editor never claims a press that carries `Ctrl` or `Meta`: that chord belongs to the measurement
 tool, which T0005 claims the same way, on `window` in the capture phase. The two claims are disjoint
@@ -280,7 +280,7 @@ All pointer coordinates enter as NDC, then land on the plate's **infinite plane*
 picker method:
 
 ```js
-picker.pickPlaneAt(nx, ny)
+picker.pickPlaneAt(nx, ny);
 // -> { view, uv: [u, v], world: [x, y, z] } | null
 ```
 
@@ -288,18 +288,22 @@ Implementation, with the documented three.js surface:
 
 ```js
 raycaster.setFromCamera(new THREE.Vector2(nx, ny), rig.activeCamera);
-const plate = calque.current();                     // the plate mesh of the shown view
+const plate = calque.current(); // the plate mesh of the shown view
 const quaternion = new THREE.Quaternion();
 plate.getWorldQuaternion(quaternion);
 const normal = new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion);
 const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
-  normal,
-  plate.getWorldPosition(new THREE.Vector3()),
+	normal,
+	plate.getWorldPosition(new THREE.Vector3())
 );
 const point = raycaster.ray.intersectPlane(plane, new THREE.Vector3());
 if (!point) return null;
 const local = plate.worldToLocal(point.clone());
-return { view: plate.userData.view, uv: [local.x, local.y], world: point.toArray() };
+return {
+	view: plate.userData.view,
+	uv: [local.x, local.y],
+	world: point.toArray()
+};
 ```
 
 The plane is needed because a marquee may start or end outside the finite plate rectangle, and
@@ -394,17 +398,25 @@ T0003 writes two body classes for the camera. This ticket adds the third, and th
 the rules settles the priority:
 
 ```css
-canvas { cursor: default; }
-body.pan-ready canvas { cursor: grab; }
-body.marquee-armed canvas { cursor: crosshair; }
-body.pan-dragging canvas { cursor: grabbing; }
+canvas {
+	cursor: default;
+}
+body.pan-ready canvas {
+	cursor: grab;
+}
+body.marquee-armed canvas {
+	cursor: crosshair;
+}
+body.pan-dragging canvas {
+	cursor: grabbing;
+}
 ```
 
-| State | Class | Cursor |
-| :--- | :--- | :--- |
-| Edit mode on a flat view, `Shift` held, or a marquee drag in progress | `marquee-armed` | `crosshair` — the `+` sight |
-| A left-drag pan in progress | `pan-dragging` | `grabbing` — the closed hand |
-| A view at rest: a left drag pans | `pan-ready` | `grab` — the open hand |
+| State                                                                 | Class           | Cursor                       |
+| :-------------------------------------------------------------------- | :-------------- | :--------------------------- |
+| Edit mode on a flat view, `Shift` held, or a marquee drag in progress | `marquee-armed` | `crosshair` — the `+` sight  |
+| A left-drag pan in progress                                           | `pan-dragging`  | `grabbing` — the closed hand |
+| A view at rest: a left drag pans                                      | `pan-ready`     | `grab` — the open hand       |
 
 `marquee-armed` is true when `editor.active && !rig.state.perspective && shiftDown`. `main.js` sets it
 on the `keydown` and `keyup` of `Shift`, and it recomputes it in `setEditMode()` and `setView()`.
@@ -423,10 +435,10 @@ A free view shows the open hand too, because T0003 gives it a left-drag pan. The
 
 One `keydown` listener on `window`, active only while `editor.active`:
 
-| Key | Action |
-| :--- | :--- |
+| Key                     | Action                                                                     |
+| :---------------------- | :------------------------------------------------------------------------- |
 | `Delete` or `Backspace` | delete the selected knots, through `removeKnots(knots, selection.indices)` |
-| `Escape` | clear the selection, or cancel an open marquee |
+| `Escape`                | clear the selection, or cancel an open marquee                             |
 
 Rules:
 
@@ -482,22 +494,22 @@ describes gestures that no longer exist. Replace it with the hint above.
 depend on the camera, the zoom, or the window size.
 
 ```js
-__ctl.knotSelection()
+__ctl.knotSelection();
 // -> { view: string|null, indices: number[], count: number, positions: [[u, v], ...] }
 
-__ctl.knotSelectRect(u0, v0, u1, v1)
+__ctl.knotSelectRect(u0, v0, u1, v1);
 // additive. -> { view, added: number[], selection: number[], count: number }
 
-__ctl.knotClearSelection()
+__ctl.knotClearSelection();
 // -> { view, count: 0 }
 
-__ctl.knotDragSelection(du, dv)
+__ctl.knotDragSelection(du, dv);
 // -> { view, moved: number, count: number }   // no pointer, no threshold, one vector
 
-__ctl.knotDeleteSelection()
+__ctl.knotDeleteSelection();
 // -> { view, removed: number[], refused: boolean, reason: string|null, count: number }
 
-__ctl.knotScreen(index)
+__ctl.knotScreen(index);
 // -> { x, y } | null   // CSS pixels inside the canvas, for the synthetic pointer gesture
 ```
 
@@ -672,9 +684,9 @@ Steps 12, 15, 16, and 17 are the synthetic pointer gestures. They are guarded: a
 
 ### Deviations from the ticket (all reported for review)
 
-1. **`deleteSelection` / check assertion 6.** The Contract makes `removeKnots` an *atomic refusal*
+1. **`deleteSelection` / check assertion 6.** The Contract makes `removeKnots` an _atomic refusal_
    below `minCount` ("No knot is deleted, and the call is atomic"), and acceptance criterion 5 says
-   "With fewer than 3 knots left, nothing is deleted". A rectangle that covers *every* knot therefore
+   "With fewer than 3 knots left, nothing is deleted". A rectangle that covers _every_ knot therefore
    selects all of them, and the delete refuses — it leaves the whole list, not three. The check
    assertion as literally worded ("a rectangle that covers every remaining knot ... leaves exactly 3")
    cannot hold under that Contract. The check selects every knot **except three** (a `u`-threshold
@@ -721,10 +733,10 @@ Steps 12, 15, 16, and 17 are the synthetic pointer gestures. They are guarded: a
 - **T4.1.** After writing `knots.test.js` and before adding the four exports,
   `bun test workflows/threejs/viewer` printed:
   `SyntaxError: Export named 'addIndices' not found in module '.../viewer/knots.js'.` — `30 pass,
-  1 fail, 1 error`, exit 1.
+1 fail, 1 error`, exit 1.
 - **T4.2.** After writing `check_knot_selection.ts` and before the `__ctl` commands existed, the check
   printed `check_knot_selection  FAILED` / `CheckFailure: assertion 1 failed: the selection starts
-  empty on the shown view` with the dev server up on `http://127.0.0.1:5180` (the page loaded and
+empty on the shown view` with the dev server up on `http://127.0.0.1:5180` (the page loaded and
   `__ctl.knotEdit` and `__ctl.calque` worked; only `__ctl.knotSelection` was missing).
 
 ### Gate results (exact)
@@ -732,7 +744,7 @@ Steps 12, 15, 16, and 17 are the synthetic pointer gestures. They are guarded: a
 - `bun test workflows/threejs/viewer` → `49 pass, 0 fail, 85 expect() calls`, exit 0 (the 30
   pre-existing tests plus 19 new).
 - `bun run workflows/threejs/tools/check_knot_selection.ts` → `check_knot_selection  all assertions
-  passed`, exit 0.
+passed`, exit 0.
 - `bun run workflows/threejs/tools/check_measure.ts` → `check_measure  all assertions passed`, exit 0.
 - `bun run workflows/threejs/tools/check_zoom.ts` → `check_zoom  all assertions passed`, exit 0.
 - `bun run workflows/threejs/tools/check_idle.ts` → `check_idle  all assertions passed`, exit 0.

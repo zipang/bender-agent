@@ -64,9 +64,9 @@ For each model, read:
 
 ```json
 {
-  "type": "image",
-  "tags": ["image-generation", "vision"],
-  "modalities": { "input": ["text", "image"], "output": ["image"] }
+	"type": "image",
+	"tags": ["image-generation", "vision"],
+	"modalities": { "input": ["text", "image"], "output": ["image"] }
 }
 ```
 
@@ -147,12 +147,12 @@ The model is a dedicated image model. Use `generateImage`. The reference image g
 `prompt.images`:
 
 ```ts
-import { generateImage } from 'ai';
+import { generateImage } from "ai";
 
 const { image } = await generateImage({
-  model: 'meta/muse-image-1.0',
-  prompt: { text: viewPrompt, images: [referenceBytes] },
-  size: '1024x1024',
+	model: "meta/muse-image-1.0",
+	prompt: { text: viewPrompt, images: [referenceBytes] },
+	size: "1024x1024"
 });
 ```
 
@@ -162,22 +162,22 @@ The model is a language model that emits images. Use `generateText`. The referen
 content part, and the generated image comes back in `result.files`:
 
 ```ts
-import { generateText } from 'ai';
+import { generateText } from "ai";
 
 const result = await generateText({
-  model: 'google/gemini-nano-banana-2.1',
-  messages: [
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: viewPrompt },
-        { type: 'file', data: referenceBytes, mediaType: 'image/webp' },
-      ],
-    },
-  ],
+	model: "google/gemini-nano-banana-2.1",
+	messages: [
+		{
+			role: "user",
+			content: [
+				{ type: "text", text: viewPrompt },
+				{ type: "file", data: referenceBytes, mediaType: "image/webp" }
+			]
+		}
+	]
 });
 
-const image = result.files.find((file) => file.mediaType.startsWith('image/'));
+const image = result.files.find((file) => file.mediaType.startsWith("image/"));
 ```
 
 Both paths are needed. A model of type `language` rejects `generateImage` with a clear error:
@@ -213,10 +213,10 @@ defect corrections are described.
 
 Two runs on `blueprints/vehicules/blue-and-white-minivan-01` with `meta/muse-image-1.0`:
 
-| Run | View | Variants | Result |
-| :--- | :--- | ---: | :--- |
-| 1 | front | 2 | Two usable front views. The surfboard is shortened and the shark fin is missing. |
-| 2 | left | 2 | One useful profile. The surfboard and the shark fin survive. |
+| Run | View  | Variants | Result                                                                           |
+| :-- | :---- | -------: | :------------------------------------------------------------------------------- |
+| 1   | front |        2 | Two usable front views. The surfboard is shortened and the shark fin is missing. |
+| 2   | left  |        2 | One useful profile. The surfboard and the shark fin survive.                     |
 
 Observations:
 

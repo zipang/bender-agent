@@ -25,57 +25,69 @@ import { join, relative, resolve } from "node:path";
 import { ROOT, REPORTS, SCENES, TOOLS, VIEW_TABLE, toRepoPath } from "./paths";
 
 type Options = {
-  subject: string;
-  scene: string | null;
-  prefix: string;
-  views: string[];
-  out: string;
-  tolerance: number;
-  skipShot: boolean;
-  port: number;
+	subject: string;
+	scene: string | null;
+	prefix: string;
+	views: string[];
+	out: string;
+	tolerance: number;
+	skipShot: boolean;
+	port: number;
 };
 
 function readOptions(argv: string[]): Options {
-  const value = (name: string): string | null => {
-    const index = argv.indexOf(`--${name}`);
-    return index >= 0 ? (argv[index + 1] ?? null) : null;
-  };
-  const subject = value("subject");
-  const prefix = value("prefix");
-  if (!subject) throw new Error("--subject <subject directory> is required");
-  if (!prefix) throw new Error("--prefix <name> is required, for example r5-L3");
-  return {
-    subject: resolve(subject),
-    scene: value("scene"),
-    prefix,
-    views: (value("views") ?? "left,right,front,back,top").split(",").map((v) => v.trim()).filter(Boolean),
-    out: resolve(value("out") ?? `${subject}/model`),
-    tolerance: Number(value("tolerance") ?? 40),
-    skipShot: argv.includes("--no-shot"),
-    port: Number(value("port") ?? 5180),
-  };
+	const value = (name: string): string | null => {
+		const index = argv.indexOf(`--${name}`);
+		return index >= 0 ? (argv[index + 1] ?? null) : null;
+	};
+	const subject = value("subject");
+	const prefix = value("prefix");
+	if (!subject) throw new Error("--subject <subject directory> is required");
+	if (!prefix)
+		throw new Error("--prefix <name> is required, for example r5-L3");
+	return {
+		subject: resolve(subject),
+		scene: value("scene"),
+		prefix,
+		views: (value("views") ?? "left,right,front,back,top")
+			.split(",")
+			.map((v) => v.trim())
+			.filter(Boolean),
+		out: resolve(value("out") ?? `${subject}/model`),
+		tolerance: Number(value("tolerance") ?? 40),
+		skipShot: argv.includes("--no-shot"),
+		port: Number(value("port") ?? 5180)
+	};
 }
 
 /** The scene name whose scene.json names this subject. */
-async function findScene(root: string, subject: string): Promise<string | null> {
-  const wanted = relative(root, subject);
-  let names: string[] = [];
-  try {
-    names = await readdir(SCENES, { withFileTypes: true }).then((list) =>
-      list.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
-    );
-  } catch {
-    return null;
-  }
-  for (const name of names.sort()) {
-    const file = Bun.file(join(SCENES, name, "scene.json"));
-    if (!(await file.exists())) continue;
-    const manifest = await file.json().catch(() => null);
-    if (manifest?.subject && relative(ROOT, resolve(ROOT, manifest.subject)) === wanted) {
-      return name;
-    }
-  }
-  return null;
+async function findScene(
+	root: string,
+	subject: string
+): Promise<string | null> {
+	const wanted = relative(root, subject);
+	let names: string[] = [];
+	try {
+		names = await readdir(SCENES, { withFileTypes: true }).then((list) =>
+			list
+				.filter((entry) => entry.isDirectory())
+				.map((entry) => entry.name)
+		);
+	} catch {
+		return null;
+	}
+	for (const name of names.sort()) {
+		const file = Bun.file(join(SCENES, name, "scene.json"));
+		if (!(await file.exists())) continue;
+		const manifest = await file.json().catch(() => null);
+		if (
+			manifest?.subject &&
+			relative(ROOT, resolve(ROOT, manifest.subject)) === wanted
+		) {
+			return name;
+		}
+	}
+	return null;
 }
 
 // ------------------------------------------------------------------ the clock
@@ -85,34 +97,40 @@ const START = Date.now();
 // One colour per step kind, so a long run can be scanned without reading every word. Colour is
 // emitted only on a terminal: a pipe or a log file stays plain, because escape codes in a captured
 // log are noise. `NO_COLOR` turns it off, and `Bun.enableANSIColors` already reflects it.
-const COLOUR = Boolean(process.stdout.isTTY) && !("NO_COLOR" in process.env) && Bun.enableANSIColors !== false;
+const COLOUR =
+	Boolean(process.stdout.isTTY) &&
+	!("NO_COLOR" in process.env) &&
+	Bun.enableANSIColors !== false;
 
 const STEP_COLOUR: Record<string, string> = {
-  scene: "36",   // cyan
-  capture: "34", // blue
-  overlay: "35", // magenta
-  orient: "33",  // yellow
-  measure: "32", // green
+	scene: "36", // cyan
+	capture: "34", // blue
+	overlay: "35", // magenta
+	orient: "33", // yellow
+	measure: "32" // green
 };
 
 function paint(code: string, text: string): string {
-  return COLOUR ? `\u001b[${code}m${text}\u001b[0m` : text;
+	return COLOUR ? `\u001b[${code}m${text}\u001b[0m` : text;
 }
 
 /** The elapsed seconds since the run began, right-aligned to five columns. */
 function clock(): string {
-  return ((Date.now() - START) / 1000).toFixed(1).padStart(5);
+	return ((Date.now() - START) / 1000).toFixed(1).padStart(5);
 }
 
-/** One progress line: `[  0.1s] capture   6 view(s)`. It flushes, so a reader sees it live. */
+/**
+ * One progress line: `[ 0.1s] capture 6 view(s)`. It flushes, so a reader sees
+ * it live.
+ */
 function say(step: string, message: string): void {
-  const label = paint(STEP_COLOUR[step] ?? "0", step.padEnd(10));
-  process.stdout.write(`[${clock()}s] ${label}${message}\n`);
+	const label = paint(STEP_COLOUR[step] ?? "0", step.padEnd(10));
+	process.stdout.write(`[${clock()}s] ${label}${message}\n`);
 }
 
 /** Seconds since a mark taken with `Date.now()`, to one decimal. */
 function since(mark: number): string {
-  return `${((Date.now() - mark) / 1000).toFixed(1)} s`;
+	return `${((Date.now() - mark) / 1000).toFixed(1)} s`;
 }
 
 // ------------------------------------------------------------------ children
@@ -120,41 +138,45 @@ function since(mark: number): string {
 /**
  * Run a child and wait for it.
  *
- * `capture: false` (the default) inherits the child's stdout and stderr, so `shot.ts`'s `render …`
- * lines and `silhouette.ts`'s progress reach the terminal as they are written. `capture: true` reads
- * the child's stdout and returns it; the `measure` step is the only caller that needs it, because
- * its stdout is JSON.
+ * `capture: false` (the default) inherits the child's stdout and stderr, so
+ * `shot.ts`'s `render …` lines and `silhouette.ts`'s progress reach the
+ * terminal as they are written. `capture: true` reads the child's stdout and
+ * returns it; the `measure` step is the only caller that needs it, because its
+ * stdout is JSON.
  *
- * `timeoutMs` bounds the child. On expiry it is killed and the error names the label and the
- * elapsed time. This is what turns a wedged child from a silent forever-wait into a loud failure.
+ * `timeoutMs` bounds the child. On expiry it is killed and the error names the
+ * label and the elapsed time. This is what turns a wedged child from a silent
+ * forever-wait into a loud failure.
  */
 async function run(
-  cmd: string[],
-  label: string,
-  options: { capture?: boolean; timeoutMs?: number } = {},
+	cmd: string[],
+	label: string,
+	options: { capture?: boolean; timeoutMs?: number } = {}
 ): Promise<string> {
-  const { capture = false, timeoutMs = 180_000 } = options;
-  const started = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  const proc = Bun.spawn(cmd, {
-    stdout: capture ? "pipe" : "inherit",
-    stderr: "inherit",
-    signal: controller.signal,
-  });
-  try {
-    const stdout = capture ? await new Response(proc.stdout).text() : "";
-    const code = await proc.exited;
-    if (code !== 0) {
-      if (controller.signal.aborted) {
-        throw new Error(`${label} timed out after ${((Date.now() - started) / 1000).toFixed(1)} s`);
-      }
-      throw new Error(`${label} failed (${code})`);
-    }
-    return stdout;
-  } finally {
-    clearTimeout(timer);
-  }
+	const { capture = false, timeoutMs = 180_000 } = options;
+	const started = Date.now();
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), timeoutMs);
+	const proc = Bun.spawn(cmd, {
+		stdout: capture ? "pipe" : "inherit",
+		stderr: "inherit",
+		signal: controller.signal
+	});
+	try {
+		const stdout = capture ? await new Response(proc.stdout).text() : "";
+		const code = await proc.exited;
+		if (code !== 0) {
+			if (controller.signal.aborted) {
+				throw new Error(
+					`${label} timed out after ${((Date.now() - started) / 1000).toFixed(1)} s`
+				);
+			}
+			throw new Error(`${label} failed (${code})`);
+		}
+		return stdout;
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 // The two images must show the same flank. A reliable probe: on a hatchback the greenhouse sits
@@ -180,7 +202,7 @@ async function run(
 // two, which is true exactly when a seed sits in the pixel's own run. The result is identical to
 // the dilation fill, which is the point: the verdict must not move.
 async function roofMassSide(path: string): Promise<"mass-left" | "mass-right"> {
-  const script = `
+	const script = `
 import sys
 import numpy as np
 from PIL import Image
@@ -228,38 +250,51 @@ xs = np.arange(weights.size)
 centre = float((weights * xs).sum() / max(weights.sum(), 1)) / max(weights.size - 1, 1)
 print("mass-left" if centre < 0.5 else "mass-right")
 `.trim();
-  const proc = Bun.spawn(["python3", "-c", script, path], { stdout: "pipe", stderr: "pipe" });
-  const text = (await new Response(proc.stdout).text()).trim();
-  await proc.exited;
-  if (text === "mass-left" || text === "mass-right") return text;
-  throw new Error(`could not read the roof-mass side of ${path}: ${text.slice(0, 200)}`);
+	const proc = Bun.spawn(["python3", "-c", script, path], {
+		stdout: "pipe",
+		stderr: "pipe"
+	});
+	const text = (await new Response(proc.stdout).text()).trim();
+	await proc.exited;
+	if (text === "mass-left" || text === "mass-right") return text;
+	throw new Error(
+		`could not read the roof-mass side of ${path}: ${text.slice(0, 200)}`
+	);
 }
 
 // ------------------------------------------------------------------ the report
 
 /** One sampled station of the roof profile, in millimetres. */
-export type ProfilePoint = { at_mm: number; reference: number; render: number; delta: number };
+export type ProfilePoint = {
+	at_mm: number;
+	reference: number;
+	render: number;
+	delta: number;
+};
 
 /** The measured silhouette, as `measure_view.py --json` returns it. */
 export type Measurement = {
-  reference: { height_mm: number; ratio: number };
-  render: { height_mm: number; ratio: number };
-  delta: { height_mm: number };
+	reference: { height_mm: number; ratio: number };
+	render: { height_mm: number; ratio: number };
+	delta: { height_mm: number };
 };
 
-/** Everything the report prints, so the render is a pure function of the measurement. */
+/**
+ * Everything the report prints, so the render is a pure function of the
+ * measurement.
+ */
 export type ReportInput = {
-  prefix: string;
-  subject: string;
-  side: string;
-  tolerance: number;
-  reference: { height_mm: number; ratio: number };
-  render: { height_mm: number; ratio: number };
-  delta: { height_mm: number };
-  profile: ProfilePoint[];
-  overlays: string;
-  renders: string;
-  problems?: string[];
+	prefix: string;
+	subject: string;
+	side: string;
+	tolerance: number;
+	reference: { height_mm: number; ratio: number };
+	render: { height_mm: number; ratio: number };
+	delta: { height_mm: number };
+	profile: ProfilePoint[];
+	overlays: string;
+	renders: string;
+	problems?: string[];
 };
 
 // The bar: one mark per 5 mm of `|delta|`, over a field of 30 marks (150 mm). The tolerance mark
@@ -270,208 +305,278 @@ const BAR_FIELD = 30;
 
 /** A number that always carries a sign, so `+` and `-` are both explicit. */
 function signed(value: number, digits: number): string {
-  return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`;
+	return `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`;
 }
 
-/** The bar field: `|delta|` in marks, capped at the field, with the tolerance mark drawn over it. */
-function barField(delta: number, tolerance: number): { field: string; clamped: boolean } {
-  const marks = Math.round(Math.abs(delta) / BAR_MM_PER_MARK);
-  const clamped = marks > BAR_FIELD;
-  const width = Math.min(marks, BAR_FIELD);
-  const cells = Array.from({ length: BAR_FIELD }, (_, index) => (index < width ? "-" : " "));
-  const marker = Math.round(tolerance / BAR_MM_PER_MARK);
-  if (marker >= 1 && marker <= BAR_FIELD) cells[marker - 1] = "|";
-  return { field: cells.join(""), clamped };
+/**
+ * The bar field: `|delta|` in marks, capped at the field, with the tolerance
+ * mark drawn over it.
+ */
+function barField(
+	delta: number,
+	tolerance: number
+): { field: string; clamped: boolean } {
+	const marks = Math.round(Math.abs(delta) / BAR_MM_PER_MARK);
+	const clamped = marks > BAR_FIELD;
+	const width = Math.min(marks, BAR_FIELD);
+	const cells = Array.from({ length: BAR_FIELD }, (_, index) =>
+		index < width ? "-" : " "
+	);
+	const marker = Math.round(tolerance / BAR_MM_PER_MARK);
+	if (marker >= 1 && marker <= BAR_FIELD) cells[marker - 1] = "|";
+	return { field: cells.join(""), clamped };
 }
 
 /**
  * The report, as one string.
  *
- * Every value carries its unit, every column carries its meaning, and the tolerance is applied on
- * every row: `ok` when `|delta| <= tolerance`, `OUT` past it. The count line states both totals and
- * repeats the worst station with its position. The bar's scale and the meaning of `|` are printed
- * once, above the table.
+ * Every value carries its unit, every column carries its meaning, and the
+ * tolerance is applied on every row: `ok` when `|delta| <= tolerance`, `OUT`
+ * past it. The count line states both totals and repeats the worst station with
+ * its position. The bar's scale and the meaning of `|` are printed once, above
+ * the table.
  */
 export function renderReport(input: ReportInput): string {
-  const { profile, tolerance } = input;
-  const length = profile.length > 0 ? profile[profile.length - 1].at_mm : 0;
-  const within = profile.filter((point) => Math.abs(point.delta) <= tolerance).length;
-  const outside = profile.length - within;
-  const worst = profile.reduce(
-    (acc, point) => (Math.abs(point.delta) > Math.abs(acc.delta) ? point : acc),
-    { at_mm: 0, reference: 0, render: 0, delta: 0 },
-  );
-  const outOfTolerance = Math.abs(worst.delta) > tolerance;
-  const heightPercent = ((input.delta.height_mm / input.reference.height_mm) * 100).toFixed(1);
-  const ratioDelta = input.render.ratio - input.reference.ratio;
-  const ratioPercent = ((ratioDelta / input.reference.ratio) * 100).toFixed(1);
+	const { profile, tolerance } = input;
+	const length = profile.length > 0 ? profile[profile.length - 1].at_mm : 0;
+	const within = profile.filter(
+		(point) => Math.abs(point.delta) <= tolerance
+	).length;
+	const outside = profile.length - within;
+	const worst = profile.reduce(
+		(acc, point) =>
+			Math.abs(point.delta) > Math.abs(acc.delta) ? point : acc,
+		{ at_mm: 0, reference: 0, render: 0, delta: 0 }
+	);
+	const outOfTolerance = Math.abs(worst.delta) > tolerance;
+	const heightPercent = (
+		(input.delta.height_mm / input.reference.height_mm) *
+		100
+	).toFixed(1);
+	const ratioDelta = input.render.ratio - input.reference.ratio;
+	const ratioPercent = ((ratioDelta / input.reference.ratio) * 100).toFixed(
+		1
+	);
 
-  const lines = [
-    `check     ${input.prefix}   against ${input.subject}`,
-    `side      ${input.side}     length ${length.toFixed(0)} mm     tolerance ±${tolerance} mm`,
-    "",
-    `silhouette   height            reference  ${input.reference.height_mm.toFixed(1)} mm    ` +
-      `model  ${input.render.height_mm.toFixed(1)} mm    delta  ${signed(input.delta.height_mm, 1)} mm   ${heightPercent} %`,
-    `             height / length   reference    ${input.reference.ratio.toFixed(4)}     ` +
-      `model    ${input.render.ratio.toFixed(4)}     delta  ${signed(ratioDelta, 4)}   ${ratioPercent} %`,
-    "",
-    "Roof height above the ground, from the nose to the tail.  All values in millimetres.",
-    "delta = model - reference.  A negative delta is a model that sits lower than the reference.",
-    `The bar is one mark per 5 mm.  | is the tolerance limit, ${tolerance} mm.  A bar that reaches it fails.`,
-    "",
-    "   station    reference       model       delta",
-  ];
-  for (const point of profile) {
-    const bar = barField(point.delta, tolerance);
-    const verdict = bar.clamped ? "OVER" : Math.abs(point.delta) <= tolerance ? "ok" : "OUT";
-    lines.push(
-      `${`${point.at_mm.toFixed(0)} mm`.padStart(10)}` +
-        `${`${point.reference.toFixed(0)} mm`.padStart(12)}` +
-        `${`${point.render.toFixed(0)} mm`.padStart(13)}` +
-        `${`${signed(point.delta, 0)} mm`.padStart(12)}   ${bar.field}   ${verdict}`,
-    );
-  }
-  lines.push("");
-  lines.push(
-    `${profile.length} stations   ${within} within tolerance   ${outside} outside   ` +
-      `worst ${signed(worst.delta, 0)} mm at ${worst.at_mm.toFixed(0)} mm`,
-  );
-  for (const problem of input.problems ?? []) lines.push(`WARNING   ${problem}`);
-  lines.push(`overlays      ${input.overlays}/<view>.png    red = reference only, blue = model only`);
-  lines.push(`renders       ${input.renders}/${input.prefix}-<view>.webp`);
-  lines.push(
-    `status        ${outOfTolerance || (input.problems?.length ?? 0) > 0 ? "NEEDS WORK" : "within tolerance"}`,
-  );
-  return lines.join("\n");
+	const lines = [
+		`check     ${input.prefix}   against ${input.subject}`,
+		`side      ${input.side}     length ${length.toFixed(0)} mm     tolerance ±${tolerance} mm`,
+		"",
+		`silhouette   height            reference  ${input.reference.height_mm.toFixed(1)} mm    ` +
+			`model  ${input.render.height_mm.toFixed(1)} mm    delta  ${signed(input.delta.height_mm, 1)} mm   ${heightPercent} %`,
+		`             height / length   reference    ${input.reference.ratio.toFixed(4)}     ` +
+			`model    ${input.render.ratio.toFixed(4)}     delta  ${signed(ratioDelta, 4)}   ${ratioPercent} %`,
+		"",
+		"Roof height above the ground, from the nose to the tail.  All values in millimetres.",
+		"delta = model - reference.  A negative delta is a model that sits lower than the reference.",
+		`The bar is one mark per 5 mm.  | is the tolerance limit, ${tolerance} mm.  A bar that reaches it fails.`,
+		"",
+		"   station    reference       model       delta"
+	];
+	for (const point of profile) {
+		const bar = barField(point.delta, tolerance);
+		const verdict = bar.clamped
+			? "OVER"
+			: Math.abs(point.delta) <= tolerance
+				? "ok"
+				: "OUT";
+		lines.push(
+			`${`${point.at_mm.toFixed(0)} mm`.padStart(10)}` +
+				`${`${point.reference.toFixed(0)} mm`.padStart(12)}` +
+				`${`${point.render.toFixed(0)} mm`.padStart(13)}` +
+				`${`${signed(point.delta, 0)} mm`.padStart(12)}   ${bar.field}   ${verdict}`
+		);
+	}
+	lines.push("");
+	lines.push(
+		`${profile.length} stations   ${within} within tolerance   ${outside} outside   ` +
+			`worst ${signed(worst.delta, 0)} mm at ${worst.at_mm.toFixed(0)} mm`
+	);
+	for (const problem of input.problems ?? [])
+		lines.push(`WARNING   ${problem}`);
+	lines.push(
+		`overlays      ${input.overlays}/<view>.png    red = reference only, blue = model only`
+	);
+	lines.push(`renders       ${input.renders}/${input.prefix}-<view>.webp`);
+	lines.push(
+		`status        ${outOfTolerance || (input.problems?.length ?? 0) > 0 ? "NEEDS WORK" : "within tolerance"}`
+	);
+	return lines.join("\n");
 }
 
 async function main(): Promise<void> {
-  const options = readOptions(Bun.argv.slice(2));
-  await mkdir(options.out, { recursive: true });
-  const root = ROOT;
+	const options = readOptions(Bun.argv.slice(2));
+	await mkdir(options.out, { recursive: true });
+	const root = ROOT;
 
-  // 1. Capture. One page, every view, WebP on disk.
-  if (!options.skipShot) {
-    // The page is shared, so the capture names the scene. `--scene` wins; otherwise the scene whose
-    // `scene.json` claims this subject. A subject without a scene is an error, not a silent
-    // capture of whichever scene the server happened to start with.
-    const scene = options.scene ?? (await findScene(root, options.subject));
-    if (!scene) {
-      throw new Error(
-        `no scene in ${toRepoPath(SCENES)}/ has subject "${relative(root, options.subject)}". ` +
-          `Add one, or pass --scene.`,
-      );
-    }
-    say("scene", scene);
-    // The capture list comes from the shared view table. A view is captured when the caller asked
-    // for it, or when it is a perspective view: those are the ones that judge a mass, so a pass
-    // always wants them, and no list here has to be kept in step with the page.
-    const table = await Bun.file(VIEW_TABLE).json();
-    const capture = Object.entries(table.views as Record<string, { perspective?: boolean }>)
-      .filter(([name, view]) => options.views.includes(name) || view.perspective)
-      .map(([name]) => name);
-    say("capture", `${capture.length} view(s): ${capture.join(",")}`);
-    const mark = Date.now();
-    await run([
-      "bun", "run", join(TOOLS, "shot.ts"),
-      "--out", options.out,
-      "--prefix", options.prefix,
-      "--views", capture.join(","),
-      "--scene", scene,
-      "--url", `http://127.0.0.1:${options.port}/`,
-    ], "capture");
-    say("capture", `done in ${since(mark)}`);
-  } else {
-    say("scene", "skipped (--no-shot)");
-  }
+	// 1. Capture. One page, every view, WebP on disk.
+	if (!options.skipShot) {
+		// The page is shared, so the capture names the scene. `--scene` wins; otherwise the scene whose
+		// `scene.json` claims this subject. A subject without a scene is an error, not a silent
+		// capture of whichever scene the server happened to start with.
+		const scene = options.scene ?? (await findScene(root, options.subject));
+		if (!scene) {
+			throw new Error(
+				`no scene in ${toRepoPath(SCENES)}/ has subject "${relative(root, options.subject)}". ` +
+					`Add one, or pass --scene.`
+			);
+		}
+		say("scene", scene);
+		// The capture list comes from the shared view table. A view is captured when the caller asked
+		// for it, or when it is a perspective view: those are the ones that judge a mass, so a pass
+		// always wants them, and no list here has to be kept in step with the page.
+		const table = await Bun.file(VIEW_TABLE).json();
+		const capture = Object.entries(
+			table.views as Record<string, { perspective?: boolean }>
+		)
+			.filter(
+				([name, view]) =>
+					options.views.includes(name) || view.perspective
+			)
+			.map(([name]) => name);
+		say("capture", `${capture.length} view(s): ${capture.join(",")}`);
+		const mark = Date.now();
+		await run(
+			[
+				"bun",
+				"run",
+				join(TOOLS, "shot.ts"),
+				"--out",
+				options.out,
+				"--prefix",
+				options.prefix,
+				"--views",
+				capture.join(","),
+				"--scene",
+				scene,
+				"--url",
+				`http://127.0.0.1:${options.port}/`
+			],
+			"capture"
+		);
+		say("capture", `done in ${since(mark)}`);
+	} else {
+		say("scene", "skipped (--no-shot)");
+	}
 
-  // 2. Overlay, so the eye gets a picture as well as a table.
-  say("overlay", `${options.views.length} view(s)`);
-  const overlayMark = Date.now();
-  await run([
-    "bun", "run", join(TOOLS, "silhouette.ts"),
-    "--subject", options.subject,
-    "--render", options.out,
-    "--prefix", options.prefix,
-    "--views", options.views.join(","),
-  ], "silhouette");
-  say("overlay", `done in ${since(overlayMark)}`);
+	// 2. Overlay, so the eye gets a picture as well as a table.
+	say("overlay", `${options.views.length} view(s)`);
+	const overlayMark = Date.now();
+	await run(
+		[
+			"bun",
+			"run",
+			join(TOOLS, "silhouette.ts"),
+			"--subject",
+			options.subject,
+			"--render",
+			options.out,
+			"--prefix",
+			options.prefix,
+			"--views",
+			options.views.join(",")
+		],
+		"silhouette"
+	);
+	say("overlay", `done in ${since(overlayMark)}`);
 
-  // 3. Orientation guard, before any number is trusted.
-  const problems: string[] = [];
-  for (const view of ["left", "right"]) {
-    if (!options.views.includes(view)) continue;
-    const referencePath = `${options.subject}/${view}/reference.png`;
-    if (!(await Bun.file(referencePath).exists())) continue;
-    const renderPath = `${options.out}/${options.prefix}-${view}.webp`;
-    say("orient", `${view} reference`);
-    const mark = Date.now();
-    const a = await roofMassSide(referencePath);
-    say("orient", `${view} reference  ${a}  (${since(mark)})`);
-    say("orient", `${view} render`);
-    const renderMark = Date.now();
-    const b = await roofMassSide(renderPath);
-    say("orient", `${view} render  ${b}  (${since(renderMark)})`);
-    if (a !== b) {
-      problems.push(
-        `${view}: reference has ${a} but the render has ${b} — one of them is mirrored`,
-      );
-    }
-  }
+	// 3. Orientation guard, before any number is trusted.
+	const problems: string[] = [];
+	for (const view of ["left", "right"]) {
+		if (!options.views.includes(view)) continue;
+		const referencePath = `${options.subject}/${view}/reference.png`;
+		if (!(await Bun.file(referencePath).exists())) continue;
+		const renderPath = `${options.out}/${options.prefix}-${view}.webp`;
+		say("orient", `${view} reference`);
+		const mark = Date.now();
+		const a = await roofMassSide(referencePath);
+		say("orient", `${view} reference  ${a}  (${since(mark)})`);
+		say("orient", `${view} render`);
+		const renderMark = Date.now();
+		const b = await roofMassSide(renderPath);
+		say("orient", `${view} render  ${b}  (${since(renderMark)})`);
+		if (a !== b) {
+			problems.push(
+				`${view}: reference has ${a} but the render has ${b} — one of them is mirrored`
+			);
+		}
+	}
 
-  // 4. Measurements on the side view.
-  const side = ["left", "right"].find((v) => options.views.includes(v)) ?? "left";
-  const maybeline = `${options.subject}/${side}/reference.png`;
-  let profile: ProfilePoint[] = [];
-  let measurement: Measurement | null = null;
-  if (await Bun.file(maybeline).exists()) {
-    say("measure", side);
-    const mark = Date.now();
-    const output = await run([
-      "python3", join(ROOT, "scripts/blueprint/measure_view.py"),
-      maybeline, `${options.out}/${options.prefix}-${side}.webp`,
-      "--json",
-    ], "measure", { capture: true });
-    say("measure", `done in ${since(mark)}`);
-    const data = JSON.parse(output) as Measurement & { profile_mm: ProfilePoint[] };
-    measurement = data;
-    profile = data.profile_mm;
-  } else {
-    say("measure", `skipped (no ${side} reference)`);
-  }
+	// 4. Measurements on the side view.
+	const side =
+		["left", "right"].find((v) => options.views.includes(v)) ?? "left";
+	const maybeline = `${options.subject}/${side}/reference.png`;
+	let profile: ProfilePoint[] = [];
+	let measurement: Measurement | null = null;
+	if (await Bun.file(maybeline).exists()) {
+		say("measure", side);
+		const mark = Date.now();
+		const output = await run(
+			[
+				"python3",
+				join(ROOT, "scripts/blueprint/measure_view.py"),
+				maybeline,
+				`${options.out}/${options.prefix}-${side}.webp`,
+				"--json"
+			],
+			"measure",
+			{ capture: true }
+		);
+		say("measure", `done in ${since(mark)}`);
+		const data = JSON.parse(output) as Measurement & {
+			profile_mm: ProfilePoint[];
+		};
+		measurement = data;
+		profile = data.profile_mm;
+	} else {
+		say("measure", `skipped (no ${side} reference)`);
+	}
 
-  // 5. One report.
-  console.log("");
-  if (measurement) {
-    console.log(renderReport({
-      prefix: options.prefix,
-      subject: toRepoPath(options.subject),
-      side,
-      tolerance: options.tolerance,
-      reference: measurement.reference,
-      render: measurement.render,
-      delta: measurement.delta,
-      profile,
-      overlays: toRepoPath(join(REPORTS, "silhouette")),
-      renders: toRepoPath(options.out),
-      problems,
-    }));
-  } else {
-    console.log(`check     ${options.prefix}   against ${toRepoPath(options.subject)}`);
-    console.log(`side      ${side}     no reference at ${toRepoPath(maybeline)}`);
-    for (const problem of problems) console.log(`WARNING   ${problem}`);
-    console.log(`status    ${problems.length > 0 ? "NEEDS WORK" : "within tolerance"}`);
-  }
+	// 5. One report.
+	console.log("");
+	if (measurement) {
+		console.log(
+			renderReport({
+				prefix: options.prefix,
+				subject: toRepoPath(options.subject),
+				side,
+				tolerance: options.tolerance,
+				reference: measurement.reference,
+				render: measurement.render,
+				delta: measurement.delta,
+				profile,
+				overlays: toRepoPath(join(REPORTS, "silhouette")),
+				renders: toRepoPath(options.out),
+				problems
+			})
+		);
+	} else {
+		console.log(
+			`check     ${options.prefix}   against ${toRepoPath(options.subject)}`
+		);
+		console.log(
+			`side      ${side}     no reference at ${toRepoPath(maybeline)}`
+		);
+		for (const problem of problems) console.log(`WARNING   ${problem}`);
+		console.log(
+			`status    ${problems.length > 0 ? "NEEDS WORK" : "within tolerance"}`
+		);
+	}
 
-  const worst = profile.reduce(
-    (acc, p) => (Math.abs(p.delta) > Math.abs(acc.delta) ? p : acc),
-    { at_mm: 0, reference: 0, render: 0, delta: 0 },
-  );
-  const outOfTolerance = Math.abs(worst.delta) > options.tolerance;
+	const worst = profile.reduce(
+		(acc, p) => (Math.abs(p.delta) > Math.abs(acc.delta) ? p : acc),
+		{
+			at_mm: 0,
+			reference: 0,
+			render: 0,
+			delta: 0
+		}
+	);
+	const outOfTolerance = Math.abs(worst.delta) > options.tolerance;
 
-  // The header has always promised it: exit 1 when the model is outside the tolerance. The status
-  // line says so, and the exit code now agrees. Orientation findings keep their exit 1 too.
-  if (outOfTolerance || problems.length > 0) process.exit(1);
+	// The header has always promised it: exit 1 when the model is outside the tolerance. The status
+	// line says so, and the exit code now agrees. Orientation findings keep their exit 1 too.
+	if (outOfTolerance || problems.length > 0) process.exit(1);
 }
 
 // The report is a pure function of the measurement, so the module can be imported and tested

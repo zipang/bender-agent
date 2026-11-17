@@ -7,14 +7,14 @@
 - **Depends on**: nothing
 - **Blocks**: nothing
 - **References**:
-  - `workflows/threejs/tools/check.ts` — the gate: `run()`, `roofMassSide()`, `main()`
-  - `workflows/threejs/tools/shot.ts` — the capture, one named browser session per run
-  - `workflows/threejs/tools/silhouette.ts` — the overlay
-  - `workflows/threejs/tools/ctl.ts`, `workflows/threejs/tools/check_zoom.ts` — the session pattern
-  - `workflows/threejs/AGENTS.md` — "Every capture pass uses one browser session and closes it"
-  - `workflows/threejs/README.md` — the tool table
-  - NumPy `maximum.accumulate`, the run-propagation primitive the fix is built on:
-    <https://numpy.org/doc/stable/reference/generated/numpy.ufunc.accumulate.html>
+    - `workflows/threejs/tools/check.ts` — the gate: `run()`, `roofMassSide()`, `main()`
+    - `workflows/threejs/tools/shot.ts` — the capture, one named browser session per run
+    - `workflows/threejs/tools/silhouette.ts` — the overlay
+    - `workflows/threejs/tools/ctl.ts`, `workflows/threejs/tools/check_zoom.ts` — the session pattern
+    - `workflows/threejs/AGENTS.md` — "Every capture pass uses one browser session and closes it"
+    - `workflows/threejs/README.md` — the tool table
+    - NumPy `maximum.accumulate`, the run-propagation primitive the fix is built on:
+      <https://numpy.org/doc/stable/reference/generated/numpy.ufunc.accumulate.html>
 
 ## Context & Goal
 
@@ -23,13 +23,13 @@ director ran it, saw no output, and could not tell a slow gate from a wedged one
 
 Measured on this machine, on 2026-11-09, against `r5-tl-1972`, **after T0007 landed**:
 
-| Step | Cost | Output while it runs |
-| :--- | :--- | :--- |
-| `roofMassSide`, one 1376 × 768 reference | **8.1 s** | none |
-| `roofMassSide`, one 1400 × 1000 render | **12.9 s** | none |
-| `roofMassSide`, the four images `check.ts` actually reads | **≈ 41.6 s** | none |
-| the capture, six views through `shot.ts` | **5.0 s** | the child's lines, swallowed |
-| the whole `bun run check` | **45.6 s** | none until the final report |
+| Step                                                      | Cost         | Output while it runs         |
+| :-------------------------------------------------------- | :----------- | :--------------------------- |
+| `roofMassSide`, one 1376 × 768 reference                  | **8.1 s**    | none                         |
+| `roofMassSide`, one 1400 × 1000 render                    | **12.9 s**   | none                         |
+| `roofMassSide`, the four images `check.ts` actually reads | **≈ 41.6 s** | none                         |
+| the capture, six views through `shot.ts`                  | **5.0 s**    | the child's lines, swallowed |
+| the whole `bun run check`                                 | **45.6 s**   | none until the final report  |
 
 The orientation guard is **91 % of the run**. Before T0007 landed the same command took **1 min 54 s**,
 because the page rendered every frame unconditionally and burned nine of sixteen cores while the
@@ -251,7 +251,7 @@ The transcript gains two things the first pass did not have:
       a view; which views a pass needs is the art director's decision.
 - [x] **T6.9 — Gates**: `bun run check` reports the same `height`, `ratio`, the same profile, and the
       same worst delta as the recorded baseline, in under **18 s**, and exits 1. `bun test
-      workflows/threejs/viewer` is green. `check_idle.ts` and `check_zoom.ts` exit 0.
+workflows/threejs/viewer` is green. `check_idle.ts` and `check_zoom.ts` exit 0.
 - [x] **T6.10 — Documents**: the tool table and the gate section in `workflows/threejs/README.md`; the
       "Evidence rules" in `workflows/threejs/AGENTS.md`; the root `README.md` and `.gitignore`; the
       board.
@@ -272,12 +272,11 @@ The transcript gains two things the first pass did not have:
 6. The progress lines carry colour on a terminal and none when the output is piped or `NO_COLOR` is
    set.
 7. A `check.ts` that is interrupted with `Ctrl-C` leaves no browser session, and `agent-browser
-   session list` prints `No active sessions` after a normal run too.
+session list` prints `No active sessions` after a normal run too.
 8. A browser that stops answering fails with a message that names the step and the elapsed time,
    instead of waiting forever.
 9. The exit code is `1` when the report says `NEEDS WORK`, and `0` when it says `within tolerance`.
-10. `bun test workflows/threejs/viewer` is green, and `check_idle.ts` and `tools/check_zoom.ts` exit
-    0.
+10. `bun test workflows/threejs/viewer` is green, and `check_idle.ts` and `tools/check_zoom.ts` exit 0.
 
 ## Implementation Notes
 
@@ -285,15 +284,15 @@ Written by the coding sub-agent on 2026-11-09, on the same machine as the ticket
 
 ### Files changed
 
-| File | Change |
-| :--- | :--- |
-| `workflows/threejs/tools/session.ts` | New. The one owner of a browser session: `open`, `close` in a `finally`, `SIGINT`/`SIGTERM` guards, a pid-bearing name, a stale-session sweep, and a timeout on every `agent-browser` call. |
-| `workflows/threejs/tools/check.ts` | Timestamped progress lines, `run()` streaming, `roofMassSide` rewritten as run propagation, exit code 1 on `outOfTolerance`. |
-| `workflows/threejs/tools/shot.ts` | Uses `Session`; the session name carries the process id; `close` moved into the helper. |
-| `workflows/threejs/tools/ctl.ts` | Uses the helper's `ab`/`evaluate`/`closeSession`; keeps its named, reused session. |
-| `workflows/threejs/tools/check_zoom.ts` | Uses `Session`; the session opens inside the `try`, so a failure while opening still closes it, and `Ctrl-C` closes it. |
-| `workflows/threejs/README.md` | The tool table gains `tools/session.ts` and the new `check.ts` row; §10.1 "The check run". |
-| `workflows/threejs/AGENTS.md` | "Evidence rules": the session helper, the pid name, the sweep, the timeout. |
+| File                                    | Change                                                                                                                                                                                      |
+| :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `workflows/threejs/tools/session.ts`    | New. The one owner of a browser session: `open`, `close` in a `finally`, `SIGINT`/`SIGTERM` guards, a pid-bearing name, a stale-session sweep, and a timeout on every `agent-browser` call. |
+| `workflows/threejs/tools/check.ts`      | Timestamped progress lines, `run()` streaming, `roofMassSide` rewritten as run propagation, exit code 1 on `outOfTolerance`.                                                                |
+| `workflows/threejs/tools/shot.ts`       | Uses `Session`; the session name carries the process id; `close` moved into the helper.                                                                                                     |
+| `workflows/threejs/tools/ctl.ts`        | Uses the helper's `ab`/`evaluate`/`closeSession`; keeps its named, reused session.                                                                                                          |
+| `workflows/threejs/tools/check_zoom.ts` | Uses `Session`; the session opens inside the `try`, so a failure while opening still closes it, and `Ctrl-C` closes it.                                                                     |
+| `workflows/threejs/README.md`           | The tool table gains `tools/session.ts` and the new `check.ts` row; §10.1 "The check run".                                                                                                  |
+| `workflows/threejs/AGENTS.md`           | "Evidence rules": the session helper, the pid name, the sweep, the timeout.                                                                                                                 |
 
 No file outside the scope boundary was touched. `viewer/**`, `scenes/**`, `silhouette.ts`, and
 `scripts/blueprint/measure_view.py` are unchanged.
@@ -303,13 +302,13 @@ No file outside the scope boundary was touched. `viewer/**`, `scenes/**`, `silho
 The current `check.ts` was measured step by step before any edit. The machine was busy (load average
 4–8 on 16 cores) during every measurement, so every number is an upper bound.
 
-| Step | Ticket's baseline | Measured here, before |
-| :--- | ---: | ---: |
-| capture (8 views through `shot.ts`) | 5.0 s | 8.7 s |
-| overlay (`silhouette.ts`, 5 views) | — | 3.4 s |
-| orientation guard (the 4 images `check.ts` reads) | 41.6 s | **56.3 s** |
-| measure (`measure_view.py`) | — | 6.1 s |
-| whole `bun run check` | 45.6 s | ≈ 74 s (reconstructed from the four steps) |
+| Step                                              | Ticket's baseline |                      Measured here, before |
+| :------------------------------------------------ | ----------------: | -----------------------------------------: |
+| capture (8 views through `shot.ts`)               |             5.0 s |                                      8.7 s |
+| overlay (`silhouette.ts`, 5 views)                |                 — |                                      3.4 s |
+| orientation guard (the 4 images `check.ts` reads) |            41.6 s |                                 **56.3 s** |
+| measure (`measure_view.py`)                       |                 — |                                      6.1 s |
+| whole `bun run check`                             |            45.6 s | ≈ 74 s (reconstructed from the four steps) |
 
 The guard's 56.3 s is the sum of the four `roofMassSide` calls measured with the old fill:
 left reference 8.8 s, left render 21.4 s, right reference 9.5 s, right render 16.6 s. It is the same
@@ -327,12 +326,12 @@ loop of the old `roofMassSide`. After the replacement the same 38 images were ca
 **Result: 0 mismatches. The 38 verdicts are byte-identical.** Total guard wall time fell from
 398.1 s to 36.6 s across the 38 images (10.9×). The four images `check.ts` reads:
 
-| Image | Old fill | Run propagation |
-| :--- | ---: | ---: |
-| `left/reference.png` (1376×768) | 8.84 s | 0.69 s |
-| `r5-L3-left.webp` (1400×1000) | 21.42 s | 0.86 s |
-| `right/reference.png` (1376×768) | 9.48 s | 0.78 s |
-| `r5-L3-right.webp` (1400×1000) | 16.56 s | 0.87 s |
+| Image                            | Old fill | Run propagation |
+| :------------------------------- | -------: | --------------: |
+| `left/reference.png` (1376×768)  |   8.84 s |          0.69 s |
+| `r5-L3-left.webp` (1400×1000)    |  21.42 s |          0.86 s |
+| `right/reference.png` (1376×768) |   9.48 s |          0.78 s |
+| `r5-L3-right.webp` (1400×1000)   |  16.56 s |          0.87 s |
 
 **A correction to the prescribed primitive, recorded on purpose.** The ticket says a forward
 `maximum.accumulate` unioned with a backward one marks every pixel reachable through a contiguous
@@ -494,19 +493,19 @@ colour, the capture floor, the gates, and the documents.
 
 ### Files changed in this pass
 
-| File | Change |
-| :--- | :--- |
-| `scripts/blueprint/measure_view.py` | `load_mask` uses run propagation (`reach`), not the one-pixel-per-iteration dilation. Nothing else changes. |
-| `workflows/threejs/tools/paths.ts` | `REPORTS`, pointing at `test-reports/` at the root. |
-| `workflows/threejs/tools/silhouette.ts` | Overlays default to `test-reports/silhouette/`; scratch under `test-reports/`; prints relative paths. |
-| `workflows/threejs/tools/shot.ts` | Scratch under `test-reports/`; the `render …` line prints a relative path. |
-| `workflows/threejs/tools/check_zoom.ts` | `SHOT_PATH` under `test-reports/`. |
-| `workflows/threejs/tools/ctl.ts` | `shot`/`side` print relative paths; the examples use `test-reports/`. |
-| `workflows/threejs/tools/check.ts` | Progress lines coloured on a TTY; report paths relative through `toRepoPath`. |
-| `.gitignore` | `test-reports/`. |
-| `README.md` (root) | `test-reports/` in the tree, with a paragraph. |
-| `workflows/threejs/README.md` | The tool table and §10.1. |
-| `workflows/threejs/AGENTS.md` | "Evidence rules": the report directory and the relative paths. |
+| File                                    | Change                                                                                                      |
+| :-------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| `scripts/blueprint/measure_view.py`     | `load_mask` uses run propagation (`reach`), not the one-pixel-per-iteration dilation. Nothing else changes. |
+| `workflows/threejs/tools/paths.ts`      | `REPORTS`, pointing at `test-reports/` at the root.                                                         |
+| `workflows/threejs/tools/silhouette.ts` | Overlays default to `test-reports/silhouette/`; scratch under `test-reports/`; prints relative paths.       |
+| `workflows/threejs/tools/shot.ts`       | Scratch under `test-reports/`; the `render …` line prints a relative path.                                  |
+| `workflows/threejs/tools/check_zoom.ts` | `SHOT_PATH` under `test-reports/`.                                                                          |
+| `workflows/threejs/tools/ctl.ts`        | `shot`/`side` print relative paths; the examples use `test-reports/`.                                       |
+| `workflows/threejs/tools/check.ts`      | Progress lines coloured on a TTY; report paths relative through `toRepoPath`.                               |
+| `.gitignore`                            | `test-reports/`.                                                                                            |
+| `README.md` (root)                      | `test-reports/` in the tree, with a paragraph.                                                              |
+| `workflows/threejs/README.md`           | The tool table and §10.1.                                                                                   |
+| `workflows/threejs/AGENTS.md`           | "Evidence rules": the report directory and the relative paths.                                              |
 
 ### T6.5 — `measure_view.py`, with its proof of equality
 
@@ -519,13 +518,13 @@ front, back, top against the current `r5-L3` renders — before and after. **The
 byte-identical on all five pairs**: `profile_mm`, `height_mm`, `ratio`, `scale_mm_per_ref_px`, the
 `delta` and the wheel table, to the last digit printed.
 
-| Pair | Before | After |
-| :--- | ---: | ---: |
-| left | 6.04 s | 0.54 s |
-| right | 6.29 s | 0.57 s |
+| Pair  |  Before |  After |
+| :---- | ------: | -----: |
+| left  |  6.04 s | 0.54 s |
+| right |  6.29 s | 0.57 s |
 | front | 11.37 s | 2.02 s |
-| back | 5.59 s | 0.53 s |
-| top | 6.08 s | 0.51 s |
+| back  |  5.59 s | 0.53 s |
+| top   |  6.08 s | 0.51 s |
 
 The `left` pair is the one `check.ts` measures; the measure step fell from 6.0 s to 0.5 s in the run.
 
@@ -553,9 +552,9 @@ orient yellow, measure green. Colour is emitted only when `process.stdout.isTTY`
 
 `shot.ts` was timed with 1, 4 and 8 views. No view is dropped; this is a measurement only.
 
-| Run | Wall |
-| :--- | ---: |
-| 1 view | 3.57 s |
+| Run     |   Wall |
+| :------ | -----: |
+| 1 view  | 3.57 s |
 | 4 views | 6.42 s |
 | 8 views | 8.59 s |
 
@@ -658,13 +657,13 @@ That figure was written by the CTO from a capture measured at 5.0 s for **six** 
 loaded machine. The real `check.ts` captures **eight**: it always adds the perspective views, because
 they are the ones that judge a mass. The honest residual is:
 
-| Step | Cost | In scope? |
-| :--- | ---: | :--- |
-| capture, eight views | 9.1 s | no |
-| overlay, five views (`silhouette.ts`, ImageMagick) | 3.8 s | no |
-| orientation guard | 4.0 s | **this ticket, done** |
-| measure (`scripts/blueprint/measure_view.py`) | 6.7 s | no |
-| **total** | **23.5 s** | |
+| Step                                               |       Cost | In scope?             |
+| :------------------------------------------------- | ---------: | :-------------------- |
+| capture, eight views                               |      9.1 s | no                    |
+| overlay, five views (`silhouette.ts`, ImageMagick) |      3.8 s | no                    |
+| orientation guard                                  |      4.0 s | **this ticket, done** |
+| measure (`scripts/blueprint/measure_view.py`)      |      6.7 s | no                    |
+| **total**                                          | **23.5 s** |                       |
 
 `scripts/blueprint/measure_view.py:47` carries the **same** `while True:` corner flood fill this
 ticket just replaced, and it is now the largest fixable step at 6.7 s. Moving it to run propagation
@@ -682,13 +681,13 @@ the same coder session carried on.
 
 ### The run
 
-| | 2026-11-09, original | after pass 1 | after pass 2 |
-| :--- | ---: | ---: | ---: |
-| capture, eight views | 25.2 s (nine cores burning) | 9.0 s | 9.0 s |
-| overlay, five views | ~3.8 s | 3.5 s | 3.5 s |
-| orientation guard | 41.6 s | 3.7 s | 3.7 s |
-| measure | 6.7 s | 6.7 s | **0.7 s** |
-| **`bun run check`** | **1 min 54 s** | 23.5 s | **17.0 s** |
+|                      |        2026-11-09, original | after pass 1 | after pass 2 |
+| :------------------- | --------------------------: | -----------: | -----------: |
+| capture, eight views | 25.2 s (nine cores burning) |        9.0 s |        9.0 s |
+| overlay, five views  |                      ~3.8 s |        3.5 s |        3.5 s |
+| orientation guard    |                      41.6 s |        3.7 s |        3.7 s |
+| measure              |                       6.7 s |        6.7 s |    **0.7 s** |
+| **`bun run check`**  |              **1 min 54 s** |       23.5 s |   **17.0 s** |
 
 **6.7× overall**, and the exit code is `1`, as the header always promised.
 

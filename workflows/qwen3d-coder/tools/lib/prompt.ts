@@ -11,7 +11,7 @@ export const SYSTEM_PROMPT_PATH = resolve(
 	"..",
 	"..",
 	"prompts",
-	"3d-coder-system.txt",
+	"3d-coder-system.txt"
 );
 
 export type UserPromptInput = {
@@ -27,14 +27,16 @@ export type UserPromptInput = {
 
 function required(value: string | null | undefined, field: string): string {
 	const text = (value ?? "").trim();
-	if (!text) throw new Error(`${field} is empty. The prompt is never sent empty.`);
+	if (!text)
+		throw new Error(`${field} is empty. The prompt is never sent empty.`);
 	return text;
 }
 
 /**
  * Build the user prompt from its four blocks.
  *
- * Block 3 is optional. The other three are mandatory, and an empty input throws.
+ * Block 3 is optional. The other three are mandatory, and an empty input
+ * throws.
  */
 export function buildUserPrompt(input: UserPromptInput): string {
 	const subject = required(input.subject, "The subject");
@@ -45,7 +47,7 @@ export function buildUserPrompt(input: UserPromptInput): string {
 	const blocks = [`Subject: ${subject}`, `Style: ${style}`];
 	if (details) blocks.push(`Details that must survive: ${details}`);
 	blocks.push(
-		`Create one self-contained HTML file with Three.js from cdnjs that shows ${request}.`,
+		`Create one self-contained HTML file with Three.js from cdnjs that shows ${request}.`
 	);
 	return blocks.join("\n");
 }
@@ -64,12 +66,14 @@ export type SubjectNotes = {
  */
 export const DETAILS_HEADINGS = [
 	"## Specific subject details",
-	"## Identity features that must not change",
+	"## Identity features that must not change"
 ] as const;
 
 function sectionParagraph(markdown: string, heading: string): string | null {
 	const lines = markdown.split("\n");
-	const start = lines.findIndex((line) => line.trim().toLowerCase() === heading.toLowerCase());
+	const start = lines.findIndex(
+		(line) => line.trim().toLowerCase() === heading.toLowerCase()
+	);
 	if (start < 0) return null;
 
 	const paragraph: string[] = [];
@@ -95,6 +99,6 @@ export function parseNotes(markdown: string): SubjectNotes {
 	}
 	return {
 		subject: sectionParagraph(markdown, "## Subject"),
-		details,
+		details
 	};
 }

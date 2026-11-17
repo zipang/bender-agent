@@ -7,11 +7,11 @@
 - **Depends on**: T0006 — it rewrote the same report, and the two must not drift
 - **Blocks**: nothing
 - **References**:
-  - `workflows/threejs/tools/check.ts` — the report it prints at the end of `main()`
-  - `scripts/blueprint/measure_view.py` — `report()`, and the standalone table it prints itself
-  - `workflows/threejs/tools/silhouette.ts` — the overlay the report points at
-  - `workflows/threejs/README.md` §10 — the gate
-  - `workflows/threejs/AGENTS.md` — "Measurement rules"
+    - `workflows/threejs/tools/check.ts` — the report it prints at the end of `main()`
+    - `scripts/blueprint/measure_view.py` — `report()`, and the standalone table it prints itself
+    - `workflows/threejs/tools/silhouette.ts` — the overlay the report points at
+    - `workflows/threejs/README.md` §10 — the gate
+    - `workflows/threejs/AGENTS.md` — "Measurement rules"
 
 ## Context & Goal
 
@@ -122,7 +122,7 @@ status        NEEDS WORK
 
 - **One mark per 5 mm** of `|delta|`, capped at the field width.
 - The `|` sits at a **fixed column**, the tolerance in marks: `round(40 / 5) = 8`. It is drawn
-  *over* the bar, so a bar that reaches it visibly crosses it, and a bar that stops short leaves a
+  _over_ the bar, so a bar that reaches it visibly crosses it, and a bar that stops short leaves a
   gap. That is the whole point: the crossing is the failure.
 - The scale and the meaning of `|` are printed **once, above the table**, not per row.
 - A field of 30 marks covers 150 mm. A delta past that is clamped, and the row says `OVER` in the
@@ -231,7 +231,7 @@ mark counts are not one per 5 mm (`-29` draws 5 marks, `-47` draws 10). That con
 ticket's own rule, printed twice:
 
 > "One mark per 5 mm … The `|` sits at a fixed column, the tolerance in marks: `round(40 / 5) = 8`.
-> It is drawn *over* the bar, so a bar that reaches it visibly crosses it, and a bar that stops
+> It is drawn _over_ the bar, so a bar that reaches it visibly crosses it, and a bar that stops
 > short leaves a gap."
 
 The render follows the rule, not the drawing. A row now reads `-------|-` for `-46` (the bar crosses
@@ -299,8 +299,8 @@ The independent peer review is **deferred by the art director's instruction**. W
 by the CTO and not by the coder:
 
 - **The coder caught a real contradiction in this ticket, and the fault was the CTO's.** The mock-up
-  in the Contract drew the `|` *after* the bar, so it moved from row to row, while the prose stated
-  twice that it sits at a **fixed column** and is drawn *over* the bar. The mock-up was wrong and the
+  in the Contract drew the `|` _after_ the bar, so it moved from row to row, while the prose stated
+  twice that it sits at a **fixed column** and is drawn _over_ the bar. The mock-up was wrong and the
   prose was right. The coder followed the rule, flagged the contradiction in the notes, and the
   mock-up has been corrected above to the output the tool actually produces.
 - **The rule is what makes the failure visible.** `-29 mm` leaves `------ |` — the bar stops two

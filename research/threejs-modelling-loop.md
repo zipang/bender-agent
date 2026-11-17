@@ -104,10 +104,10 @@ camera.
 A blueprint sheet is an orthographic elevation. A perspective camera can never line up with one,
 no matter how far back it sits. So the scene carries two cameras and switches:
 
-| View kind | Camera | Reason |
-| :--- | :--- | :--- |
-| `front`, `back`, `left`, `right`, `top` | `OrthographicCamera` | matches the reference projection |
-| `front-3q`, `rear-3q`, `iso` | `PerspectiveCamera` | judges volume, which an elevation cannot |
+| View kind                               | Camera               | Reason                                   |
+| :-------------------------------------- | :------------------- | :--------------------------------------- |
+| `front`, `back`, `left`, `right`, `top` | `OrthographicCamera` | matches the reference projection         |
+| `front-3q`, `rear-3q`, `iso`            | `PerspectiveCamera`  | judges volume, which an elevation cannot |
 
 Skipping this made every overlay look "almost right" on the roof and "wrong" on the wheels, for a
 reason that had nothing to do with the model.
@@ -157,17 +157,17 @@ version of the guard reported a correct comparison with the wrong label.
 
 ## 4. Mistakes that cost time, and the rule that prevents each
 
-| Symptom | Cause | Rule |
-| :--- | :--- | :--- |
-| Overlay all magenta or all blank | `-colorize 100` replaces the image | use `+level-colors black,#colour` to tint a mask |
-| Background not removed | brightness threshold ate the grey trim | flood fill from the four corners, never a threshold |
-| Roof "almost right", wheels "wrong" | perspective camera against orthographic reference | switch camera by view kind |
-| Correct model, wrong verdict | normalization by bounding box | scale by width, anchor at the ground |
-| Mirrored comparison | swapped view labels | measure the roof-mass side in both images |
-| Nose on the wrong side of the frame | azimuth convention derived, not observed | check the nose side in the render once, in the image |
-| Wheel arch shows through the body | open tunnel behind the tyre | a dark plate inboard of each wheel |
-| Arch moiré | coincident faces | avoid CSG entirely; cut the arch as a hole in the profile |
-| Body is a slab with a roof | constant-section extrusion | taper the vertices by height and by length |
+| Symptom                             | Cause                                             | Rule                                                      |
+| :---------------------------------- | :------------------------------------------------ | :-------------------------------------------------------- |
+| Overlay all magenta or all blank    | `-colorize 100` replaces the image                | use `+level-colors black,#colour` to tint a mask          |
+| Background not removed              | brightness threshold ate the grey trim            | flood fill from the four corners, never a threshold       |
+| Roof "almost right", wheels "wrong" | perspective camera against orthographic reference | switch camera by view kind                                |
+| Correct model, wrong verdict        | normalization by bounding box                     | scale by width, anchor at the ground                      |
+| Mirrored comparison                 | swapped view labels                               | measure the roof-mass side in both images                 |
+| Nose on the wrong side of the frame | azimuth convention derived, not observed          | check the nose side in the render once, in the image      |
+| Wheel arch shows through the body   | open tunnel behind the tyre                       | a dark plate inboard of each wheel                        |
+| Arch moiré                          | coincident faces                                  | avoid CSG entirely; cut the arch as a hole in the profile |
+| Body is a slab with a roof          | constant-section extrusion                        | taper the vertices by height and by length                |
 
 ## 5. The modelling vocabulary that actually works
 
@@ -187,15 +187,15 @@ shape of the asset:
 
 ## 6. Cost of one pass
 
-| Step | Before | Now |
-| :--- | :--- | :--- |
-| Capture | 1 call | 1 call |
-| Convert | 1 call | included |
-| Overlay | 1 call | included |
-| Measure | 1 call | included |
-| Read the images | 2 calls | 2 calls, unchanged |
-| Orientation check | none, assumed | automatic, fails loud |
-| **Total** | **5 calls per pass, blind** | **3 calls per pass, guarded** |
+| Step              | Before                      | Now                           |
+| :---------------- | :-------------------------- | :---------------------------- |
+| Capture           | 1 call                      | 1 call                        |
+| Convert           | 1 call                      | included                      |
+| Overlay           | 1 call                      | included                      |
+| Measure           | 1 call                      | included                      |
+| Read the images   | 2 calls                     | 2 calls, unchanged            |
+| Orientation check | none, assumed               | automatic, fails loud         |
+| **Total**         | **5 calls per pass, blind** | **3 calls per pass, guarded** |
 
 The remaining two image reads are the ones worth keeping: the number report can say the silhouette
 is 40 mm too tall, but only the picture says the roof is a slab.

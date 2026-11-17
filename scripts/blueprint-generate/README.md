@@ -3,11 +3,11 @@
 Three stages, one script. Each stage ends when the art director chooses a file. The script never
 scores, ranks, or deletes an image.
 
-| Stage | Input | Output |
-| :--- | :--- | :--- |
-| 0. Draft | `blueprints/drafts/<draft>/subject/*` and `style/*` | candidates at the draft root |
-| 1. Clean | `reference.<ext>` of a subject | cleaning candidates at the subject root |
-| 2. Views | `reference.<ext>` of a subject | six view folders of candidates |
+| Stage    | Input                                               | Output                                  |
+| :------- | :-------------------------------------------------- | :-------------------------------------- |
+| 0. Draft | `blueprints/drafts/<draft>/subject/*` and `style/*` | candidates at the draft root            |
+| 1. Clean | `reference.<ext>` of a subject                      | cleaning candidates at the subject root |
+| 2. Views | `reference.<ext>` of a subject                      | six view folders of candidates          |
 
 ## Layout
 
@@ -178,36 +178,36 @@ bun run blueprint-generate.ts --list-models
 
 ## Options
 
-| Option | Meaning | Default |
-| :--- | :--- | :--- |
-| `--draft <dir>` | Stage 0. A draft folder with `subject/` and `style/` | off |
-| `--promote` | Copy one draft candidate to `<subject>/reference.<ext>` | off |
-| `--file <name>` | The candidate to promote, inside the draft folder | required with `--promote` |
-| `--pose <text>` | Camera pose of the draft reference image | front three-quarter |
-| `--pose-b <text>` | Second panel pose. Shorthand for two poses | off |
-| `--two-view` | Two opposite three-quarter panels in one row | off |
-| `--poses <list>` | One pose per panel, separated by `|` | off |
-| `--subject-note <text>` | Art director words about the subject | `notes.md` |
-| `--specific-subject-details <text>` | What to keep and how to read an ambiguous reference. Wins over images | `notes.md` |
-| `--style-note <text>` | Art director words about the style | `notes.md` |
-| `--ask` | List the gaps in the material. Sends no request | off |
-| `--max-images <n>` | Maximum reference images in one draft request | 6 |
-| `--draft-template <path>` | Draft prompt template | `prompts/draft.md` |
-| `--subject <dir>` | One subject folder | required unless `--all` or `--draft` |
-| `--all` | Every ready subject under `blueprints/<category>/<subject>/` | off |
-| `--models <ids>` | Comma separated `provider/model` IDs | required to generate |
-| `--variants <n>` | Candidates per request and per model | 1 |
-| `--views <list>` | `front,left,back,right,top,bottom` | all |
-| `--reference-views <list>` | Viewpoints held by the reference image, in panel order, separated by `|` | one single viewpoint |
-| `--aspect <ratio>` | Requested aspect ratio | `1:1` |
-| `--style <text>` | Rendering style injected into the prompt | `low-poly stylized video game figurine` |
-| `--subject-type <t>` | `vehicule`, `character`, or `object` | read from the category folder |
-| `--template <path>` | View prompt template | `prompts/blueprint.md` |
-| `--clean` | Clean the reference image instead of generating views | off |
-| `--defects <text>` | Defects to remove | white outline, cast shadow, halo, speckles |
-| `--clean-template <path>` | Clean prompt template | `prompts/clean.md` |
-| `--concurrency <n>` | Parallel requests | 2 |
-| `--list-models` | Print compatible models and prices | off |
+| Option                              | Meaning                                                                | Default                                    |
+| :---------------------------------- | :--------------------------------------------------------------------- | :----------------------------------------- |
+| `--draft <dir>`                     | Stage 0. A draft folder with `subject/` and `style/`                   | off                                        |
+| `--promote`                         | Copy one draft candidate to `<subject>/reference.<ext>`                | off                                        |
+| `--file <name>`                     | The candidate to promote, inside the draft folder                      | required with `--promote`                  |
+| `--pose <text>`                     | Camera pose of the draft reference image                               | front three-quarter                        |
+| `--pose-b <text>`                   | Second panel pose. Shorthand for two poses                             | off                                        |
+| `--two-view`                        | Two opposite three-quarter panels in one row                           | off                                        |
+| `--poses <list>`                    | One pose per panel, separated by `                                     | `                                          | off                  |
+| `--subject-note <text>`             | Art director words about the subject                                   | `notes.md`                                 |
+| `--specific-subject-details <text>` | What to keep and how to read an ambiguous reference. Wins over images  | `notes.md`                                 |
+| `--style-note <text>`               | Art director words about the style                                     | `notes.md`                                 |
+| `--ask`                             | List the gaps in the material. Sends no request                        | off                                        |
+| `--max-images <n>`                  | Maximum reference images in one draft request                          | 6                                          |
+| `--draft-template <path>`           | Draft prompt template                                                  | `prompts/draft.md`                         |
+| `--subject <dir>`                   | One subject folder                                                     | required unless `--all` or `--draft`       |
+| `--all`                             | Every ready subject under `blueprints/<category>/<subject>/`           | off                                        |
+| `--models <ids>`                    | Comma separated `provider/model` IDs                                   | required to generate                       |
+| `--variants <n>`                    | Candidates per request and per model                                   | 1                                          |
+| `--views <list>`                    | `front,left,back,right,top,bottom`                                     | all                                        |
+| `--reference-views <list>`          | Viewpoints held by the reference image, in panel order, separated by ` | `                                          | one single viewpoint |
+| `--aspect <ratio>`                  | Requested aspect ratio                                                 | `1:1`                                      |
+| `--style <text>`                    | Rendering style injected into the prompt                               | `low-poly stylized video game figurine`    |
+| `--subject-type <t>`                | `vehicule`, `character`, or `object`                                   | read from the category folder              |
+| `--template <path>`                 | View prompt template                                                   | `prompts/blueprint.md`                     |
+| `--clean`                           | Clean the reference image instead of generating views                  | off                                        |
+| `--defects <text>`                  | Defects to remove                                                      | white outline, cast shadow, halo, speckles |
+| `--clean-template <path>`           | Clean prompt template                                                  | `prompts/clean.md`                         |
+| `--concurrency <n>`                 | Parallel requests                                                      | 2                                          |
+| `--list-models`                     | Print compatible models and prices                                     | off                                        |
 
 ## Prompt templates
 
@@ -218,42 +218,42 @@ Three text templates. Edit them to tune a generation. No code change is needed.
 One `[shared]` section that names the role of each image range, plus two alternatives for the
 style block: `[style]` when style images exist, `[no-style]` when they do not.
 
-| Placeholder | Value |
-| :--- | :--- |
-| `{subject}` | `vehicle`, `character`, or `object` |
-| `{subjectCount}` | Number of subject images |
-| `{styleCount}` | Number of style images |
-| `{styleFirst}` | Index of the first style image |
-| `{imageCount}` | Total number of attached images |
-| `{style}` | Rendering style |
-| `{pose}` | Camera pose |
-| `{subjectNote}` | Art director words about the subject |
-| `{styleNote}` | Art director words about the style |
+| Placeholder      | Value                                |
+| :--------------- | :----------------------------------- |
+| `{subject}`      | `vehicle`, `character`, or `object`  |
+| `{subjectCount}` | Number of subject images             |
+| `{styleCount}`   | Number of style images               |
+| `{styleFirst}`   | Index of the first style image       |
+| `{imageCount}`   | Total number of attached images      |
+| `{style}`        | Rendering style                      |
+| `{pose}`         | Camera pose                          |
+| `{subjectNote}`  | Art director words about the subject |
+| `{styleNote}`    | Art director words about the style   |
 
 ### `prompts/blueprint.md`
 
 One `[shared]` section and one section per view. `[shared]` runs for every view, and the matching
 view section is appended after it.
 
-| Placeholder | Value | Source |
-| :--- | :--- | :--- |
-| `{subjectType}` | `vehicule`, `character`, or `object` | `--subject-type`, else the category folder |
-| `{style}` | Rendering style | `--style` |
-| `{view}` | `front`, `left`, `back`, `right`, `top`, `bottom` | the view being generated |
-| `{referenceViewsBlock}` | The viewpoints held by the reference, and which panel serves this view | `--reference-views` |
-| `{subjectName}` | Subject folder name | the folder |
+| Placeholder             | Value                                                                  | Source                                     |
+| :---------------------- | :--------------------------------------------------------------------- | :----------------------------------------- |
+| `{subjectType}`         | `vehicule`, `character`, or `object`                                   | `--subject-type`, else the category folder |
+| `{style}`               | Rendering style                                                        | `--style`                                  |
+| `{view}`                | `front`, `left`, `back`, `right`, `top`, `bottom`                      | the view being generated                   |
+| `{referenceViewsBlock}` | The viewpoints held by the reference, and which panel serves this view | `--reference-views`                        |
+| `{subjectName}`         | Subject folder name                                                    | the folder                                 |
 
 ### `prompts/clean.md`
 
 One `[shared]` section.
 
-| Placeholder | Value | Source |
-| :--- | :--- | :--- |
-| `{subject}` | `vehicle`, `character`, or `object` | the subject type |
-| `{defects}` | The artifacts to remove | `--defects` |
-| `{editsBlock}` | The authorized content changes, one bullet each | `--edits` |
-| `{panelNote}` | How many panels the repair must preserve | `--panels` |
-| `{subjectName}` | Subject folder name | the folder |
+| Placeholder     | Value                                           | Source           |
+| :-------------- | :---------------------------------------------- | :--------------- |
+| `{subject}`     | `vehicle`, `character`, or `object`             | the subject type |
+| `{defects}`     | The artifacts to remove                         | `--defects`      |
+| `{editsBlock}`  | The authorized content changes, one bullet each | `--edits`        |
+| `{panelNote}`   | How many panels the repair must preserve        | `--panels`       |
+| `{subjectName}` | Subject folder name                             | the folder       |
 
 An unknown placeholder stops the run with an error. A missing section stops the run with an error.
 
@@ -265,10 +265,10 @@ only is rejected. Models that return vector formats are rejected.
 
 The catalog declares two kinds of image producer, and they use different SDK calls:
 
-| Catalog `type` | SDK call | Reference image | Result |
-| :--- | :--- | :--- | :--- |
-| `image` | `generateImage` | `prompt.images` | `result.image` |
-| `language` | `generateText` | file content part | `result.files` |
+| Catalog `type` | SDK call        | Reference image   | Result         |
+| :------------- | :-------------- | :---------------- | :------------- |
+| `image`        | `generateImage` | `prompt.images`   | `result.image` |
+| `language`     | `generateText`  | file content part | `result.files` |
 
 The script picks the call from the catalog. `meta/muse-image-1.0` is of type `image`.
 

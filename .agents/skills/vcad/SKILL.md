@@ -15,10 +15,10 @@ says, the behaviour below is what happens.
 
 ## The only two references
 
-| Source | What it gives |
-| :--- | :--- |
+| Source                                       | What it gives                                                                                               |
+| :------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
 | `reference/server-instructions-<version>.md` | The type catalog, the material keys, and the transform semantics, as emitted by the kernel registry at boot |
-| `reference/tools-<version>.md` | The 186 tool names with their required arguments |
+| `reference/tools-<version>.md`               | The 186 tool names with their required arguments                                                            |
 
 Both are captured from the running server, and both carry the server version in their file name.
 They are the API. Nothing else is.
@@ -33,14 +33,14 @@ Do not consult `loonlang.com`: it documents an unrelated functional language, no
 
 ## Status of this build
 
-| Fact | Value |
-| :--- | :--- |
-| Server version | `0.11.0-main.138+2df8f6d` |
-| Tools exposed | 186 |
-| Authoring tool that works | `create` |
-| `create_cad_document` | **absent from the server** |
-| `create_cad_loon` | present, but answers `Loon evaluation not supported by this engine build` |
-| `export_step` | absent; `export_cad` writes `.stl` and `.glb` only |
+| Fact                      | Value                                                                     |
+| :------------------------ | :------------------------------------------------------------------------ |
+| Server version            | `0.11.0-main.138+2df8f6d`                                                 |
+| Tools exposed             | 186                                                                       |
+| Authoring tool that works | `create`                                                                  |
+| `create_cad_document`     | **absent from the server**                                                |
+| `create_cad_loon`         | present, but answers `Loon evaluation not supported by this engine build` |
+| `export_step`             | absent; `export_cad` writes `.stl` and `.glb` only                        |
 
 The build is a development snapshot. Treat it as an evaluation target: capable, but uneven.
 
@@ -58,20 +58,20 @@ The build is a development snapshot. Treat it as an evaluation target: capable, 
 A wrong field name is rejected, and the error carries `accepted_arguments`. Read that list; do not
 retry with another guess.
 
-| Tool | Arguments |
-| :--- | :--- |
-| `open_document` | none required. Returns `document_id` |
-| `create` | `document_id`, `type`, `params`, `name`, `parent_part_id` |
-| `update` | `document_id`, `node_id`, `params` |
-| `delete` | `document_id`, `part_id` |
-| `set_material` | `document_id`, `part_id`, `material` |
-| `read` | `document_id`, `part_id` (optional). Lists parts, or dumps one feature tree |
-| `describe_scene` | `document_id`, `part_ids`, `limit` |
-| `inspect_part` | `document_id`, `part_id` |
-| `inspect_cad` | `document_id` |
-| `render_view` | `document_id`, `azimuth`, `elevation`, `view`, `width_px`, `style` |
-| `export_cad` | `document_id` or `ir`, plus `filename` |
-| `export_step` | **does not exist on this build** |
+| Tool              | Arguments                                                                      |
+| :---------------- | :----------------------------------------------------------------------------- |
+| `open_document`   | none required. Returns `document_id`                                           |
+| `create`          | `document_id`, `type`, `params`, `name`, `parent_part_id`                      |
+| `update`          | `document_id`, `node_id`, `params`                                             |
+| `delete`          | `document_id`, `part_id`                                                       |
+| `set_material`    | `document_id`, `part_id`, `material`                                           |
+| `read`            | `document_id`, `part_id` (optional). Lists parts, or dumps one feature tree    |
+| `describe_scene`  | `document_id`, `part_ids`, `limit`                                             |
+| `inspect_part`    | `document_id`, `part_id`                                                       |
+| `inspect_cad`     | `document_id`                                                                  |
+| `render_view`     | `document_id`, `azimuth`, `elevation`, `view`, `width_px`, `style`             |
+| `export_cad`      | `document_id` or `ir`, plus `filename`                                         |
+| `export_step`     | **does not exist on this build**                                               |
 | `create_cad_loon` | `source`, `document_id`, `use_loons`, `loons`, `base_dir`, `modules`, `format` |
 
 `create` is the workhorse. `params` follows the type catalog in
@@ -88,9 +88,9 @@ These eight points were measured on the installed build. Several contradict the 
 The server instructions say `translate` / `rotate` / `scale` "WRAPS the existing part in place".
 They do not stack. Measured on a single cube:
 
-| Call | Result |
-| :--- | :--- |
-| `translate(cube, +500 X)` | centre `x = 550` ✓ |
+| Call                                | Result                     |
+| :---------------------------------- | :------------------------- |
+| `translate(cube, +500 X)`           | centre `x = 550` ✓         |
 | then `translate(same part, +300 Y)` | centre `x = 50, y = 350` ✗ |
 
 The first offset is gone. The feature tree holds one `Translate` node, which is rewritten.
@@ -146,10 +146,10 @@ the modifier node, and the source id disappears.
 
 Measured on two 10 mm cubes:
 
-| Step | Parts after the call |
-| :--- | :--- |
-| create `A`, create `B` | `0:0`, `0:1` |
-| `union(left: 0:0, right: 0:1)` | `0:2` only |
+| Step                           | Parts after the call |
+| :----------------------------- | :------------------- |
+| create `A`, create `B`         | `0:0`, `0:1`         |
+| `union(left: 0:0, right: 0:1)` | `0:2` only           |
 
 So an operation chain is a chain of fresh ids: build, name, read the new `part_id`, and use **that**
 for the next step. Never reuse the id you passed in.
@@ -176,15 +176,15 @@ Three.js step. Do not author in meters and hope the exporter guesses.
 
 The axes are **+X right, +Y forward, +Z up**.
 
-| Primitive | Origin `(0, 0, 0)` | Extent |
-| :--- | :--- | :--- |
-| **Cube** | Lower corner | Extends to `(sx, sy, sz)` |
-| **Cylinder** | Base centre | Height along `+Z` |
-| **Sphere** | Centre | Radius in all directions |
-| **Cone** | Base centre | Height along `+Z` |
-| **Torus** | Centre | Axis along `+Z` |
-| **Wedge** | Corner | Legs along `+X` and `+Z`, extruded along `+Y` |
-| **Prism** | Centre on Z | Regular n-gon, height along `+Z` |
+| Primitive    | Origin `(0, 0, 0)` | Extent                                        |
+| :----------- | :----------------- | :-------------------------------------------- |
+| **Cube**     | Lower corner       | Extends to `(sx, sy, sz)`                     |
+| **Cylinder** | Base centre        | Height along `+Z`                             |
+| **Sphere**   | Centre             | Radius in all directions                      |
+| **Cone**     | Base centre        | Height along `+Z`                             |
+| **Torus**    | Centre             | Axis along `+Z`                               |
+| **Wedge**    | Corner             | Legs along `+X` and `+Z`, extruded along `+Y` |
+| **Prism**    | Centre on Z        | Regular n-gon, height along `+Z`              |
 
 A cube's origin is a corner. To centre it on X and Y, offset by `(-sx/2, -sy/2, 0)` in the same
 `translate` call, because a second one would replace it.
@@ -196,8 +196,12 @@ you pass: it is the classic off-by-87.5-mm error.
 ## Feature nodes with `create`
 
 ```json
-{ "document_id": "doc_...", "type": "cube", "name": "Body",
-  "params": { "size": { "x": 1530, "y": 3520, "z": 1410 } } }
+{
+	"document_id": "doc_...",
+	"type": "cube",
+	"name": "Body",
+	"params": { "size": { "x": 1530, "y": 3520, "z": 1410 } }
+}
 ```
 
 Node types come from the type catalog: `cube`, `cylinder`, `sphere`, `cone`, `torus`, `wedge`,
@@ -220,7 +224,7 @@ you can debug.
 
 ## The export rule — a model without a picture is not a deliverable
 
-**Every modelling stage ends with one command, and that command writes the `.glb` *and* the
+**Every modelling stage ends with one command, and that command writes the `.glb` _and_ the
 renders.** No stage is reported to the art director from numbers alone.
 
 ```bash
@@ -256,17 +260,17 @@ The server is durable, so a `document_id` minted in one process is still readabl
 
 ### The named views
 
-| View | Azimuth | Elevation | Use |
-| :--- | :--- | :--- | :--- |
-| `front-3q` | 60 | 30 | **the judgement view**: front, one flank, and roof in one frame |
-| `rear-3q` | 240 | 30 | the same from the other end |
-| `front` | 90 | 0 | orthographic elevation |
-| `back` | 270 | 0 | orthographic elevation |
-| `left` | 180 | 0 | orthographic profile |
-| `right` | 0 | 0 | orthographic profile |
-| `top` | 0 | 89 | plan |
-| `bottom` | 0 | −89 | underbody |
-| `iso` | 40 | 22 | generic orbit |
+| View       | Azimuth | Elevation | Use                                                             |
+| :--------- | :------ | :-------- | :-------------------------------------------------------------- |
+| `front-3q` | 60      | 30        | **the judgement view**: front, one flank, and roof in one frame |
+| `rear-3q`  | 240     | 30        | the same from the other end                                     |
+| `front`    | 90      | 0         | orthographic elevation                                          |
+| `back`     | 270     | 0         | orthographic elevation                                          |
+| `left`     | 180     | 0         | orthographic profile                                            |
+| `right`    | 0       | 0         | orthographic profile                                            |
+| `top`      | 0       | 89        | plan                                                            |
+| `bottom`   | 0       | −89       | underbody                                                       |
+| `iso`      | 40      | 22        | generic orbit                                                   |
 
 `+Y` is the front direction, so the front camera sits at azimuth 90. The default view set is
 `front-3q, rear-3q, front, left, back, right, top`.
@@ -316,12 +320,12 @@ A `document_id` is a handle to server-side state, not storage.
 
 Field data from the Renault 5 TL L1 pass (`blueprints/vehicules/r5-tl-1972/model/`):
 
-| Observation | Value |
-| :--- | :--- |
-| Six named parts, one box, one greenhouse, four wheels | 536 triangles, `watertight: true` |
-| File size | 48 KB GLB, six meshes, glTF 2.0, no extensions |
-| Bounding box | exactly the real car, `−765..765 × −1760..1760 × 0..1410` mm |
-| Cost of one full rebuild | about fifteen `create` calls, a few seconds |
+| Observation                                           | Value                                                        |
+| :---------------------------------------------------- | :----------------------------------------------------------- |
+| Six named parts, one box, one greenhouse, four wheels | 536 triangles, `watertight: true`                            |
+| File size                                             | 48 KB GLB, six meshes, glTF 2.0, no extensions               |
+| Bounding box                                          | exactly the real car, `−765..765 × −1760..1760 × 0..1410` mm |
+| Cost of one full rebuild                              | about fifteen `create` calls, a few seconds                  |
 
 What it is good at: constant-size primitives, exact absolute dimensions, cylindrical parts, a
 scene split into named parts, and a small triangle budget that suits a game asset.

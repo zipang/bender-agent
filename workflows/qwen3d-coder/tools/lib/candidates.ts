@@ -10,16 +10,23 @@ import { join } from "node:path";
 /** The fixed prefix of every candidate of this workflow. */
 export const CANDIDATE_PREFIX = "qwen3d-coder-scene";
 
-/** The persistent counter of the folder. It stops a deleted number from coming back. */
+/**
+ * The persistent counter of the folder. It stops a deleted number from coming
+ * back.
+ */
 export const COUNTER_FILE = ".qwen3d-coder-scene.counter";
 
 const SUFFIX = ".html";
-const PATTERN = new RegExp(`^${CANDIDATE_PREFIX}--(\\d+)${SUFFIX.replace(".", "\\.")}$`);
+const PATTERN = new RegExp(
+	`^${CANDIDATE_PREFIX}--(\\d+)${SUFFIX.replace(".", "\\.")}$`
+);
 
 /** The documented name of one candidate, zero padded to two digits. */
 export function candidateFileName(n: number): string {
 	if (!Number.isInteger(n) || n < 1) {
-		throw new Error(`A candidate number is a positive integer, got "${n}".`);
+		throw new Error(
+			`A candidate number is a positive integer, got "${n}".`
+		);
 	}
 	return `${CANDIDATE_PREFIX}--${String(n).padStart(2, "0")}${SUFFIX}`;
 }
@@ -27,7 +34,8 @@ export function candidateFileName(n: number): string {
 /**
  * Read the persistent counter of a folder.
  *
- * A missing, unreadable, or invalid counter returns null, and the folder maximum decides.
+ * A missing, unreadable, or invalid counter returns null, and the folder
+ * maximum decides.
  */
 export function readCounter(dir: string): number | null {
 	try {
@@ -43,8 +51,9 @@ export function readCounter(dir: string): number | null {
 /**
  * The next number of a folder.
  *
- * It is `max(counter, maximum present) + 1`, or 1 when the folder holds neither. The counter keeps
- * a deleted number out of use, and a missing folder counts as empty.
+ * It is `max(counter, maximum present) + 1`, or 1 when the folder holds
+ * neither. The counter keeps a deleted number out of use, and a missing folder
+ * counts as empty.
  */
 export function nextNumber(dir: string): number {
 	const counter = readCounter(dir);
@@ -73,9 +82,9 @@ function writeCounter(dir: string, n: number): void {
 /**
  * Write one candidate with `O_EXCL`, and return its path.
  *
- * The folder is created when it is missing. An existing file is never overwritten: the counter
- * moves to the next free number and the write is retried. The counter is recorded after a
- * successful write.
+ * The folder is created when it is missing. An existing file is never
+ * overwritten: the counter moves to the next free number and the write is
+ * retried. The counter is recorded after a successful write.
  */
 export function writeCandidate(dir: string, html: string): string {
 	mkdirSync(dir, { recursive: true });

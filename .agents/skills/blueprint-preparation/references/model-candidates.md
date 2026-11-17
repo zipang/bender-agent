@@ -15,15 +15,15 @@ bun run blueprint-generate.ts --list-models
 A model is usable when it declares image input and image output in the AI Gateway catalog, and it
 is not a vector-output tool.
 
-| Model ID | Status | Note |
-| :--- | :--- | :--- |
-| `meta/muse-image-1.0` | validated by the art director | Reference image, new pose, new angle. Documented price 0.01 USD per image. |
-| `google/gemini-3-pro-image` | to test | Gemini image model with vision. |
-| `google/gemini-3.1-flash-image` | to test | Faster Gemini variant. |
-| `google/gemini-3.1-flash-image-preview` | to test | Preview variant of the same family. |
-| `google/gemini-3.1-flash-lite-image` | to test | Low-latency Gemini variant. |
-| `google/gemini-nano-banana-2.1` | to test | Nano Banana family. |
-| `google/gemini-2.5-flash-image` | to test | Previous generation. Keep for comparison. |
+| Model ID                                | Status                        | Note                                                                       |
+| :-------------------------------------- | :---------------------------- | :------------------------------------------------------------------------- |
+| `meta/muse-image-1.0`                   | validated by the art director | Reference image, new pose, new angle. Documented price 0.01 USD per image. |
+| `google/gemini-3-pro-image`             | to test                       | Gemini image model with vision.                                            |
+| `google/gemini-3.1-flash-image`         | to test                       | Faster Gemini variant.                                                     |
+| `google/gemini-3.1-flash-image-preview` | to test                       | Preview variant of the same family.                                        |
+| `google/gemini-3.1-flash-lite-image`    | to test                       | Low-latency Gemini variant.                                                |
+| `google/gemini-nano-banana-2.1`         | to test                       | Nano Banana family.                                                        |
+| `google/gemini-2.5-flash-image`         | to test                       | Previous generation. Keep for comparison.                                  |
 
 The goal is to choose one Gemini model for the view work. Test them on the same subject and the
 same prompt, then compare the variants by eye.

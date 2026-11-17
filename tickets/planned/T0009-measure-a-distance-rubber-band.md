@@ -9,18 +9,18 @@
   `pointerdown` on the canvas, and the two must not fight over it.
 - **Blocks**: `nothing`
 - **References**:
-  - `tickets/done/T0005-measurement-pick-invocation.md` — the chord this ticket builds on
-  - `tickets/done/T0007-viewer-idles-at-zero.md` — the on-demand loop a live rubber band must arm
-  - `workflows/threejs/viewer/picker.js` — the recording path, the panel, and `pickAt`
-  - `workflows/threejs/viewer/measure.js` — `betweenPoints`, `readPoint`, `panelLines`
-  - `workflows/threejs/viewer/stage.js` — `requestFrame` / `nextFrame`, the reason to draw
-  - `workflows/threejs/AGENTS.md` — "Measurement rules"
-  - MDN `Element.pointermove_event`:
-    <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointermove_event>
-  - Three.js `Line`, `BufferGeometry.setFromPoints`, and `PointsMaterial.sizeAttenuation`:
-    <https://threejs.org/docs/#api/en/objects/Line>
-    <https://threejs.org/docs/#api/en/core/BufferGeometry.setFromPoints>
-    <https://threejs.org/docs/#api/en/materials/PointsMaterial.sizeAttenuation>
+    - `tickets/done/T0005-measurement-pick-invocation.md` — the chord this ticket builds on
+    - `tickets/done/T0007-viewer-idles-at-zero.md` — the on-demand loop a live rubber band must arm
+    - `workflows/threejs/viewer/picker.js` — the recording path, the panel, and `pickAt`
+    - `workflows/threejs/viewer/measure.js` — `betweenPoints`, `readPoint`, `panelLines`
+    - `workflows/threejs/viewer/stage.js` — `requestFrame` / `nextFrame`, the reason to draw
+    - `workflows/threejs/AGENTS.md` — "Measurement rules"
+    - MDN `Element.pointermove_event`:
+      <https://developer.mozilla.org/en-US/docs/Web/API/Element/pointermove_event>
+    - Three.js `Line`, `BufferGeometry.setFromPoints`, and `PointsMaterial.sizeAttenuation`:
+      <https://threejs.org/docs/#api/en/objects/Line>
+      <https://threejs.org/docs/#api/en/core/BufferGeometry.setFromPoints>
+      <https://threejs.org/docs/#api/en/materials/PointsMaterial.sizeAttenuation>
 
 ## Context & Goal
 
@@ -36,7 +36,7 @@ ticket exists.
    nothing else. No marker, no line. A `Ctrl` + click changes text in a corner panel and the canvas
    looks untouched.
 3. **The panel states the wrong gesture.** `measure.js:80` still prints `click to place a point,
-   shift-click to pick the model` — the chord before T0005. T0005 excluded `measure.js` on the ground
+shift-click to pick the model` — the chord before T0005. T0005 excluded `measure.js` on the ground
    that it changes "how a point is invoked, not what is recorded"; the help line is the invocation,
    so it is a leftover of that ticket, not a scope violation.
 
@@ -60,15 +60,15 @@ second point, it is an aiming aid.
 
 ## What already exists, and what must be built
 
-| Piece | Today | This ticket |
-| :--- | :--- | :--- |
-| the chord | `Ctrl` + click on release, under 3 px (T0005) | unchanged |
-| `pickAt(nx, ny, source)` | raycasts the plate or the model, returns a world point | reused, unchanged |
-| `betweenPoints(from, to, axes)` | the per-axis delta and the length, in mm | reused, unchanged |
-| `panelLines(panel)` | a pure formatter, no DOM, no THREE | gains the live length and the frozen result |
-| the marker and the line | do not exist | a `Line` and a point marker, in the scene |
-| the frame | drawn on demand; the loop sleeps when nothing is dirty (T0007) | **armed on every `pointermove` while anchored**, and asleep again when the pointer stops |
-| the trigger | `__ctl.measure({ on: true })` only | a control on the page, and a key |
+| Piece                           | Today                                                          | This ticket                                                                              |
+| :------------------------------ | :------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| the chord                       | `Ctrl` + click on release, under 3 px (T0005)                  | unchanged                                                                                |
+| `pickAt(nx, ny, source)`        | raycasts the plate or the model, returns a world point         | reused, unchanged                                                                        |
+| `betweenPoints(from, to, axes)` | the per-axis delta and the length, in mm                       | reused, unchanged                                                                        |
+| `panelLines(panel)`             | a pure formatter, no DOM, no THREE                             | gains the live length and the frozen result                                              |
+| the marker and the line         | do not exist                                                   | a `Line` and a point marker, in the scene                                                |
+| the frame                       | drawn on demand; the loop sleeps when nothing is dirty (T0007) | **armed on every `pointermove` while anchored**, and asleep again when the pointer stops |
+| the trigger                     | `__ctl.measure({ on: true })` only                             | a control on the page, and a key                                                         |
 
 ## The frame budget — this is the trap
 
@@ -106,15 +106,15 @@ knot handles), the knot editor's own state (T0004), `tools/check.ts`, `scenes/**
 
 ```js
 // in the picker
-measurement.anchor   // null | { source, view, world: [x,y,z], u, v, axes, read }
-measurement.points   // the recorded points, as today
+measurement.anchor; // null | { source, view, world: [x,y,z], u, v, axes, read }
+measurement.points; // the recorded points, as today
 ```
 
-| State | Anchor | Cursor line | Panel |
-| :--- | :--- | :--- | :--- |
-| `idle` | none | none | the help line |
-| `anchored` | one point | from the anchor to the cursor | the anchor, and the live length |
-| `measured` | two points | frozen | the two points, the per-axis delta, the length |
+| State      | Anchor     | Cursor line                   | Panel                                          |
+| :--------- | :--------- | :---------------------------- | :--------------------------------------------- |
+| `idle`     | none       | none                          | the help line                                  |
+| `anchored` | one point  | from the anchor to the cursor | the anchor, and the live length                |
+| `measured` | two points | frozen                        | the two points, the per-axis delta, the length |
 
 A `Ctrl` + click in `measured` **clears the pair and places a new anchor** (D2): the transition is
 `measured -> anchored`, never `measured -> measured + one more`. One measurement is on screen.

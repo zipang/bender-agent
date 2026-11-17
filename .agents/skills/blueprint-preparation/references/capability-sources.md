@@ -15,14 +15,14 @@ receive the reference image.
 
 ## Capability states
 
-| State | Meaning |
-| :--- | :--- |
-| `confirmed` | Catalog and smoke test both pass. |
-| `catalog-confirmed` | Catalog declares image input and image output. No smoke test yet. |
-| `sdk-confirmed` | The SDK property returns `true`. No smoke test yet. |
-| `unsupported` | Catalog, SDK, or smoke test says no. |
-| `unknown` | No reliable evidence. |
-| `error` | The call failed for an infrastructure reason. Not a capability verdict. |
+| State               | Meaning                                                                 |
+| :------------------ | :---------------------------------------------------------------------- |
+| `confirmed`         | Catalog and smoke test both pass.                                       |
+| `catalog-confirmed` | Catalog declares image input and image output. No smoke test yet.       |
+| `sdk-confirmed`     | The SDK property returns `true`. No smoke test yet.                     |
+| `unsupported`       | Catalog, SDK, or smoke test says no.                                    |
+| `unknown`           | No reliable evidence.                                                   |
+| `error`             | The call failed for an infrastructure reason. Not a capability verdict. |
 
 Only `confirmed`, `catalog-confirmed`, and `sdk-confirmed` enter a generation run.
 
@@ -36,11 +36,11 @@ Read one record:
 
 ```json
 {
-  "id": "meta/muse-image-1.0",
-  "type": "image",
-  "tags": ["image-generation", "vision"],
-  "modalities": { "input": ["text", "image"], "output": ["image"] },
-  "pricing": { "image": "0.01" }
+	"id": "meta/muse-image-1.0",
+	"type": "image",
+	"tags": ["image-generation", "vision"],
+	"modalities": { "input": ["text", "image"], "output": ["image"] },
+	"pricing": { "image": "0.01" }
 }
 ```
 

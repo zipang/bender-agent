@@ -71,19 +71,21 @@ Check the file after each step. Confirm the file size, the triangle count, and t
 ### Robust loader with Draco and Meshopt
 
 ```javascript
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+dracoLoader.setDecoderPath(
+	"https://www.gstatic.com/draco/versioned/decoders/1.5.7/"
+);
 
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);
 
-const gltf = await gltfLoader.loadAsync('/models/bender-optimized.glb');
+const gltf = await gltfLoader.loadAsync("/models/bender-optimized.glb");
 const root = gltf.scene;
 scene.add(root);
 ```
@@ -93,17 +95,17 @@ scene.add(root);
 1. **Procedural animation with node transforms.** Use this method for robots, vehicles, and other rigid parts. Examples: wheel spin, door opening, head tracking, antenna sway.
 
 ```javascript
-const head = root.getObjectByName('Head');
-const door = root.getObjectByName('Torso_Door');
-const antenna = root.getObjectByName('Antenna');
+const head = root.getObjectByName("Head");
+const door = root.getObjectByName("Torso_Door");
+const antenna = root.getObjectByName("Antenna");
 
 function animate(time) {
-  if (antenna) {
-    antenna.rotation.z = Math.sin(time * 0.005) * 0.15;
-  }
-  if (head) {
-    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetYaw, 0.1);
-  }
+	if (antenna) {
+		antenna.rotation.z = Math.sin(time * 0.005) * 0.15;
+	}
+	if (head) {
+		head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, targetYaw, 0.1);
+	}
 }
 ```
 
@@ -111,9 +113,9 @@ function animate(time) {
 
 ```javascript
 const mixer = new THREE.AnimationMixer(root);
-const idleClip = THREE.AnimationClip.findByName(gltf.animations, 'Idle');
+const idleClip = THREE.AnimationClip.findByName(gltf.animations, "Idle");
 if (idleClip) {
-  mixer.clipAction(idleClip).play();
+	mixer.clipAction(idleClip).play();
 }
 
 // In the render loop:
@@ -125,10 +127,13 @@ if (idleClip) {
 A metal material (`metalness > 0.8`) looks black in Three.js when nothing surrounds it. Set an environment map:
 
 ```javascript
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
-scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = pmremGenerator.fromScene(
+	new RoomEnvironment(),
+	0.04
+).texture;
 ```
 
 Use `scene.environmentIntensity` to adjust the reflection strength. Keep the tone mapping at `THREE.ACESFilmicToneMapping` for metal assets.

@@ -1,15 +1,27 @@
 # Draft prompt: one modeling reference image built from the material of a draft folder.
+
 #
+
 # The generator attaches the images in order: subject first, then style.
+
 # Placeholders come from lib/prompts.ts (buildDraftPrompt).
+
 #
+
 # This template serves one panel and several panels. The panel intro, the layout, the panel list
+
 # and the panel rules are generated from the pose count, so the wording never contradicts the
+
 # requested layout.
+
 #
+
 # NOTHING here assumes a subject category. The subject can be an object, a machine, a vehicle, a
+
 # character, a creature, a plant, or a product. NOTHING here assumes that the reference images are
+
 # complete, consistent, sharp, or even of the same instance. The template states how to resolve
+
 # that, and the art director can pin a reading with "specific subject details".
 
 [shared]

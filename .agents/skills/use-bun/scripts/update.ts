@@ -3,23 +3,25 @@
  * documentation and keeps two derived files in sync:
  *
  * 1. `references/*.md` — the per-domain documentation sub-indexes.
- * 2. The target project's `AGENTS.md` — a small always-visible "Bun tooling"
- *    block (marker-managed), so every session knows to prefer Bun built-ins
- *    even before the skill is loaded.
+ * 2. The target project's `AGENTS.md` — a small always-visible "Bun tooling" block
+ *    (marker-managed), so every session knows to prefer Bun built-ins even
+ *    before the skill is loaded.
  *
  * The script mirrors two sources and merges them, because neither is complete:
+ *
  * - `https://bun.com/docs/llms.txt` lists most pages with a title and summary,
- *   but omits a dozen pages (type checker, linter, formatter, module graph, ...).
- * - `https://bun.com/sitemap.xml` lists every published page, including the
- *   ones missing from `llms.txt`, but carries no title or summary.
+ *   but omits a dozen pages (type checker, linter, formatter, module graph,
+ *   ...).
+ * - `https://bun.com/sitemap.xml` lists every published page, including the ones
+ *   missing from `llms.txt`, but carries no title or summary.
  *
  * Every doc page is fetchable as Markdown by suffixing `.md`, which is the URL
  * shape the skill hands to the agent for on-demand reading.
  *
  * Run from the root of the project that hosts the skill:
  *
- *   bun .agents/skills/use-bun/scripts/update.ts           # rewrite the indexes
- *   bun .agents/skills/use-bun/scripts/update.ts --check   # fail when stale
+ * Bun .agents/skills/use-bun/scripts/update.ts # rewrite the indexes bun
+ * .agents/skills/use-bun/scripts/update.ts --check # fail when stale
  *
  * Content inside `<!-- curated:start -->` / `<!-- curated:end -->` markers is
  * never modified, so project-specific notes survive regeneration.
@@ -111,24 +113,24 @@ const BUCKETS: Bucket[] = [
 				"docs.md",
 				"docs/index.md",
 				"docs/installation.md",
-				"docs/quickstart.md",
+				"docs/quickstart.md"
 			),
-			startsWith("docs/runtime/templating/"),
-		),
+			startsWith("docs/runtime/templating/")
+		)
 	},
 	{
 		id: "tooling",
 		file: "tooling.md",
 		title: "Type checking, linting, formatting",
-		summary: "`bun check`, `bun lint`, `bun fmt`, and TypeScript 6/7 setup.",
-		blurb:
-			"Bun's native replacements for `tsc`, ESLint, and Prettier, plus TypeScript configuration.",
+		summary:
+			"`bun check`, `bun lint`, `bun fmt`, and TypeScript 6/7 setup.",
+		blurb: "Bun's native replacements for `tsc`, ESLint, and Prettier, plus TypeScript configuration.",
 		matches: anyOf(
 			equals("docs/lint.md", "docs/format.md"),
 			startsWith("docs/lint/"),
 			startsWith("docs/typescript"),
-			equals("docs/runtime/check.md", "docs/runtime/typescript.md"),
-		),
+			equals("docs/runtime/check.md", "docs/runtime/typescript.md")
+		)
 	},
 	{
 		id: "server",
@@ -138,8 +140,8 @@ const BUCKETS: Bucket[] = [
 		blurb: "HTTP servers, routing, WebSockets, and low-level networking.",
 		matches: anyOf(
 			startsWith("docs/runtime/http/"),
-			startsWith("docs/runtime/networking/"),
-		),
+			startsWith("docs/runtime/networking/")
+		)
 	},
 	{
 		id: "runtime",
@@ -147,12 +149,11 @@ const BUCKETS: Bucket[] = [
 		title: "Runtime and built-in APIs",
 		summary:
 			"File I/O, shell, spawn, SQL/SQLite, Redis, S3, hashing, glob, streams, workers, ...",
-		blurb:
-			"Core runtime APIs: files, processes, databases, binary data, and utilities.",
+		blurb: "Core runtime APIs: files, processes, databases, binary data, and utilities.",
 		matches: anyOf(
 			equals("docs/runtime.md", "docs/runtime/index.md"),
-			startsWith("docs/runtime/"),
-		),
+			startsWith("docs/runtime/")
+		)
 	},
 	{
 		id: "package-manager",
@@ -161,7 +162,7 @@ const BUCKETS: Bucket[] = [
 		summary:
 			"`bun install`/`add`/`remove`/`update`, workspaces, catalogs, lockfile, registries.",
 		blurb: "Installing, updating, and publishing packages with `bun install`.",
-		matches: startsWith("docs/pm/"),
+		matches: startsWith("docs/pm/")
 	},
 	{
 		id: "bundler",
@@ -169,9 +170,8 @@ const BUCKETS: Bucket[] = [
 		title: "Bundler and dev server",
 		summary:
 			"`Bun.build`, HMR, fullstack dev server, CSS, HTML, executables, minifier.",
-		blurb:
-			"Native bundling, the fullstack dev server, and standalone executables.",
-		matches: startsWith("docs/bundler"),
+		blurb: "Native bundling, the fullstack dev server, and standalone executables.",
+		matches: startsWith("docs/bundler")
 	},
 	{
 		id: "test",
@@ -180,7 +180,7 @@ const BUCKETS: Bucket[] = [
 		summary:
 			"`bun test`, mocks, snapshots, DOM testing, coverage, parallel runs.",
 		blurb: "The Jest-compatible test runner and its APIs.",
-		matches: startsWith("docs/test"),
+		matches: startsWith("docs/test")
 	},
 	{
 		id: "guides",
@@ -190,8 +190,8 @@ const BUCKETS: Bucket[] = [
 			"Task-oriented recipes: file conversions, HTTP patterns, ecosystems.",
 		blurb: "Step-by-step recipes from the official guides section.",
 		matches: startsWith("docs/guides/"),
-		groupByDirectory: true,
-	},
+		groupByDirectory: true
+	}
 ];
 
 const FALLBACK_BUCKET: Bucket = {
@@ -199,9 +199,8 @@ const FALLBACK_BUCKET: Bucket = {
 	file: "misc.md",
 	title: "Unclassified documentation",
 	summary: "Pages the classifier has not seen yet (report them upstream).",
-	blurb:
-		"Pages that did not match any known documentation section. New sections appear here first.",
-	matches: () => true,
+	blurb: "Pages that did not match any known documentation section. New sections appear here first.",
+	matches: () => true
 };
 
 const ALL_BUCKETS = [...BUCKETS, FALLBACK_BUCKET];
@@ -221,7 +220,7 @@ const ALL_BUCKETS = [...BUCKETS, FALLBACK_BUCKET];
 async function mapLimit<T, R>(
 	items: T[],
 	limit: number,
-	mapper: (item: T) => Promise<R>,
+	mapper: (item: T) => Promise<R>
 ): Promise<R[]> {
 	const results = Array.from<R>({ length: items.length });
 	let cursor = 0;
@@ -234,7 +233,10 @@ async function mapLimit<T, R>(
 		}
 	}
 
-	const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+	const workers = Array.from(
+		{ length: Math.min(limit, items.length) },
+		worker
+	);
 	await Promise.all(workers);
 
 	return results;
@@ -264,7 +266,7 @@ async function fetchText(url: string): Promise<string> {
  * @returns Title, description, and effective path, or `null` when missing.
  */
 async function fetchDocMeta(
-	path: string,
+	path: string
 ): Promise<{ path: string; title: string; description: string } | null> {
 	const response = await fetch(`${DOCS_ORIGIN}/${path}`);
 
@@ -284,7 +286,7 @@ async function fetchDocMeta(
 	return {
 		path,
 		title: heading ? heading.slice(2).trim() : path,
-		description: quote ? quote.slice(2).trim() : "",
+		description: quote ? quote.slice(2).trim() : ""
 	};
 }
 
@@ -369,16 +371,16 @@ function indexAlias(path: string): string | null {
  * Merges the `llms.txt` index with the sitemap, then verifies every page.
  *
  * `llms.txt` is not authoritative: it omits pages (type checker, linter,
- * formatter, module graph, ...) and keeps links to pages that were removed
- * (for example `runtime/index.md`). The sitemap recovers the former and a
- * fetch of every `.md` URL drops the latter.
+ * formatter, module graph, ...) and keeps links to pages that were removed (for
+ * example `runtime/index.md`). The sitemap recovers the former and a fetch of
+ * every `.md` URL drops the latter.
  *
  * @returns Every live documentation page, deduplicated and sorted by path.
  */
 async function collectDocs(): Promise<DocEntry[]> {
 	const [llmsText, sitemapXml] = await Promise.all([
 		fetchText(LLMS_INDEX_URL),
-		fetchText(SITEMAP_URL),
+		fetchText(SITEMAP_URL)
 	]);
 
 	const listed = parseLlmsIndex(llmsText);
@@ -407,9 +409,9 @@ async function collectDocs(): Promise<DocEntry[]> {
 			return {
 				path: meta.path,
 				title: listedEntry?.title || meta.title,
-				description: listedEntry?.description || meta.description,
+				description: listedEntry?.description || meta.description
 			};
-		},
+		}
 	);
 
 	const byPath = new Map<string, DocEntry>();
@@ -424,7 +426,7 @@ async function collectDocs(): Promise<DocEntry[]> {
 	const dead = paths.filter((path, index) => resolved[index] === null);
 
 	console.log(
-		`Checked ${paths.length} pages: ${entries.length} live, ${dead.length} dead links dropped`,
+		`Checked ${paths.length} pages: ${entries.length} live, ${dead.length} dead links dropped`
 	);
 
 	for (const path of dead) {
@@ -442,7 +444,7 @@ const DIRECTORY_LABELS: Record<string, string> = {
 	"html-rewriter": "HTMLRewriter",
 	"read-file": "Read a file",
 	"write-file": "Write a file",
-	websocket: "WebSockets",
+	websocket: "WebSockets"
 };
 
 /**
@@ -472,7 +474,7 @@ function directoryLabel(slug: string): string {
  */
 function groupByTopDirectory(
 	entries: DocEntry[],
-	root: string,
+	root: string
 ): { label: string; entries: DocEntry[] }[] {
 	const sections = new Map<string, DocEntry[]>();
 
@@ -480,7 +482,9 @@ function groupByTopDirectory(
 		const rest = entry.path.slice(root.length);
 		const separator = rest.indexOf("/");
 		const label =
-			separator === -1 ? "Overview" : directoryLabel(rest.slice(0, separator));
+			separator === -1
+				? "Overview"
+				: directoryLabel(rest.slice(0, separator));
 		const section = sections.get(label) ?? [];
 		section.push(entry);
 		sections.set(label, section);
@@ -488,7 +492,7 @@ function groupByTopDirectory(
 
 	return [...sections].map(([label, sectionEntries]) => ({
 		label,
-		entries: sectionEntries,
+		entries: sectionEntries
 	}));
 }
 
@@ -542,11 +546,11 @@ function renderReferenceBody(
 	bucket: Bucket,
 	entries: DocEntry[],
 	version: string,
-	updated: string,
+	updated: string
 ): string {
 	const lines = [
 		`_${entries.length} pages · Bun v${version} · updated ${updated}. Regenerate with \`bun ${SKILL_RELATIVE_DIR}/scripts/update.ts\`._`,
-		"",
+		""
 	];
 
 	const sections = bucket.groupByDirectory
@@ -583,7 +587,7 @@ function renderReference(
 	entries: DocEntry[],
 	existing: string | null,
 	version: string,
-	updated: string,
+	updated: string
 ): string {
 	const curated = readCuratedBlock(existing);
 	const body = renderReferenceBody(bucket, entries, version, updated);
@@ -600,7 +604,7 @@ function renderReference(
 		GENERATED_START,
 		body,
 		GENERATED_END,
-		"",
+		""
 	].join("\n");
 }
 
@@ -617,18 +621,18 @@ function renderSkillBody(
 	counts: Map<string, number>,
 	total: number,
 	version: string,
-	updated: string,
+	updated: string
 ): string {
 	const lines = [
 		`Bun **v${version}** · ${total} official doc pages indexed · updated ${updated}`,
 		"",
 		"| Task | Read | Pages |",
-		"| --- | --- | --- |",
+		"| --- | --- | --- |"
 	];
 
 	for (const bucket of BUCKETS) {
 		lines.push(
-			`| ${bucket.summary} | [references/${bucket.file}](references/${bucket.file}) | ${counts.get(bucket.id) ?? 0} |`,
+			`| ${bucket.summary} | [references/${bucket.file}](references/${bucket.file}) | ${counts.get(bucket.id) ?? 0} |`
 		);
 	}
 
@@ -636,7 +640,7 @@ function renderSkillBody(
 
 	if (unclassified > 0) {
 		lines.push(
-			`| Not yet classified | [references/${FALLBACK_BUCKET.file}](references/${FALLBACK_BUCKET.file}) | ${unclassified} |`,
+			`| Not yet classified | [references/${FALLBACK_BUCKET.file}](references/${FALLBACK_BUCKET.file}) | ${unclassified} |`
 		);
 	}
 
@@ -656,7 +660,7 @@ function replaceBetweenMarkers(
 	contents: string,
 	startMarker: string,
 	endMarker: string,
-	body: string,
+	body: string
 ): string {
 	const start = contents.indexOf(startMarker);
 	const end = contents.indexOf(endMarker);
@@ -685,7 +689,7 @@ function replaceBetweenMarkers(
 function renderAgentsBlock(
 	snippet: string,
 	version: string,
-	updated: string,
+	updated: string
 ): string {
 	const footer = `_Maintained by the \`use-bun\` skill · Bun v${version} · updated ${updated}. Run \`bun ${SKILL_RELATIVE_DIR}/scripts/update.ts\` to refresh._`;
 
@@ -709,7 +713,9 @@ function upsertAgentsBlock(contents: string | null, block: string): string {
 
 	if (start !== -1 && end !== -1 && end > start) {
 		return (
-			contents.slice(0, start) + block + contents.slice(end + AGENTS_END.length)
+			contents.slice(0, start) +
+			block +
+			contents.slice(end + AGENTS_END.length)
 		);
 	}
 
@@ -752,12 +758,12 @@ async function main(): Promise<void> {
 	const docs = await collectDocs();
 
 	const assigned = new Map<string, DocEntry[]>(
-		ALL_BUCKETS.map((bucket) => [bucket.id, []]),
+		ALL_BUCKETS.map((bucket) => [bucket.id, []])
 	);
 
 	for (const entry of docs) {
 		const bucket = ALL_BUCKETS.find((candidate) =>
-			candidate.matches(entry.path),
+			candidate.matches(entry.path)
 		);
 
 		assigned.get(bucket!.id)!.push(entry);
@@ -779,8 +785,16 @@ async function main(): Promise<void> {
 
 		const destination = `${REFERENCE_DIR}/${bucket.file}`;
 		const previous = Bun.file(destination);
-		const existing = (await previous.exists()) ? await previous.text() : null;
-		const next = renderReference(bucket, entries, existing, version, updated);
+		const existing = (await previous.exists())
+			? await previous.text()
+			: null;
+		const next = renderReference(
+			bucket,
+			entries,
+			existing,
+			version,
+			updated
+		);
 
 		if (next !== existing) {
 			if (checkOnly) {
@@ -803,13 +817,13 @@ async function main(): Promise<void> {
 	// the index is without reading the generated table.
 	const stampedSkill = skillContents.replace(
 		/^bun-version: .*$/m,
-		`bun-version: "${version}"`,
+		`bun-version: "${version}"`
 	);
 	const nextSkill = replaceBetweenMarkers(
 		stampedSkill,
 		GENERATED_START,
 		GENERATED_END,
-		renderSkillBody(counts, docs.length, version, updated),
+		renderSkillBody(counts, docs.length, version, updated)
 	);
 
 	if (nextSkill !== skillContents) {
@@ -832,11 +846,12 @@ async function main(): Promise<void> {
 		: null;
 	const nextAgents = upsertAgentsBlock(
 		agentsExisting,
-		renderAgentsBlock(await snippetFile.text(), version, updated),
+		renderAgentsBlock(await snippetFile.text(), version, updated)
 	);
 
 	if (
-		compressBlankLines(nextAgents) !== compressBlankLines(agentsExisting ?? "")
+		compressBlankLines(nextAgents) !==
+		compressBlankLines(agentsExisting ?? "")
 	) {
 		if (checkOnly) {
 			stale.push(AGENTS_PATH);
@@ -848,7 +863,7 @@ async function main(): Promise<void> {
 	if (checkOnly) {
 		if (stale.length > 0) {
 			console.error(
-				`Stale Bun skill files (Bun v${version}):\n${stale.map((file) => `  - ${file}`).join("\n")}\nRun: bun ${SKILL_RELATIVE_DIR}/scripts/update.ts`,
+				`Stale Bun skill files (Bun v${version}):\n${stale.map((file) => `  - ${file}`).join("\n")}\nRun: bun ${SKILL_RELATIVE_DIR}/scripts/update.ts`
 			);
 			process.exit(1);
 		}
@@ -859,7 +874,7 @@ async function main(): Promise<void> {
 	}
 
 	console.log(
-		`Bun skill updated: ${docs.length} pages across ${counts.size} references, AGENTS.md block synced (v${version}).`,
+		`Bun skill updated: ${docs.length} pages across ${counts.size} references, AGENTS.md block synced (v${version}).`
 	);
 }
 

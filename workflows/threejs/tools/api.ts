@@ -22,350 +22,459 @@ import { ROOT, SCENES, VIEW_TABLE, toRepoPath, isInside } from "./paths";
 type Json = Record<string, any>;
 
 export type ApiContext = {
-  root: string;
-  /** Called with the absolute subject directory of every scene that loads. The server watches it,
-   *  so a change to a crop or to dimensions.json reloads the page. */
-  onSubject?: (absolute: string) => void;
+	root: string;
+	/**
+	 * Called with the absolute subject directory of every scene that loads. The
+	 * server watches it, so a change to a crop or to dimensions.json reloads
+	 * the page.
+	 */
+	onSubject?: (absolute: string) => void;
 };
 
 // ---------------------------------------------------------------- helpers
 
 function reply(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body, null, 2) + "\n", {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
-  });
+	return new Response(JSON.stringify(body, null, 2) + "\n", {
+		status,
+		headers: {
+			"content-type": "application/json; charset=utf-8",
+			"cache-control": "no-store"
+		}
+	});
 }
 
 /**
- * A scene is named by its directory name, and by nothing else: `?scene=r5-tl-1972`.
+ * A scene is named by its directory name, and by nothing else:
+ * `?scene=r5-tl-1972`.
  *
- * A path used to be accepted here, in two spellings. Both are gone. A scene name appears in a URL, in
- * `scene.json`, in a command line and in a capture log, and three spellings for one scene meant three
- * things to keep in step and three ways to be wrong. The name is short enough to type, and the folder
- * it resolves to is this function's business, not the caller's.
+ * A path used to be accepted here, in two spellings. Both are gone. A scene
+ * name appears in a URL, in `scene.json`, in a command line and in a capture
+ * log, and three spellings for one scene meant three things to keep in step and
+ * three ways to be wrong. The name is short enough to type, and the folder it
+ * resolves to is this function's business, not the caller's.
  */
 function resolveScene(requested: string): string {
-  return join(SCENES, requested);
+	return join(SCENES, requested);
 }
 
 async function readJson<T = Json>(path: string): Promise<T | null> {
-  const file = Bun.file(path);
-  if (!(await file.exists())) return null;
-  try {
-    return (await file.json()) as T;
-  } catch {
-    return null;
-  }
+	const file = Bun.file(path);
+	if (!(await file.exists())) return null;
+	try {
+		return (await file.json()) as T;
+	} catch {
+		return null;
+	}
 }
 
 // The default axis names are the vehicle mapping. `dimensions.json` may declare its own, which is
 // what lets a character say "depth" where a car says "length".
-const DEFAULT_ROLES: Record<"x" | "y" | "z", string> = { x: "width", y: "height", z: "length" };
+const DEFAULT_ROLES: Record<"x" | "y" | "z", string> = {
+	x: "width",
+	y: "height",
+	z: "length"
+};
 
 function toMillimetres(value: number, unit: string | undefined): number {
-  if (unit === "mm") return value;
-  if (unit === "cm") return value * 10;
-  if (unit === "in") return value * 25.4;
-  return value * 1000; // metres, the default of every scene so far
+	if (unit === "mm") return value;
+	if (unit === "cm") return value * 10;
+	if (unit === "in") return value * 25.4;
+	return value * 1000; // metres, the default of every scene so far
 }
 
 // ---------------------------------------------------------------- scene resolution
 
 type Scene = {
-  dirAbs: string;
-  id: string;
-  manifest: Json;
-  subjectAbs: string;
-  subjectRel: string;
-  dimensions: Json;
-  crops: Json | null;
+	dirAbs: string;
+	id: string;
+	manifest: Json;
+	subjectAbs: string;
+	subjectRel: string;
+	dimensions: Json;
+	crops: Json | null;
 };
 
 async function loadScene(
-  root: string,
-  requested: string,
+	root: string,
+	requested: string
 ): Promise<{ scene?: Scene; problems: string[]; status?: number }> {
-  // One form, and the name is the folder: `?scene=r5-tl-1972`. A path is refused before it is
-  // resolved, so the message names the form instead of showing a doubled folder.
-  if (requested.includes("/")) {
-    return {
-      problems: [
-        `scene "${requested}" is a path, not a name. Use /?scene=<name>, for example /?scene=r5-tl-1972.`,
-      ],
-      status: 400,
-    };
-  }
-  const dirAbs = resolveScene(requested);
+	// One form, and the name is the folder: `?scene=r5-tl-1972`. A path is refused before it is
+	// resolved, so the message names the form instead of showing a doubled folder.
+	if (requested.includes("/")) {
+		return {
+			problems: [
+				`scene "${requested}" is a path, not a name. Use /?scene=<name>, for example /?scene=r5-tl-1972.`
+			],
+			status: 400
+		};
+	}
+	const dirAbs = resolveScene(requested);
 
-  if (!isInside(SCENES, dirAbs) || dirAbs === SCENES) {
-    return {
-      problems: [
-        `scene "${requested}" is not a scene name. ` +
-          `Name it as /?scene=<name>, for example /?scene=r5-tl-1972.`,
-      ],
-      status: 403,
-    };
-  }
+	if (!isInside(SCENES, dirAbs) || dirAbs === SCENES) {
+		return {
+			problems: [
+				`scene "${requested}" is not a scene name. ` +
+					`Name it as /?scene=<name>, for example /?scene=r5-tl-1972.`
+			],
+			status: 403
+		};
+	}
 
-  const manifest = await readJson(join(dirAbs, "scene.json"));
-  if (!manifest) {
-    return { problems: [`no scene.json at ${relative(root, dirAbs)}`], status: 404 };
-  }
+	const manifest = await readJson(join(dirAbs, "scene.json"));
+	if (!manifest) {
+		return {
+			problems: [`no scene.json at ${relative(root, dirAbs)}`],
+			status: 404
+		};
+	}
 
-  const problems: string[] = [];
+	const problems: string[] = [];
 
-  const subject = typeof manifest.subject === "string" ? manifest.subject : null;
-  if (!subject) {
-    problems.push("scene.json has no `subject`. It names the blueprint directory.");
-    return { problems, status: 200 };
-  }
+	const subject =
+		typeof manifest.subject === "string" ? manifest.subject : null;
+	if (!subject) {
+		problems.push(
+			"scene.json has no `subject`. It names the blueprint directory."
+		);
+		return { problems, status: 200 };
+	}
 
-  const subjectAbs = resolve(root, subject);
-  if (!isInside(join(root, "blueprints"), subjectAbs)) {
-    return { problems: [`subject resolves outside blueprints/: ${subject}`], status: 403 };
-  }
+	const subjectAbs = resolve(root, subject);
+	if (!isInside(join(root, "blueprints"), subjectAbs)) {
+		return {
+			problems: [`subject resolves outside blueprints/: ${subject}`],
+			status: 403
+		};
+	}
 
-  const dimensions = await readJson<Json>(join(subjectAbs, "dimensions.json"));
-  if (!dimensions) {
-    problems.push(`no dimensions.json in ${subject}. Stage 1 has not run, or its file is missing.`);
-  }
+	const dimensions = await readJson<Json>(
+		join(subjectAbs, "dimensions.json")
+	);
+	if (!dimensions) {
+		problems.push(
+			`no dimensions.json in ${subject}. Stage 1 has not run, or its file is missing.`
+		);
+	}
 
-  const crops = await readJson<Json>(join(subjectAbs, "cropped", "manifest.json"));
+	const crops = await readJson<Json>(
+		join(subjectAbs, "cropped", "manifest.json")
+	);
 
-  return {
-    scene: {
-      dirAbs,
-      id: manifest.id ?? relative(SCENES, dirAbs),
-      manifest,
-      subjectAbs,
-      subjectRel: relative(root, subjectAbs),
-      dimensions: dimensions ?? {},
-      crops,
-    },
-    problems,
-    status: 200,
-  };
+	return {
+		scene: {
+			dirAbs,
+			id: manifest.id ?? relative(SCENES, dirAbs),
+			manifest,
+			subjectAbs,
+			subjectRel: relative(root, subjectAbs),
+			dimensions: dimensions ?? {},
+			crops
+		},
+		problems,
+		status: 200
+	};
 }
 
 // ---------------------------------------------------------------- the merged document
 
-async function sceneDocument(context: ApiContext, requested: string): Promise<Response> {
-  const { root } = context;
-  const { scene, problems, status } = await loadScene(root, requested);
-  if (!scene) return reply({ ok: false, problems }, status ?? 400);
-  context.onSubject?.(scene.subjectAbs);
+async function sceneDocument(
+	context: ApiContext,
+	requested: string
+): Promise<Response> {
+	const { root } = context;
+	const { scene, problems, status } = await loadScene(root, requested);
+	if (!scene) return reply({ ok: false, problems }, status ?? 400);
+	context.onSubject?.(scene.subjectAbs);
 
-  const warnings: string[] = [];
-  const { dimensions, crops, manifest } = scene;
+	const warnings: string[] = [];
+	const { dimensions, crops, manifest } = scene;
 
-  const unit: string = dimensions.unit ?? "m";
-  const roles: Record<string, string> = { ...DEFAULT_ROLES, ...(dimensions.axes ?? {}) };
-  const realIn: Json = dimensions.real ?? {};
+	const unit: string = dimensions.unit ?? "m";
+	const roles: Record<string, string> = {
+		...DEFAULT_ROLES,
+		...(dimensions.axes ?? {})
+	};
+	const realIn: Json = dimensions.real ?? {};
 
-  const real: Record<string, { mm: number; source: string }> = {};
-  for (const [name, entry] of Object.entries(realIn)) {
-    const value = (entry as Json).value;
-    if (typeof value !== "number") {
-      problems.push(`dimensions.real.${name} has no numeric value`);
-      continue;
-    }
-    real[name] = { mm: toMillimetres(value, unit), source: (entry as Json).source ?? "unknown" };
-  }
+	const real: Record<string, { mm: number; source: string }> = {};
+	for (const [name, entry] of Object.entries(realIn)) {
+		const value = (entry as Json).value;
+		if (typeof value !== "number") {
+			problems.push(`dimensions.real.${name} has no numeric value`);
+			continue;
+		}
+		real[name] = {
+			mm: toMillimetres(value, unit),
+			source: (entry as Json).source ?? "unknown"
+		};
+	}
 
-  // Every role a view names must exist, or the span of that view is unknown and every measurement
-  // on it would be built on a missing number.
-  for (const [axis, role] of Object.entries(roles)) {
-    if (!(role in real)) problems.push(`role "${role}" for axis ${axis} is not in dimensions.real`);
-  }
+	// Every role a view names must exist, or the span of that view is unknown and every measurement
+	// on it would be built on a missing number.
+	for (const [axis, role] of Object.entries(roles)) {
+		if (!(role in real))
+			problems.push(
+				`role "${role}" for axis ${axis} is not in dimensions.real`
+			);
+	}
 
-  const viewTable = await readJson<Json>(VIEW_TABLE);
-  if (!viewTable?.views) return reply({ ok: false, problems: ["the view table (viewer/views.json) is missing or invalid"] }, 500);
+	const viewTable = await readJson<Json>(VIEW_TABLE);
+	if (!viewTable?.views)
+		return reply(
+			{
+				ok: false,
+				problems: [
+					"the view table (viewer/views.json) is missing or invalid"
+				]
+			},
+			500
+		);
 
-  const views: Json = {};
-  for (const [name, spec] of Object.entries<Json>(viewTable.views)) {
-    const view: Json = {
-      azimuth: spec.azimuth,
-      elevation: spec.elevation,
-      perspective: Boolean(spec.perspective),
-      axes: spec.axes ?? null,
-      plate: Boolean(spec.plate),
-      required: spec.required !== false,
-      anchor: spec.anchor ?? "center",
-    };
-    if (spec.up) view.up = spec.up;
+	const views: Json = {};
+	for (const [name, spec] of Object.entries<Json>(viewTable.views)) {
+		const view: Json = {
+			azimuth: spec.azimuth,
+			elevation: spec.elevation,
+			perspective: Boolean(spec.perspective),
+			axes: spec.axes ?? null,
+			plate: Boolean(spec.plate),
+			required: spec.required !== false,
+			anchor: spec.anchor ?? "center"
+		};
+		if (spec.up) view.up = spec.up;
 
-    if (spec.axes) {
-      const [axisH, axisV] = String(spec.axes).split("");
-      const roleH = roles[axisH];
-      const roleV = roles[axisV];
-      view.span = {
-        h: roleH && real[roleH] ? { role: roleH, mm: real[roleH].mm } : null,
-        v: roleV && real[roleV] ? { role: roleV, mm: real[roleV].mm } : null,
-      };
-      if (!view.span.h) problems.push(`${name}: no real dimension for axis ${axisH}`);
-      if (!view.span.v) problems.push(`${name}: no real dimension for axis ${axisV}`);
-    }
+		if (spec.axes) {
+			const [axisH, axisV] = String(spec.axes).split("");
+			const roleH = roles[axisH];
+			const roleV = roles[axisV];
+			view.span = {
+				h:
+					roleH && real[roleH]
+						? { role: roleH, mm: real[roleH].mm }
+						: null,
+				v:
+					roleV && real[roleV]
+						? { role: roleV, mm: real[roleV].mm }
+						: null
+			};
+			if (!view.span.h)
+				problems.push(`${name}: no real dimension for axis ${axisH}`);
+			if (!view.span.v)
+				problems.push(`${name}: no real dimension for axis ${axisV}`);
+		}
 
-    if (spec.plate) {
-      const crop = crops?.views?.[name];
-      if (!crop) {
-        const message = `${name}: no crop. Run scripts/blueprint/crop_reference.py.`;
-        if (view.required) problems.push(message);
-        else warnings.push(message + " The view is optional, so it informs and does not decide.");
-        view.reference = null;
-      } else {
-        const [sx0, sy0, sx1, sy1] = crop.subject_box;
-        const spanH = sx1 - sx0 + 1;
-        const spanV = sy1 - sy0 + 1;
-        const kx = view.span?.h ? view.span.h.mm / spanH : null;
-        const ky = view.span?.v ? view.span.v.mm / spanV : null;
+		if (spec.plate) {
+			const crop = crops?.views?.[name];
+			if (!crop) {
+				const message = `${name}: no crop. Run scripts/blueprint/crop_reference.py.`;
+				if (view.required) problems.push(message);
+				else
+					warnings.push(
+						message +
+							" The view is optional, so it informs and does not decide."
+					);
+				view.reference = null;
+			} else {
+				const [sx0, sy0, sx1, sy1] = crop.subject_box;
+				const spanH = sx1 - sx0 + 1;
+				const spanV = sy1 - sy0 + 1;
+				const kx = view.span?.h ? view.span.h.mm / spanH : null;
+				const ky = view.span?.v ? view.span.v.mm / spanV : null;
 
-        // The calibrated scale in dimensions.json was written from the same subject box. If the two
-        // disagree, the crop and the calibration no longer describe the same rectangle, and every
-        // trace would carry the difference. 0.2 percent is the rounding of two divisions.
-        const declared = dimensions.views?.[name]?.scale_mm_per_px;
-        if (declared && kx !== null && ky !== null) {
-          const dx = Math.abs((kx / declared.horizontal - 1) * 100);
-          const dy = Math.abs((ky / declared.vertical - 1) * 100);
-          if (dx > 0.2 || dy > 0.2) {
-            warnings.push(
-              `${name}: crop scale differs from dimensions.json by ` +
-              `${dx.toFixed(2)} % / ${dy.toFixed(2)} %. Re-run view_scale.py or crop_reference.py.`,
-            );
-          }
-        }
+				// The calibrated scale in dimensions.json was written from the same subject box. If the two
+				// disagree, the crop and the calibration no longer describe the same rectangle, and every
+				// trace would carry the difference. 0.2 percent is the rounding of two divisions.
+				const declared = dimensions.views?.[name]?.scale_mm_per_px;
+				if (declared && kx !== null && ky !== null) {
+					const dx = Math.abs((kx / declared.horizontal - 1) * 100);
+					const dy = Math.abs((ky / declared.vertical - 1) * 100);
+					if (dx > 0.2 || dy > 0.2) {
+						warnings.push(
+							`${name}: crop scale differs from dimensions.json by ` +
+								`${dx.toFixed(2)} % / ${dy.toFixed(2)} %. Re-run view_scale.py or crop_reference.py.`
+						);
+					}
+				}
 
-        view.reference = {
-          url: `/api/asset?scene=${encodeURIComponent(scene.id)}&view=${encodeURIComponent(name)}`,
-          size_px: crop.size_px,
-          subject_box: crop.subject_box,
-          offset: crop.offset,
-          // Not rounded. A scale rounded to four decimals moves a 3521 mm span by 0.02 mm, which
-          // is invisible to the eye and visible to a byte comparison of two renders.
-          kx_mm: kx,
-          ky_mm: ky,
-          gate: dimensions.views?.[name]?.gate ?? "unknown",
-        };
-      }
-    }
+				view.reference = {
+					url: `/api/asset?scene=${encodeURIComponent(scene.id)}&view=${encodeURIComponent(name)}`,
+					size_px: crop.size_px,
+					subject_box: crop.subject_box,
+					offset: crop.offset,
+					// Not rounded. A scale rounded to four decimals moves a 3521 mm span by 0.02 mm, which
+					// is invisible to the eye and visible to a byte comparison of two renders.
+					kx_mm: kx,
+					ky_mm: ky,
+					gate: dimensions.views?.[name]?.gate ?? "unknown"
+				};
+			}
+		}
 
-    views[name] = view;
-  }
+		views[name] = view;
+	}
 
-  return reply({
-    ok: problems.length === 0,
-    scene: {
-      id: scene.id,
-      name: manifest.name ?? scene.id,
-      model: `/api/model?scene=${encodeURIComponent(scene.id)}`,
-    },
-    subject: {
-      dir: scene.subjectRel,
-      category: relative(join(root, "blueprints"), scene.subjectAbs).split(sep)[0] ?? null,
-    },
-    unit: "mm",
-    roles,
-    real,
-    views,
-    gates: { scales: dimensions.scales ?? null, g1: dimensions.g1 ?? null },
-    anchors: dimensions.anchors ?? {},
-    problems,
-    warnings,
-  });
+	return reply({
+		ok: problems.length === 0,
+		scene: {
+			id: scene.id,
+			name: manifest.name ?? scene.id,
+			model: `/api/model?scene=${encodeURIComponent(scene.id)}`
+		},
+		subject: {
+			dir: scene.subjectRel,
+			category:
+				relative(join(root, "blueprints"), scene.subjectAbs).split(
+					sep
+				)[0] ?? null
+		},
+		unit: "mm",
+		roles,
+		real,
+		views,
+		gates: { scales: dimensions.scales ?? null, g1: dimensions.g1 ?? null },
+		anchors: dimensions.anchors ?? {},
+		problems,
+		warnings
+	});
 }
 
 // ---------------------------------------------------------------- asset, model, list
 
-async function asset(root: string, sceneParam: string | null, view: string | null): Promise<Response> {
-  if (!sceneParam || !view) return reply({ ok: false, problems: ["scene and view are required"] }, 400);
-  const { scene, problems, status } = await loadScene(root, sceneParam);
-  if (!scene) return reply({ ok: false, problems }, status ?? 400);
+async function asset(
+	root: string,
+	sceneParam: string | null,
+	view: string | null
+): Promise<Response> {
+	if (!sceneParam || !view)
+		return reply(
+			{ ok: false, problems: ["scene and view are required"] },
+			400
+		);
+	const { scene, problems, status } = await loadScene(root, sceneParam);
+	if (!scene) return reply({ ok: false, problems }, status ?? 400);
 
-  const crop = scene.crops?.views?.[view];
-  if (!crop?.file) {
-    return reply({ ok: false, problems: [`no crop for view "${view}"`] }, 404);
-  }
-  // `file` is repo-relative, written by crop_reference.py. The client never sees it; it only ever
-  // receives the URL below. That is the point: one place resolves a path.
-  const path = resolve(root, crop.file);
-  if (!isInside(join(root, "blueprints"), path)) {
-    return reply({ ok: false, problems: ["crop path escapes blueprints/"] }, 403);
-  }
-  const file = Bun.file(path);
-  if (!(await file.exists())) return reply({ ok: false, problems: [`missing file: ${crop.file}`] }, 404);
+	const crop = scene.crops?.views?.[view];
+	if (!crop?.file) {
+		return reply(
+			{ ok: false, problems: [`no crop for view "${view}"`] },
+			404
+		);
+	}
+	// `file` is repo-relative, written by crop_reference.py. The client never sees it; it only ever
+	// receives the URL below. That is the point: one place resolves a path.
+	const path = resolve(root, crop.file);
+	if (!isInside(join(root, "blueprints"), path)) {
+		return reply(
+			{ ok: false, problems: ["crop path escapes blueprints/"] },
+			403
+		);
+	}
+	const file = Bun.file(path);
+	if (!(await file.exists()))
+		return reply(
+			{ ok: false, problems: [`missing file: ${crop.file}`] },
+			404
+		);
 
-  return new Response(file, {
-    headers: {
-      "content-type": file.type || "application/octet-stream",
-      "cache-control": "no-store",
-    },
-  });
+	return new Response(file, {
+		headers: {
+			"content-type": file.type || "application/octet-stream",
+			"cache-control": "no-store"
+		}
+	});
 }
 
-async function model(root: string, sceneParam: string | null): Promise<Response> {
-  if (!sceneParam) return reply({ ok: false, problems: ["scene is required"] }, 400);
-  const { scene, problems, status } = await loadScene(root, sceneParam);
-  if (!scene) return reply({ ok: false, problems }, status ?? 400);
+async function model(
+	root: string,
+	sceneParam: string | null
+): Promise<Response> {
+	if (!sceneParam)
+		return reply({ ok: false, problems: ["scene is required"] }, 400);
+	const { scene, problems, status } = await loadScene(root, sceneParam);
+	if (!scene) return reply({ ok: false, problems }, status ?? 400);
 
-  const modulePath = scene.manifest.model ?? "./model.js";
-  const path = resolve(scene.dirAbs, modulePath);
-  if (!isInside(scene.dirAbs, path)) {
-    return reply({ ok: false, problems: ["model path escapes the scene directory"] }, 403);
-  }
-  const file = Bun.file(path);
-  if (!(await file.exists())) return reply({ ok: false, problems: [`missing model: ${modulePath}`] }, 404);
+	const modulePath = scene.manifest.model ?? "./model.js";
+	const path = resolve(scene.dirAbs, modulePath);
+	if (!isInside(scene.dirAbs, path)) {
+		return reply(
+			{ ok: false, problems: ["model path escapes the scene directory"] },
+			403
+		);
+	}
+	const file = Bun.file(path);
+	if (!(await file.exists()))
+		return reply(
+			{ ok: false, problems: [`missing model: ${modulePath}`] },
+			404
+		);
 
-  // A redirect, not the bytes. The module may import its own neighbours -- `./body-hull.js` holds
-  // the traced sections -- and a relative specifier resolves against the module's final URL. Served
-  // from `/api/model`, every such import would look for `/api/body-hull.js` and fail with nothing
-  // on screen: the import rejects before any of the page's own error handling runs.
-  // A URL, not a scene name: the browser must fetch the module from the folder it really lives in,
-  // so a relative import inside it resolves. The scene id is the folder name inside `scenes/`.
-  const target = `/${toRepoPath(join(SCENES, scene.id))}/${modulePath.replace(/^\.\//, "")}`;
-  return new Response(null, {
-    status: 302,
-    headers: { location: target, "cache-control": "no-store" },
-  });
+	// A redirect, not the bytes. The module may import its own neighbours -- `./body-hull.js` holds
+	// the traced sections -- and a relative specifier resolves against the module's final URL. Served
+	// from `/api/model`, every such import would look for `/api/body-hull.js` and fail with nothing
+	// on screen: the import rejects before any of the page's own error handling runs.
+	// A URL, not a scene name: the browser must fetch the module from the folder it really lives in,
+	// so a relative import inside it resolves. The scene id is the folder name inside `scenes/`.
+	const target = `/${toRepoPath(join(SCENES, scene.id))}/${modulePath.replace(/^\.\//, "")}`;
+	return new Response(null, {
+		status: 302,
+		headers: { location: target, "cache-control": "no-store" }
+	});
 }
 
 async function scenes(root: string): Promise<Response> {
-  const base = SCENES;
-  let entries: string[] = [];
-  try {
-    entries = await readdir(base, { withFileTypes: true }).then((list) =>
-      list.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
-    );
-  } catch {
-    return reply({ ok: false, problems: [`no ${toRepoPath(SCENES)}/ directory`] }, 500);
-  }
+	const base = SCENES;
+	let entries: string[] = [];
+	try {
+		entries = await readdir(base, { withFileTypes: true }).then((list) =>
+			list
+				.filter((entry) => entry.isDirectory())
+				.map((entry) => entry.name)
+		);
+	} catch {
+		return reply(
+			{ ok: false, problems: [`no ${toRepoPath(SCENES)}/ directory`] },
+			500
+		);
+	}
 
-  const out: Json[] = [];
-  for (const name of entries.sort()) {
-    const manifest = await readJson(join(base, name, "scene.json"));
-    if (!manifest) continue;
-    out.push({
-      id: name,
-      name: manifest.name ?? name,
-      subject: manifest.subject ?? null,
-    });
-  }
-  return reply({ ok: true, scenes: out });
+	const out: Json[] = [];
+	for (const name of entries.sort()) {
+		const manifest = await readJson(join(base, name, "scene.json"));
+		if (!manifest) continue;
+		out.push({
+			id: name,
+			name: manifest.name ?? name,
+			subject: manifest.subject ?? null
+		});
+	}
+	return reply({ ok: true, scenes: out });
 }
 
 // ---------------------------------------------------------------- measurement
 
-async function saveMeasurement(request: Request, root: string): Promise<Response> {
-  const body = (await request.json().catch(() => null)) as { subject?: string; document?: unknown } | null;
-  if (!body?.subject || !body.document) {
-    return reply({ ok: false, problems: ["expected { subject, document }"] }, 400);
-  }
-  const target = join(root, body.subject, "measurements.json");
-  if (!isInside(join(root, "blueprints"), target)) {
-    return reply({ ok: false, problems: ["subject must live under blueprints/"] }, 403);
-  }
-  await Bun.write(target, JSON.stringify(body.document, null, 2) + "\n");
-  return reply({ ok: true, written: relative(root, target) });
+async function saveMeasurement(
+	request: Request,
+	root: string
+): Promise<Response> {
+	const body = (await request.json().catch(() => null)) as {
+		subject?: string;
+		document?: unknown;
+	} | null;
+	if (!body?.subject || !body.document) {
+		return reply(
+			{ ok: false, problems: ["expected { subject, document }"] },
+			400
+		);
+	}
+	const target = join(root, body.subject, "measurements.json");
+	if (!isInside(join(root, "blueprints"), target)) {
+		return reply(
+			{ ok: false, problems: ["subject must live under blueprints/"] },
+			403
+		);
+	}
+	await Bun.write(target, JSON.stringify(body.document, null, 2) + "\n");
+	return reply({ ok: true, written: relative(root, target) });
 }
 
 // ---------------------------------------------------------------- contour knots
@@ -373,78 +482,100 @@ async function saveMeasurement(request: Request, root: string): Promise<Response
 /**
  * The hand-set contour knots, written back into the scene as a module.
  *
- * A module, not JSON, because the viewer loads the scene through its import graph and a scene module
- * imports `three` only: a `fetch` here would be the one network call in a model file. The file is
- * written from the viewer's save command, and the dev server reloads the page on the change.
+ * A module, not JSON, because the viewer loads the scene through its import
+ * graph and a scene module imports `three` only: a `fetch` here would be the
+ * one network call in a model file. The file is written from the viewer's save
+ * command, and the dev server reloads the page on the change.
  */
 async function saveContours(request: Request, root: string): Promise<Response> {
-  const body = (await request.json().catch(() => null)) as { scene?: string; knots?: Json } | null;
-  if (!body?.scene || !body.knots) {
-    return reply({ ok: false, problems: ["expected { scene, knots }"] }, 400);
-  }
-  const dirAbs = resolveScene(body.scene);
-  if (!isInside(SCENES, dirAbs) || dirAbs === SCENES) {
-    return reply({ ok: false, problems: [`unknown scene: ${body.scene}`] }, 403);
-  }
-  const target = join(dirAbs, "contours.js");
-  if (!isInside(SCENES, target)) {
-    return reply({ ok: false, problems: ["forbidden"] }, 403);
-  }
-  await Bun.write(target, renderKnotsModule(body.knots));
-  return reply({ ok: true, written: relative(root, target) });
+	const body = (await request.json().catch(() => null)) as {
+		scene?: string;
+		knots?: Json;
+	} | null;
+	if (!body?.scene || !body.knots) {
+		return reply(
+			{ ok: false, problems: ["expected { scene, knots }"] },
+			400
+		);
+	}
+	const dirAbs = resolveScene(body.scene);
+	if (!isInside(SCENES, dirAbs) || dirAbs === SCENES) {
+		return reply(
+			{ ok: false, problems: [`unknown scene: ${body.scene}`] },
+			403
+		);
+	}
+	const target = join(dirAbs, "contours.js");
+	if (!isInside(SCENES, target)) {
+		return reply({ ok: false, problems: ["forbidden"] }, 403);
+	}
+	await Bun.write(target, renderKnotsModule(body.knots));
+	return reply({ ok: true, written: relative(root, target) });
 }
 
 /** A knots object, as the `contours.js` module text. */
 function renderKnotsModule(knots: Json): string {
-  const lines = [
-    "// The hand-set contour knots, one list per view, in the plate's own metres.",
-    "//",
-    "// Written by the viewer's save command. See `viewer/knots.js`. A knot is a point the outline",
-    "// passes through; `mode` is \"poly\" (lines) or \"bezier\" (a smooth curve through the knots).",
-    "",
-    "export const KNOTS = {",
-  ];
-  for (const view of Object.keys(knots).sort()) {
-    const entry = knots[view] ?? {};
-    const mode = entry.mode === "bezier" ? "bezier" : "poly";
-    lines.push(`  ${JSON.stringify(view)}: {`);
-    lines.push(`    mode: ${JSON.stringify(mode)},`);
-    lines.push("    knots: [");
-    for (const point of entry.knots ?? []) {
-      lines.push(`      [${Number(point[0]).toFixed(5)}, ${Number(point[1]).toFixed(5)}],`);
-    }
-    lines.push("    ],");
-    lines.push("  },");
-  }
-  lines.push("};", "");
-  return lines.join("\n");
+	const lines = [
+		"// The hand-set contour knots, one list per view, in the plate's own metres.",
+		"//",
+		"// Written by the viewer's save command. See `viewer/knots.js`. A knot is a point the outline",
+		'// passes through; `mode` is "poly" (lines) or "bezier" (a smooth curve through the knots).',
+		"",
+		"export const KNOTS = {"
+	];
+	for (const view of Object.keys(knots).sort()) {
+		const entry = knots[view] ?? {};
+		const mode = entry.mode === "bezier" ? "bezier" : "poly";
+		lines.push(`  ${JSON.stringify(view)}: {`);
+		lines.push(`    mode: ${JSON.stringify(mode)},`);
+		lines.push("    knots: [");
+		for (const point of entry.knots ?? []) {
+			lines.push(
+				`      [${Number(point[0]).toFixed(5)}, ${Number(point[1]).toFixed(5)}],`
+			);
+		}
+		lines.push("    ],");
+		lines.push("  },");
+	}
+	lines.push("};", "");
+	return lines.join("\n");
 }
 
 // ---------------------------------------------------------------- entry
 
-export async function handleApi(request: Request, context: ApiContext): Promise<Response | null> {
-  const url = new URL(request.url);
-  if (!url.pathname.startsWith("/api/")) return null;
-  const { root } = context;
+export async function handleApi(
+	request: Request,
+	context: ApiContext
+): Promise<Response | null> {
+	const url = new URL(request.url);
+	if (!url.pathname.startsWith("/api/")) return null;
+	const { root } = context;
 
-  if (url.pathname === "/api/scene") {
-    return sceneDocument(context, url.searchParams.get("scene") ?? "");
-  }
-  if (url.pathname === "/api/asset") {
-    return asset(root, url.searchParams.get("scene"), url.searchParams.get("view"));
-  }
-  if (url.pathname === "/api/model") {
-    return model(root, url.searchParams.get("scene"));
-  }
-  if (url.pathname === "/api/scenes") {
-    return scenes(root);
-  }
-  if (url.pathname === "/api/measure" && request.method === "POST") {
-    return saveMeasurement(request, root);
-  }
-  if (url.pathname === "/api/contours" && request.method === "POST") {
-    return saveContours(request, root);
-  }
+	if (url.pathname === "/api/scene") {
+		return sceneDocument(context, url.searchParams.get("scene") ?? "");
+	}
+	if (url.pathname === "/api/asset") {
+		return asset(
+			root,
+			url.searchParams.get("scene"),
+			url.searchParams.get("view")
+		);
+	}
+	if (url.pathname === "/api/model") {
+		return model(root, url.searchParams.get("scene"));
+	}
+	if (url.pathname === "/api/scenes") {
+		return scenes(root);
+	}
+	if (url.pathname === "/api/measure" && request.method === "POST") {
+		return saveMeasurement(request, root);
+	}
+	if (url.pathname === "/api/contours" && request.method === "POST") {
+		return saveContours(request, root);
+	}
 
-  return reply({ ok: false, problems: [`unknown endpoint: ${url.pathname}`] }, 404);
+	return reply(
+		{ ok: false, problems: [`unknown endpoint: ${url.pathname}`] },
+		404
+	);
 }

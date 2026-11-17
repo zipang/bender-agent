@@ -7,16 +7,16 @@
 - **Depends on**: T0003 — it rewrote the same loop and owns `camera.js`
 - **Blocks**: nothing
 - **References**:
-  - `workflows/threejs/viewer/stage.js` — `renderer.setAnimationLoop` at the "loop" section, and
-    `nextFrame()`
-  - `workflows/threejs/viewer/main.js` — the mutators that change what is on screen
-  - `workflows/threejs/viewer/camera.js` — the two `OrbitControls` instances and `activeControls`
-  - `workflows/threejs/tools/shot.ts` — the capture that must keep producing the same files
-  - `workflows/threejs/AGENTS.md` — "Scene rules", "Evidence rules"
-  - three.js `WebGLRenderer.setAnimationLoop`:
-    <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/WebGLRenderer.html.md>
-  - three.js `OrbitControls`, the `change` event:
-    <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/OrbitControls.html.md>
+    - `workflows/threejs/viewer/stage.js` — `renderer.setAnimationLoop` at the "loop" section, and
+      `nextFrame()`
+    - `workflows/threejs/viewer/main.js` — the mutators that change what is on screen
+    - `workflows/threejs/viewer/camera.js` — the two `OrbitControls` instances and `activeControls`
+    - `workflows/threejs/tools/shot.ts` — the capture that must keep producing the same files
+    - `workflows/threejs/AGENTS.md` — "Scene rules", "Evidence rules"
+    - three.js `WebGLRenderer.setAnimationLoop`:
+      <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/WebGLRenderer.html.md>
+    - three.js `OrbitControls`, the `change` event:
+      <https://raw.githubusercontent.com/mrdoob/three.js/r187/docs/pages/OrbitControls.html.md>
 
 ## Context & Goal
 
@@ -74,7 +74,7 @@ May be created or modified:
 Do **not** touch:
 
 - **What is drawn.** No camera, no material, no layer, no HUD, no scene change. This ticket changes
-  *when* the renderer is called, never *what* it draws.
+  _when_ the renderer is called, never _what_ it draws.
 - `workflows/threejs/viewer/knots.js`, `volume.js`, `path.js`, `plate.js`, `calque.js`, `picker.js`,
   `measure.js`, `views.json`, `index.html`.
 - `workflows/threejs/scenes/**`, `blueprints/**`.
@@ -117,7 +117,7 @@ director proves it with `ps`.
 `stage` exposes both, and `__ctl.frames()` returns them:
 
 ```js
-__ctl.frames()  // -> { rendered, ticks }
+__ctl.frames(); // -> { rendered, ticks }
 ```
 
 - `rendered` counts calls to `renderer.render`. It replaces today's internal `frames` counter and
@@ -213,7 +213,7 @@ The check closes its own browser session on every exit path, including a failure
 ### Decisions
 
 - **Clear `dirty` before the controls are updated, not after.** A gesture's inertia tail fires
-  `change` *during* `update()`. Clearing `dirty` after the update ate that signal and stopped the
+  `change` _during_ `update()`. Clearing `dirty` after the update ate that signal and stopped the
   loop one frame early (observed: a pan advanced exactly one tick). Clearing before it lets the
   in-frame `change` schedule the next frame, so the tail keeps the loop awake on its own.
 - **`hasReason()` also includes `rendered < 2`.** `onSecondFrame` fires on the second render, so the
@@ -235,6 +235,7 @@ The check closes its own browser session on every exit path, including a failure
   camera damping is **not** touched (Camera rules).
 
 ### Idle CPU, measured with `ps` over ten seconds (`/proc/<pid>/stat` jiffies, all agent-browser
+
 chrome processes summed)
 
 - **Before** (HEAD loop, unconditional): **1061.5 %** — 10.61 cores of 16.
@@ -360,4 +361,3 @@ the end of the series. What was checked here, by the CTO and not by the coder:
   within 2000 ms. The tail is a fixed number of frames (~34 at `dampingFactor 0.08`), which is about
   5.4 s at the software renderer's ~6 fps; the 2000 ms assumed 60 fps. The check polls to freeze with
   a 15 s bound. The camera damping was not touched, and the rule the assertion proves is unchanged.
-

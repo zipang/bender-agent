@@ -15,12 +15,12 @@ description constant, which reduces identity drift.
 
 ## Placeholders
 
-| Placeholder | Why it exists |
-| :--- | :--- |
-| `{subjectType}` | A figurine of a vehicule and a figurine of a character need different framing habits. |
-| `{style}` | Style must stay constant across the six views. A style change between views breaks the set. |
-| `{view}` | The template states the view name inside the sentence, which reinforces the camera request. |
-| `{subjectName}` | Reference only. It helps a human read the log. |
+| Placeholder     | Why it exists                                                                               |
+| :-------------- | :------------------------------------------------------------------------------------------ |
+| `{subjectType}` | A figurine of a vehicule and a figurine of a character need different framing habits.       |
+| `{style}`       | Style must stay constant across the six views. A style change between views breaks the set. |
+| `{view}`        | The template states the view name inside the sentence, which reinforces the camera request. |
+| `{subjectName}` | Reference only. It helps a human read the log.                                              |
 
 ## Why `DO NOT` and `DO` lines
 

@@ -29,19 +29,22 @@ export const TOOLS = resolve(import.meta.dir);
 export const VIEW_TABLE = resolve(VIEWER, "views.json");
 
 /**
- * `test-reports/` at the repository root. Where a check writes what a human reads: the overlays,
- * the scratch captures, the contact sheets. Git-ignored, and named in the root `README.md` because
- * it is a top-level directory.
+ * `test-reports/` at the repository root. Where a check writes what a human
+ * reads: the overlays, the scratch captures, the contact sheets. Git-ignored,
+ * and named in the root `README.md` because it is a top-level directory.
  */
 export const REPORTS = resolve(ROOT, "test-reports");
 
-/** A repository path in the form a URL and a scene id use: forward slashes, no leading `./`. */
+/**
+ * A repository path in the form a URL and a scene id use: forward slashes, no
+ * leading `./`.
+ */
 export function toRepoPath(absolute: string): string {
-  return relative(ROOT, absolute).split(sep).join("/");
+	return relative(ROOT, absolute).split(sep).join("/");
 }
 
 /** True when `child` is `parent` or sits under it. */
 export function isInside(parent: string, child: string): boolean {
-  const rel = relative(parent, child);
-  return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
+	const rel = relative(parent, child);
+	return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
 }

@@ -18,15 +18,20 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	60,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(0, 0, 2);
 
 const material = new THREE.ShaderMaterial({
-  uniforms: {
-    time: { value: 0 },
-    color: { value: new THREE.Color(0x0066ff) }, // hex converted to the linear working space
-  },
-  vertexShader: /* glsl */ `
+	uniforms: {
+		time: { value: 0 },
+		color: { value: new THREE.Color(0x0066ff) } // hex converted to the linear working space
+	},
+	vertexShader: /* glsl */ `
     varying vec2 vUv;
 
     void main() {
@@ -34,7 +39,7 @@ const material = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
-  fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
     uniform float time;
     uniform vec3 color;
     varying vec2 vUv;
@@ -45,7 +50,7 @@ const material = new THREE.ShaderMaterial({
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }
-  `,
+  `
 });
 
 const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
@@ -57,9 +62,9 @@ timer.connect(document);
 renderer.setAnimationLoop(animate);
 
 function animate() {
-  timer.update();
-  material.uniforms.time.value = timer.getElapsed();
-  renderer.render(scene, camera);
+	timer.update();
+	material.uniforms.time.value = timer.getElapsed();
+	renderer.render(scene, camera);
 }
 ```
 
@@ -69,7 +74,7 @@ Every `ShaderMaterial` compiles as GLSL ES 3.00 — three.js always prepends `#v
 
 ```javascript
 const material = new THREE.ShaderMaterial({
-  vertexShader: /* glsl */ `
+	vertexShader: /* glsl */ `
     // Declared for you: uniforms modelMatrix, modelViewMatrix, projectionMatrix,
     // viewMatrix, normalMatrix, cameraPosition; attributes position, normal, uv,
     // instanceMatrix (InstancedMesh) and color (vertexColors: true)
@@ -81,7 +86,7 @@ const material = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
-  fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
     varying vec3 vNormal;
 
     void main() {
@@ -89,7 +94,7 @@ const material = new THREE.ShaderMaterial({
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }
-  `,
+  `
 });
 ```
 
@@ -97,8 +102,8 @@ RawShaderMaterial gets only `#define SHADER_TYPE`, `#define SHADER_NAME` and you
 
 ```javascript
 const material = new THREE.RawShaderMaterial({
-  glslVersion: THREE.GLSL3,
-  vertexShader: /* glsl */ `
+	glslVersion: THREE.GLSL3,
+	vertexShader: /* glsl */ `
     precision highp float;
 
     in vec3 position;
@@ -110,7 +115,7 @@ const material = new THREE.RawShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
-  fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
     precision highp float;
 
     out highp vec4 fragColor;
@@ -118,25 +123,27 @@ const material = new THREE.RawShaderMaterial({
     void main() {
       fragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
-  `,
+  `
 });
 ```
 
 ## Uniforms
 
 ```javascript
-const texture = await new THREE.TextureLoader().loadAsync("textures/diffuse.jpg");
+const texture = await new THREE.TextureLoader().loadAsync(
+	"textures/diffuse.jpg"
+);
 texture.colorSpace = THREE.SRGBColorSpace; // a color image: decoded to linear when sampled
 
 const material = new THREE.ShaderMaterial({
-  uniforms: {
-    floatValue: { value: 1.5 },
-    vec3Value: { value: new THREE.Vector3(1, 2, 3) },
-    colorValue: { value: new THREE.Color(0xff0000) }, // hex converted to the linear working space
-    mat4Value: { value: new THREE.Matrix4() },
-    mapValue: { value: texture },
-  },
-  // vertexShader and fragmentShader as usual
+	uniforms: {
+		floatValue: { value: 1.5 },
+		vec3Value: { value: new THREE.Vector3(1, 2, 3) },
+		colorValue: { value: new THREE.Color(0xff0000) }, // hex converted to the linear working space
+		mat4Value: { value: new THREE.Matrix4() },
+		mapValue: { value: texture }
+	}
+	// vertexShader and fragmentShader as usual
 });
 ```
 
@@ -170,11 +177,11 @@ gl_FragColor = vec4(color, 1.0);
 
 ```javascript
 const material = new THREE.ShaderMaterial({
-  uniforms: {
-    time: { value: 0 },
-    amplitude: { value: 0.2 },
-  },
-  vertexShader: /* glsl */ `
+	uniforms: {
+		time: { value: 0 },
+		amplitude: { value: 0.2 }
+	},
+	vertexShader: /* glsl */ `
     uniform float time;
     uniform float amplitude;
 
@@ -184,13 +191,13 @@ const material = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
   `,
-  fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
     void main() {
       gl_FragColor = vec4(0.5, 0.8, 1.0, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }
-  `,
+  `
 });
 
 const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2, 64, 64), material); // displacement needs subdivisions
@@ -202,7 +209,7 @@ Use one space consistently. World space with `cameraPosition`:
 
 ```javascript
 const material = new THREE.ShaderMaterial({
-  vertexShader: /* glsl */ `
+	vertexShader: /* glsl */ `
     varying vec3 vWorldNormal;
     varying vec3 vWorldPosition;
 
@@ -212,7 +219,7 @@ const material = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
     }
   `,
-  fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
     varying vec3 vWorldNormal;
     varying vec3 vWorldPosition;
 
@@ -224,7 +231,7 @@ const material = new THREE.ShaderMaterial({
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }
-  `,
+  `
 });
 ```
 
@@ -257,10 +264,13 @@ const instanceCount = 100;
 const geometry = new THREE.PlaneGeometry(0.2, 0.2);
 const offsets = new Float32Array(instanceCount * 3);
 // fill offsets with one vec3 per instance
-geometry.setAttribute("aOffset", new THREE.InstancedBufferAttribute(offsets, 3));
+geometry.setAttribute(
+	"aOffset",
+	new THREE.InstancedBufferAttribute(offsets, 3)
+);
 
 const material = new THREE.ShaderMaterial({
-  vertexShader: /* glsl */ `
+	vertexShader: /* glsl */ `
     attribute vec3 aOffset;
 
     void main() {
@@ -268,11 +278,11 @@ const material = new THREE.ShaderMaterial({
       gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position + aOffset, 1.0);
     }
   `,
-  fragmentShader: /* glsl */ `
+	fragmentShader: /* glsl */ `
     void main() {
       gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
     }
-  `,
+  `
 });
 
 const mesh = new THREE.InstancedMesh(geometry, material, instanceCount);
@@ -289,17 +299,17 @@ For a per-vertex attribute use `geometry.setAttribute("aOffset", new THREE.Buffe
 const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
 
 material.onBeforeCompile = (shader) => {
-  shader.uniforms.time = { value: 0 };
-  material.userData.shader = shader; // keep the reference for updates
+	shader.uniforms.time = { value: 0 };
+	material.userData.shader = shader; // keep the reference for updates
 
-  shader.vertexShader = "uniform float time;\n" + shader.vertexShader;
-  shader.vertexShader = shader.vertexShader.replace(
-    "#include <begin_vertex>",
-    `
+	shader.vertexShader = "uniform float time;\n" + shader.vertexShader;
+	shader.vertexShader = shader.vertexShader.replace(
+		"#include <begin_vertex>",
+		`
     #include <begin_vertex>
     transformed.y += sin(position.x * 10.0 + time) * 0.1;
-    `,
-  );
+    `
+	);
 };
 
 // in the frame loop, with timer.update() first as in the Quick Start:
@@ -338,11 +348,11 @@ Only use chunk keys that exist in this release (log `Object.keys(THREE.ShaderChu
 // While renderer.debug.checkShaderErrors is true (the default), a failed program logs each failing shader's errors
 // with the numbered source lines around the first one. A handler replaces that report and runs only on a compile or link failure:
 renderer.debug.onShaderError = (gl, program, vertexShader, fragmentShader) => {
-  console.error(gl.getProgramInfoLog(program));
-  for (const shader of [vertexShader, fragmentShader]) {
-    const log = gl.getShaderInfoLog(shader);
-    if (log) console.error(log, gl.getShaderSource(shader)); // the fully assembled shader
-  }
+	console.error(gl.getProgramInfoLog(program));
+	for (const shader of [vertexShader, fragmentShader]) {
+		const log = gl.getShaderInfoLog(shader);
+		if (log) console.error(log, gl.getShaderSource(shader)); // the fully assembled shader
+	}
 };
 ```
 
@@ -368,18 +378,27 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111827); // the WebGPU canvas is transparent by default
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	60,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(0, 0, 2);
 
 const material = new THREE.MeshBasicNodeMaterial();
-material.colorNode = mix(color(0x004466), color(0x66ddff), sin(uv().x.mul(20).add(time)).mul(0.5).add(0.5));
+material.colorNode = mix(
+	color(0x004466),
+	color(0x66ddff),
+	sin(uv().x.mul(20).add(time)).mul(0.5).add(0.5)
+);
 
 scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
 
 renderer.setAnimationLoop(animate);
 
 function animate() {
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 ```
 
@@ -389,12 +408,21 @@ function animate() {
 
 ```javascript
 import * as THREE from "three/webgpu";
-import { abs, mx_fractal_noise_float, time, uniform, uv, vec3 } from "three/tsl";
+import {
+	abs,
+	mx_fractal_noise_float,
+	time,
+	uniform,
+	uv,
+	vec3
+} from "three/tsl";
 
 const material = new THREE.MeshBasicNodeMaterial();
 
 const amplitude = uniform(0.5);
-material.colorNode = vec3(abs(mx_fractal_noise_float(uv().mul(10).add(time.mul(0.2)))).mul(amplitude));
+material.colorNode = vec3(
+	abs(mx_fractal_noise_float(uv().mul(10).add(time.mul(0.2)))).mul(amplitude)
+);
 
 // update from JS without touching the node graph:
 amplitude.value = 1.0;
@@ -408,14 +436,20 @@ amplitude.value = 1.0;
 import * as THREE from "three/webgpu";
 import { Fn, color, mix, smoothstep, texture, uniform, uv } from "three/tsl";
 
-const noiseMap = await new THREE.TextureLoader().loadAsync("textures/noise.png"); // scalar data: keep NoColorSpace
+const noiseMap = await new THREE.TextureLoader().loadAsync(
+	"textures/noise.png"
+); // scalar data: keep NoColorSpace
 const progress = uniform(0); // animate progress.value from 0 to 1
 
 const material = new THREE.MeshBasicNodeMaterial();
 material.colorNode = Fn(() => {
-  const n = texture(noiseMap, uv()).r;
-  n.lessThan(progress).discard();
-  return mix(color(1, 0.5, 0), color(0.5, 0.5, 0.5), smoothstep(progress, progress.add(0.1), n));
+	const n = texture(noiseMap, uv()).r;
+	n.lessThan(progress).discard();
+	return mix(
+		color(1, 0.5, 0),
+		color(0.5, 0.5, 0.5),
+		smoothstep(progress, progress.add(0.1), n)
+	);
 })();
 ```
 
@@ -432,7 +466,9 @@ sun.position.set(1, 2, 3);
 scene.add(sun, new THREE.HemisphereLight(0xffffff, 0x223344, 1)); // lit material: black without lights or scene.environment
 
 const material = new THREE.MeshStandardNodeMaterial({ flatShading: true }); // normals from the displaced surface; vertex normals ignore positionNode
-material.positionNode = positionLocal.add(normalLocal.mul(sin(positionLocal.y.mul(4).add(time))).mul(0.2));
+material.positionNode = positionLocal.add(
+	normalLocal.mul(sin(positionLocal.y.mul(4).add(time))).mul(0.2)
+);
 
 const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2, 96, 96), material);
 mesh.rotation.x = -Math.PI / 3; // tilt so the displacement along the normal is visible
@@ -447,7 +483,9 @@ Write reusable logic as a TSL `Fn`; it compiles to both GLSL and WGSL. `varying(
 import * as THREE from "three/webgpu";
 import { Fn, color, mix, positionWorld, sin, varying } from "three/tsl";
 
-const heightFade = Fn(([y]) => mix(color(0x003344), color(0x88eeff), sin(y.mul(3)).mul(0.5).add(0.5)));
+const heightFade = Fn(([y]) =>
+	mix(color(0x003344), color(0x88eeff), sin(y.mul(3)).mul(0.5).add(0.5))
+);
 
 const material = new THREE.MeshBasicNodeMaterial();
 const vWorldY = varying(positionWorld.y, "vWorldY"); // interpolated from vertex to fragment stage

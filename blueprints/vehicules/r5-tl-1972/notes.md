@@ -45,14 +45,14 @@ All windows are opaque dark glass. No interior is visible, and none must be adde
 
 All six views are locked. Every file is `<view>/reference.<ext>`.
 
-| View | Model | Size | Note |
-| :--- | :--- | :--- | :--- |
-| front | meta/muse-image-1.0 | 2048x1152 | Clean, no interior visible |
-| left | google/gemini-nano-banana-2.1 | 1376x768 | Three doors, opaque glass |
-| back | google/gemini-nano-banana-2.1 | 1376x768 | Blank plate frame, low tailgate |
-| right | google/gemini-nano-banana-2.1 | 1376x768 | Mirror of the left view |
-| top | google/gemini-nano-banana-2.1 | 1376x768 | Roof and bonnet plans |
-| bottom | google/gemini-nano-banana-2.1 | 896x1200 | Portrait ratio, not 16:9 |
+| View   | Model                         | Size      | Note                            |
+| :----- | :---------------------------- | :-------- | :------------------------------ |
+| front  | meta/muse-image-1.0           | 2048x1152 | Clean, no interior visible      |
+| left   | google/gemini-nano-banana-2.1 | 1376x768  | Three doors, opaque glass       |
+| back   | google/gemini-nano-banana-2.1 | 1376x768  | Blank plate frame, low tailgate |
+| right  | google/gemini-nano-banana-2.1 | 1376x768  | Mirror of the left view         |
+| top    | google/gemini-nano-banana-2.1 | 1376x768  | Roof and bonnet plans           |
+| bottom | google/gemini-nano-banana-2.1 | 896x1200  | Portrait ratio, not 16:9        |
 
 The bottom view is the least reliable. It was generated with a note that asked for a flat closed
 underbody with no driveshaft and no rear axle, and the model kept the flat floor but added a grill

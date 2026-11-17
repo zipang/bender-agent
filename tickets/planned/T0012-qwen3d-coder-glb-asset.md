@@ -103,7 +103,10 @@ sampling and the cap:
 {
 	"model": "local/glb-coder",
 	"messages": [
-		{ "role": "system", "content": "<prompts/glb-coder-system.txt, byte for byte>" },
+		{
+			"role": "system",
+			"content": "<prompts/glb-coder-system.txt, byte for byte>"
+		},
 		{ "role": "user", "content": "<lib/asset-prompt.ts>" }
 	],
 	"temperature": 0.8,

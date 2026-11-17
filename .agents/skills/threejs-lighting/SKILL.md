@@ -19,7 +19,12 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	50,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(4, 3, 8);
 
 // A single directional light: intensity is a plain multiplier, no distance falloff
@@ -28,15 +33,15 @@ dirLight.position.set(5, 10, 5);
 scene.add(dirLight);
 
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(20, 20),
-  new THREE.MeshStandardMaterial({ color: 0x808080 })
+	new THREE.PlaneGeometry(20, 20),
+	new THREE.MeshStandardMaterial({ color: 0x808080 })
 );
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
 const mesh = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 1),
-  new THREE.MeshStandardMaterial({ color: 0x3a76c4 })
+	new THREE.BoxGeometry(1, 1, 1),
+	new THREE.MeshStandardMaterial({ color: 0x3a76c4 })
 );
 scene.add(mesh);
 
@@ -47,7 +52,7 @@ mesh.castShadow = true;
 floor.receiveShadow = true;
 
 function animate() {
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -55,16 +60,16 @@ renderer.setAnimationLoop(animate);
 
 ## Light Types and Units
 
-| Light | Shadows | Intensity | Notes |
-|---|---|---|---|
-| AmbientLight | no | multiplier | Flat fill from every direction |
-| HemisphereLight | no | multiplier | Sky color from above, ground color from below |
-| DirectionalLight | yes | multiplier | Parallel rays (sun); shines at its target |
-| SunLight (addon) | yes, cascaded | multiplier | Shadow frustum fitted to the view automatically |
-| PointLight | yes, six faces | candela | Inverse-square falloff (decay 2) |
-| SpotLight | yes | candela | Cone; inverse-square falloff (decay 2) |
-| RectAreaLight | no | nits | Only MeshStandardMaterial and MeshPhysicalMaterial |
-| LightProbe | no | multiplier | Spherical-harmonics ambient, usually baked |
+| Light            | Shadows        | Intensity  | Notes                                              |
+| ---------------- | -------------- | ---------- | -------------------------------------------------- |
+| AmbientLight     | no             | multiplier | Flat fill from every direction                     |
+| HemisphereLight  | no             | multiplier | Sky color from above, ground color from below      |
+| DirectionalLight | yes            | multiplier | Parallel rays (sun); shines at its target          |
+| SunLight (addon) | yes, cascaded  | multiplier | Shadow frustum fitted to the view automatically    |
+| PointLight       | yes, six faces | candela    | Inverse-square falloff (decay 2)                   |
+| SpotLight        | yes            | candela    | Cone; inverse-square falloff (decay 2)             |
+| RectAreaLight    | no             | nits       | Only MeshStandardMaterial and MeshPhysicalMaterial |
+| LightProbe       | no             | multiplier | Spherical-harmonics ambient, usually baked         |
 
 PointLight and SpotLight intensity is candela with inverse-square falloff (`decay` 2 by default): a 1-candela light 5 units away contributes 1/25, so useful values depend on distance and typically run to the hundreds (the official docs' examples use 80 to 1000). `light.power` sets the same thing in lumens. `light.distance` is a smooth cutoff range (0 means no limit). Directional, ambient and hemisphere intensities are plain multipliers with no unit. RectAreaLight intensity is nits (candela per square metre).
 
@@ -227,7 +232,14 @@ const size = 128;
 const canvas = document.createElement("canvas");
 canvas.width = canvas.height = size;
 const ctx = canvas.getContext("2d");
-const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+const gradient = ctx.createRadialGradient(
+	size / 2,
+	size / 2,
+	0,
+	size / 2,
+	size / 2,
+	size / 2
+);
 gradient.addColorStop(0, "rgba(0,0,0,0.6)");
 gradient.addColorStop(1, "rgba(0,0,0,0)");
 ctx.fillStyle = gradient;
@@ -237,8 +249,12 @@ const shadowTexture = new THREE.CanvasTexture(canvas);
 shadowTexture.colorSpace = THREE.SRGBColorSpace; // a canvas used as a color map is sRGB
 
 const blob = new THREE.Mesh(
-  new THREE.PlaneGeometry(2, 2),
-  new THREE.MeshBasicMaterial({ map: shadowTexture, transparent: true, depthWrite: false })
+	new THREE.PlaneGeometry(2, 2),
+	new THREE.MeshBasicMaterial({
+		map: shadowTexture,
+		transparent: true,
+		depthWrite: false
+	})
 );
 blob.rotation.x = -Math.PI / 2;
 blob.position.y = 0.001; // just above the floor to avoid z-fighting
@@ -300,12 +316,12 @@ A cube texture works as an environment without any mapping line:
 
 ```javascript
 const cubeEnv = await new THREE.CubeTextureLoader().loadAsync([
-  "px.jpg",
-  "nx.jpg",
-  "py.jpg",
-  "ny.jpg",
-  "pz.jpg",
-  "nz.jpg",
+	"px.jpg",
+	"nx.jpg",
+	"py.jpg",
+	"ny.jpg",
+	"pz.jpg",
+	"nz.jpg"
 ]);
 
 scene.environment = cubeEnv;
@@ -318,10 +334,17 @@ scene.background = cubeEnv;
 import { LightProbeGenerator } from "three/addons/lights/LightProbeGenerator.js";
 
 // Bake ambient spherical harmonics from what a cube camera sees
-const cubeCamera = new THREE.CubeCamera(0.1, 100, new THREE.WebGLCubeRenderTarget(256));
+const cubeCamera = new THREE.CubeCamera(
+	0.1,
+	100,
+	new THREE.WebGLCubeRenderTarget(256)
+);
 cubeCamera.update(renderer, scene);
 
-const lightProbe = await LightProbeGenerator.fromCubeRenderTarget(renderer, cubeCamera.renderTarget);
+const lightProbe = await LightProbeGenerator.fromCubeRenderTarget(
+	renderer,
+	cubeCamera.renderTarget
+);
 scene.add(lightProbe);
 ```
 
@@ -377,13 +400,13 @@ const lamp = new THREE.PointLight(0xffd0a0, 100, 20);
 scene.add(lamp);
 
 function animate() {
-  timer.update();
+	timer.update();
 
-  const t = timer.getElapsed();
-  lamp.position.set(Math.cos(t) * 4, 3, Math.sin(t) * 4);
-  lamp.intensity = 100 + Math.sin(t * 2) * 30;
+	const t = timer.getElapsed();
+	lamp.position.set(Math.cos(t) * 4, 3, Math.sin(t) * 4);
+	lamp.intensity = 100 + Math.sin(t * 2) * 30;
 
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);
@@ -413,7 +436,12 @@ document.body.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x101010); // the WebGPU canvas is transparent by default
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(
+	50,
+	window.innerWidth / window.innerHeight,
+	0.1,
+	100
+);
 camera.position.set(4, 3, 8);
 
 renderer.shadowMap.enabled = true;
@@ -422,7 +450,7 @@ dirLight.castShadow = true;
 scene.add(dirLight);
 
 function animate() {
-  renderer.render(scene, camera);
+	renderer.render(scene, camera);
 }
 
 renderer.setAnimationLoop(animate);

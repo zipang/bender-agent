@@ -1,60 +1,92 @@
-// T1.5 — the extracted document.
+// T16.1 and T16.10 — the extracted module.
 //
-// The model emits its reasoning, then the HTML. `extractHtml` is pure and total: it returns the
-// document, or it throws `NoHtmlError` because an incomplete run must never become a candidate.
+// The model emits its reasoning, then the TypeScript module. `extractTs` is pure and total: it
+// returns the module, or it throws `NoModuleError` because an incomplete run must never become a
+// candidate. The system prompt holds a TypeScript template, so a reply may echo it: the LAST
+// TypeScript fence wins (A6).
 
 import { describe, expect, test } from "bun:test";
-import { extractHtml, NoHtmlError } from "./extract";
+import { extractTs, NoModuleError } from "./extract";
 
-const DOCUMENT = [
-	"<!DOCTYPE html>",
-	'<html lang="en">',
-	'<head><meta charset="utf-8"><title>Scene</title></head>',
-	'<body><script type="module">console.log("hi");</script></body>',
-	"</html>"
+const MODULE = [
+	'import * as THREE from "three";',
+	"",
+	"export default function build(): THREE.Object3D {",
+	"  return new THREE.Mesh();",
+	"}"
 ].join("\n");
 
-describe("extractHtml", () => {
-	test("reasoning only throws NoHtmlError", () => {
-		const raw =
-			"The user wants a scene. I will build a ground plane and a box.\n\nThen a light.";
-		expect(() => extractHtml(raw)).toThrow(NoHtmlError);
+const TEMPLATE = [
+	'import * as THREE from "three";',
+	"",
+	"export default function build(): THREE.Object3D {",
+	"  return new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));",
+	"}"
+].join("\n");
+
+describe("extractTs", () => {
+	test("a ts fence is returned", () => {
+		const raw = `Here it is:\n\n\`\`\`ts\n${MODULE}\n\`\`\`\n\nDone.`;
+		expect(extractTs(raw)).toBe(MODULE);
 	});
 
-	test("a plain document is returned unchanged", () => {
-		expect(extractHtml(DOCUMENT)).toBe(DOCUMENT);
+	test("a typescript fence is returned", () => {
+		const raw = `\`\`\`typescript\n${MODULE}\n\`\`\``;
+		expect(extractTs(raw)).toBe(MODULE);
 	});
 
-	test("a fenced document is unwrapped", () => {
+	test("an unlabelled fence with export default is the fallback", () => {
+		const raw = `\`\`\`\n${MODULE}\n\`\`\``;
+		expect(extractTs(raw)).toBe(MODULE);
+	});
+
+	test("two unlabelled blocks: the first with export default wins", () => {
+		const second = "export default function build() {\n  return null;\n}";
+		const raw = `\`\`\`\n${MODULE}\n\`\`\`\n\n\`\`\`\n${second}\n\`\`\``;
+		expect(extractTs(raw)).toBe(MODULE);
+	});
+
+	test("an HTML fence throws NoModuleError", () => {
+		const raw = "```html\n<!DOCTYPE html>\n<html></html>\n```";
+		expect(() => extractTs(raw)).toThrow(NoModuleError);
+	});
+
+	test("a response with no fence throws NoModuleError", () => {
+		const raw = "I will build a cube. Then a ground plane. Then a light.";
+		expect(() => extractTs(raw)).toThrow(NoModuleError);
+	});
+
+	test("the leading and trailing blank lines of a fence are dropped", () => {
+		const raw = `\`\`\`ts\n\n\n${MODULE}\n\n\n\`\`\``;
+		expect(extractTs(raw)).toBe(MODULE);
+	});
+
+	test("the bytes inside the fence are unchanged, blank lines included", () => {
+		// MODULE holds one blank line between the import and the export; it must survive.
+		expect(extractTs(`\`\`\`ts\n${MODULE}\n\`\`\``)).toContain(
+			'from "three";\n\nexport default'
+		);
+	});
+
+	test("the message of NoModuleError is the documented one", () => {
+		expect(() => extractTs("no fence")).toThrow(
+			"The response holds no fenced TypeScript module. Nothing was written."
+		);
+	});
+
+	// T16.10 — the model echoes the system-prompt template, then writes its own module.
+	test("a reply that echoes the template then writes the module returns the module", () => {
 		const raw = [
-			"Here is the file:",
-			"```html",
-			DOCUMENT,
+			"Follow this template:",
+			"```typescript",
+			TEMPLATE,
 			"```",
-			"Enjoy."
+			"",
+			"Here is the asset:",
+			"```typescript",
+			MODULE,
+			"```"
 		].join("\n");
-		expect(extractHtml(raw)).toBe(DOCUMENT);
-	});
-
-	test("a document with trailing prose stops at the last </html>", () => {
-		const raw = `${DOCUMENT}\n\nThis scene uses a hemisphere light and one box.`;
-		expect(extractHtml(raw)).toBe(DOCUMENT);
-	});
-
-	test("a document with leading reasoning and a doctype starts at the doctype", () => {
-		const raw = `I will now write the HTML.\n\n${DOCUMENT}`;
-		expect(extractHtml(raw)).toBe(DOCUMENT);
-	});
-
-	test("a truncated document throws NoHtmlError", () => {
-		const raw = DOCUMENT.slice(0, DOCUMENT.indexOf("</html>"));
-		expect(() => extractHtml(raw)).toThrow(NoHtmlError);
-		expect(raw).toContain("<html");
-		expect(raw).not.toContain("</html>");
-	});
-
-	test("a document without a doctype starts at <html", () => {
-		const raw = DOCUMENT.replace("<!DOCTYPE html>\n", "");
-		expect(extractHtml(raw)).toBe(raw);
+		expect(extractTs(raw)).toBe(MODULE);
 	});
 });

@@ -1,49 +1,90 @@
-// The HTML document out of a raw model response.
+// The TypeScript module out of a raw model response.
 //
-// The model emits reasoning, then the document. The extraction is pure and total: it returns the
-// document, or it throws `NoHtmlError`. An incomplete run must never become a candidate.
+// The model emits reasoning, then the module. The extraction is pure and total: it returns the
+// module, or it throws `NoModuleError`. An incomplete run must never become a candidate.
+//
+// The system prompt holds a fenced template, and the prompt asks for a file that follows it, so a
+// reply may echo the template before writing its own module. The LAST TypeScript fence therefore
+// wins (A6): the echo comes first and the answer comes last.
 
-/** The response holds no complete HTML document. */
-export class NoHtmlError extends Error {
-	constructor(message = "The response holds no complete HTML document.") {
+/** The response holds no complete TypeScript module. */
+export class NoModuleError extends Error {
+	constructor(
+		message = "The response holds no fenced TypeScript module. Nothing was written."
+	) {
 		super(message);
-		this.name = "NoHtmlError";
+		this.name = "NoModuleError";
 	}
 }
 
-const HTML_START = "<html";
-const DOCTYPE_START = "<!doctype html";
-const HTML_END = "</html>";
+/** One fenced block: the info string of its opening line, and its body. */
+type Fence = { info: string; body: string };
+
+const OPENING_FENCE = /^\s*```(.*)$/;
+const CLOSING_FENCE = /^\s*```\s*$/;
 
 /**
- * Return the document, from the first `<!DOCTYPE html` or `<html` to the last
- * `</html>`.
+ * Collect every fenced block of a response, in order.
  *
- * A leading fence and a trailing fence are outside the returned span, and a
- * trailing prose paragraph is dropped. The response must hold an `<html` and a
- * `</html>`, or this throws.
+ * The info string is the text after the opening fence. The body is the text
+ * between the fences, unchanged. An unterminated fence runs to the end of the
+ * response.
  */
-export function extractHtml(raw: string): string {
-	const lower = raw.toLowerCase();
-	const htmlStart = lower.indexOf(HTML_START);
-	if (htmlStart < 0) {
-		throw new NoHtmlError(
-			"The response holds no <html>. Nothing was written."
-		);
+function fencedBlocks(raw: string): Fence[] {
+	const lines = raw.split("\n");
+	const blocks: Fence[] = [];
+	let index = 0;
+	while (index < lines.length) {
+		const opening = OPENING_FENCE.exec(lines[index]!);
+		if (!opening) {
+			index += 1;
+			continue;
+		}
+		const info = opening[1]!.trim().split(/\s+/)[0]!.toLowerCase();
+		const body: string[] = [];
+		index += 1;
+		while (index < lines.length && !CLOSING_FENCE.test(lines[index]!)) {
+			body.push(lines[index]!);
+			index += 1;
+		}
+		// Skip the closing fence, when the response holds one.
+		index += 1;
+		blocks.push({ info, body: body.join("\n") });
+	}
+	return blocks;
+}
+
+/** Drop the leading and trailing blank lines, and keep every inner byte. */
+function trimBlankLines(text: string): string {
+	const lines = text.split("\n");
+	while (lines.length > 0 && lines[0]!.trim() === "") lines.shift();
+	while (lines.length > 0 && lines[lines.length - 1]!.trim() === "")
+		lines.pop();
+	return lines.join("\n");
+}
+
+/**
+ * Return the TypeScript module of a raw response.
+ *
+ * The last `ts` or `typescript` fence wins, because a reply may echo the
+ * system-prompt template before it writes the module. Without such a fence, the
+ * first fence whose body holds `export default` is returned. Anything else
+ * throws `NoModuleError`.
+ */
+export function extractTs(raw: string): string {
+	const blocks = fencedBlocks(raw);
+
+	const typescript = blocks.filter(
+		(block) => block.info === "ts" || block.info === "typescript"
+	);
+	if (typescript.length > 0) {
+		return trimBlankLines(typescript[typescript.length - 1]!.body);
 	}
 
-	const doctypeStart = lower.indexOf(DOCTYPE_START);
-	const start =
-		doctypeStart >= 0 && doctypeStart < htmlStart
-			? doctypeStart
-			: htmlStart;
+	const fallback = blocks.find((block) =>
+		block.body.includes("export default")
+	);
+	if (fallback) return trimBlankLines(fallback.body);
 
-	const end = lower.lastIndexOf(HTML_END);
-	if (end < start) {
-		throw new NoHtmlError(
-			"The response holds no </html>. The run is incomplete, so nothing was written."
-		);
-	}
-
-	return raw.slice(start, end + HTML_END.length);
+	throw new NoModuleError();
 }

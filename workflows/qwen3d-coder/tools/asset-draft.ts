@@ -1,13 +1,14 @@
-// The scene drafter: one subject reference image and a short note, one candidate HTML file.
+// The asset drafter: one subject reference image and a short note, one candidate TypeScript module.
 //
 // `--ask` sends no completion and lists the gaps. A run checks the endpoint through
-// `lib/endpoint.ts`, sends one streamed request per variant, extracts the document, and writes it
-// beside the subject. This script never chooses a candidate, never edits the model's JavaScript,
-// and never starts a server: the endpoint is an input, named by `--base-url` and `--model`.
+// `lib/endpoint.ts`, sends one streamed request per variant, extracts the module, writes it beside
+// the subject, and validates what it wrote. This script never chooses a candidate, never edits the
+// model's TypeScript, and never starts a server: the endpoint is an input, named by `--base-url`
+// and `--model`.
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { extname, join, relative, resolve } from "node:path";
-import { writeCandidate } from "./lib/candidates";
+import { basename, extname, join, relative, resolve } from "node:path";
+import { NAME_PATTERN, writeCandidate } from "./lib/candidates";
 import {
 	DEFAULT_MAX_TOKENS,
 	streamChat,
@@ -20,13 +21,14 @@ import {
 	type PreflightOptions,
 	type PreflightResult
 } from "./lib/endpoint";
-import { extractHtml, NoHtmlError } from "./lib/extract";
+import { extractTs, NoModuleError } from "./lib/extract";
 import {
 	buildUserPrompt,
 	parseNotes,
 	SYSTEM_PROMPT_PATH,
 	type SubjectNotes
 } from "./lib/prompt";
+import { validateAsset, type Validation } from "./lib/validate";
 
 // The repository root. This file lives in <root>/workflows/qwen3d-coder/tools/.
 const PROJECT_ROOT = resolve(import.meta.dir, "..", "..", "..");
@@ -50,7 +52,7 @@ const MEDIA_TYPES: Record<string, string> = {
 
 const REFERENCE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
 
-export type SceneDraftDeps = {
+export type AssetDraftDeps = {
 	out?: (line: string) => void;
 	err?: (line: string) => void;
 	/** The `/models` preflight. Absent means the real fetch. */
@@ -60,7 +62,9 @@ export type SceneDraftDeps = {
 	 * The candidate writer. Absent means write beside the subject with
 	 * `O_EXCL`.
 	 */
-	write?: (dir: string, html: string) => string;
+	write?: (dir: string, name: string, source: string) => string;
+	/** The candidate validator. Absent means import and check the written file. */
+	validate?: (path: string) => Promise<Validation>;
 	/** The system prompt text. Absent means read the workflow file. */
 	systemPrompt?: string;
 };
@@ -75,6 +79,13 @@ type Options = {
 	 */
 	out: string | null;
 	style: string | null;
+	/** The real dimensions, in the art director's notation. */
+	size: string | null;
+	/**
+	 * The resolved asset name. Absent means the subject folder name, or the
+	 * prompt file base name.
+	 */
+	name: string | null;
 	variants: number;
 	image: boolean;
 	prompt: string | null;
@@ -110,12 +121,17 @@ function validateBaseUrl(value: string): string | null {
 	return null;
 }
 
+/** The resolved asset name, or the reason it is invalid. */
+type NameResolution = { ok: true; name: string } | { ok: false; error: string };
+
 function parseOptions(argv: string[]): Parsed {
 	const options: Options = {
 		subject: null,
 		promptFile: null,
 		out: null,
 		style: null,
+		size: null,
+		name: null,
 		variants: 1,
 		image: false,
 		prompt: null,
@@ -132,6 +148,8 @@ function parseOptions(argv: string[]): Parsed {
 		"--prompt-file",
 		"--out",
 		"--style",
+		"--size",
+		"--name",
 		"--variants",
 		"--prompt",
 		"--base-url",
@@ -169,6 +187,14 @@ function parseOptions(argv: string[]): Parsed {
 				break;
 			case "--style":
 				options.style = value;
+				break;
+			case "--size":
+				if (!value.trim()) return { error: `--size is empty.` };
+				options.size = value;
+				break;
+			case "--name":
+				if (!value.trim()) return { error: `--name is empty.` };
+				options.name = value;
 				break;
 			case "--prompt":
 				options.prompt = value;
@@ -252,21 +278,52 @@ function displayPath(path: string): string {
 }
 
 /**
+ * The resolved asset name.
+ *
+ * `--name` wins. Without it, the subject folder name is used in subject mode,
+ * and the prompt file base name without `.txt` is used in text mode. The name
+ * must be kebab case.
+ */
+function resolveName(
+	options: Options,
+	textMode: boolean,
+	subjectDir: string | null,
+	promptPath: string | null
+): NameResolution {
+	const name =
+		options.name ??
+		(textMode
+			? basename(promptPath as string, extname(promptPath as string))
+			: basename(subjectDir as string));
+	if (!NAME_PATTERN.test(name)) {
+		return {
+			ok: false,
+			error: `The asset name "${name}" is not kebab case. Pass --name "<slug>".`
+		};
+	}
+	return { ok: true, name };
+}
+
+/**
  * The command-line entry point.
  *
- * Exit codes: 0 a candidate was written, 1 invalid input, 2 the endpoint is
- * unreachable or does not name the model, 3 a request failed, 4 the response
- * held no complete document, 5 the candidate could not be written.
+ * Exit codes: 0 at least one candidate was written and is valid, or `--ask`
+ * completed; 1 invalid input (a flag, the subject, the style, the size, the
+ * name, or the reference); 2 the endpoint is unreachable or does not name the
+ * model; 3 a request failed; 4 the response held no complete module; 5 the
+ * candidate could not be written; 6 candidates were written and none is a valid
+ * asset.
  */
 export async function runCli(
 	argv: string[],
-	deps: SceneDraftDeps = {}
+	deps: AssetDraftDeps = {}
 ): Promise<number> {
 	const out = deps.out ?? console.log;
 	const err = deps.err ?? console.error;
 	const preflight = deps.preflight ?? checkEndpoint;
 	const send = deps.stream ?? streamChat;
 	const write = deps.write ?? writeCandidate;
+	const validate = deps.validate ?? validateAsset;
 
 	const parsed = parseOptions(argv);
 	if ("error" in parsed) {
@@ -302,12 +359,14 @@ export async function runCli(
 			err(`The prompt file does not exist: ${displayPath(promptPath)}`);
 			return 1;
 		}
-		promptText = readFileSync(promptPath, "utf8").trim();
-		if (!promptText) {
+		// The file is the whole turn, byte for byte (A3). Only the emptiness check trims.
+		const raw = readFileSync(promptPath, "utf8");
+		if (!raw.trim()) {
 			err(`The prompt file is empty: ${displayPath(promptPath)}`);
 			return 1;
 		}
-		request = promptText;
+		promptText = raw;
+		request = raw;
 	} else {
 		if (!options.subject) {
 			err(
@@ -325,6 +384,17 @@ export async function runCli(
 		reference = findReference(subjectDir);
 		subjectText = notes.subject ?? options.prompt;
 		request = options.prompt ?? subjectText;
+	}
+
+	const nameResolution = resolveName(
+		options,
+		textMode,
+		subjectDir,
+		promptPath
+	);
+	if (!nameResolution.ok && !options.ask) {
+		err(nameResolution.error);
+		return 1;
 	}
 
 	/**
@@ -356,6 +426,7 @@ export async function runCli(
 		if (!endpoint.ok) return endpoint.code;
 
 		const gaps: string[] = [];
+		if (!nameResolution.ok) gaps.push(nameResolution.error);
 		if (textMode) {
 			if (!options.out)
 				gaps.push("--out: missing. Pass the candidate folder.");
@@ -379,11 +450,17 @@ export async function runCli(
 			out("No request was sent and nothing was spent.");
 			return 0;
 		}
-		out(`ask:        ${gaps.length} gap(s) in the subject material`);
+		out(`ask:        ${gaps.length} gap(s) to fill before a draft`);
 		gaps.forEach((gap, index) => out(`  ${index + 1}. ${gap}`));
 		out("No request was sent and nothing was spent.");
 		return 0;
 	}
+
+	if (!nameResolution.ok) {
+		err(nameResolution.error);
+		return 1;
+	}
+	const name = nameResolution.name;
 
 	if (!textMode) {
 		if (!options.style) {
@@ -430,6 +507,8 @@ export async function runCli(
 				subject: subjectText as string,
 				style: options.style as string,
 				details: notes.details,
+				name,
+				size: options.size,
 				request: request as string
 			});
 
@@ -440,10 +519,11 @@ export async function runCli(
 		: join(subjectDir as string, "generated");
 	let written = 0;
 	let firstFailure: number | null = null;
+	const valid: string[] = [];
 
 	for (let variant = 1; variant <= options.variants; variant += 1) {
 		const started = performance.now();
-		let html: string;
+		let module_: string;
 		let result: ChatResult;
 		try {
 			result = await send({
@@ -456,10 +536,10 @@ export async function runCli(
 				seed: options.seed,
 				timeoutMs: options.timeout * 1000
 			});
-			html = extractHtml(result.content);
+			module_ = extractTs(result.content);
 		} catch (error) {
 			// A failed request is not a failed write. The next variant still runs.
-			const code = error instanceof NoHtmlError ? 4 : 3;
+			const code = error instanceof NoModuleError ? 4 : 3;
 			firstFailure ??= code;
 			out(`variant ${variant}  failed: ${(error as Error).message}`);
 			continue;
@@ -467,7 +547,7 @@ export async function runCli(
 
 		let path: string;
 		try {
-			path = write(generatedDir, html);
+			path = write(generatedDir, name, module_);
 		} catch (error) {
 			// The model answered, but the candidate could not be stored.
 			firstFailure ??= 5;
@@ -479,8 +559,19 @@ export async function runCli(
 
 		written += 1;
 		const seconds = (performance.now() - started) / 1000;
+		// `validateAsset` catches the import and `build()`, but `traverse` and `Box3.setFromObject`
+		// run model code and can throw. A throw must not abort the run, or the candidates already
+		// written lose their summary and their viewer line.
+		let validation: Validation;
+		try {
+			validation = await validate(path);
+		} catch (error) {
+			validation = { ok: false, reason: (error as Error).message };
+		}
+		const state = validation.ok ? "valid" : `invalid: ${validation.reason}`;
+		if (validation.ok) valid.push(path);
 		out(
-			`variant ${variant}  ${displayPath(path)}  ${seconds.toFixed(1)} s  ${result.tokens} tokens  ${result.tokensPerSecond.toFixed(1)} tok/s`
+			`variant ${variant}  ${displayPath(path)}  ${seconds.toFixed(1)} s  ${result.tokens} tokens  ${result.tokensPerSecond.toFixed(1)} tok/s  ${state}`
 		);
 	}
 
@@ -488,10 +579,19 @@ export async function runCli(
 		out(
 			`${written} candidate(s) written to ${displayPath(generatedDir)}. The art director chooses.`
 		);
-		return 0;
 	}
-	// Unreachable with --variants >= 1 (parseOptions rejects less), kept as the total-failure fallback.
-	return firstFailure ?? 0;
+	for (const path of valid) {
+		out(
+			`view  bun run tools/scene-viewer/serve.ts --asset ${displayPath(path)}`
+		);
+	}
+
+	if (valid.length > 0) return 0;
+	// Candidates were written, and none is a valid asset.
+	if (written > 0) return 6;
+	// Unreachable with --variants >= 1 (parseOptions rejects less), kept as the total-failure
+	// fallback. It must never answer 0: 0 means a candidate was written and is valid.
+	return firstFailure ?? 3;
 }
 
 if (import.meta.main) {

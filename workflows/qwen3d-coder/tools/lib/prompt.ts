@@ -1,26 +1,30 @@
-// The system prompt and the user prompt of the scene drafter.
+// The system prompt and the user prompt of the asset drafter.
 //
-// The system prompt is read from `prompts/3d-coder-system.txt`, which holds the model card's text
-// byte for byte. The user prompt is a pure function of its four blocks.
+// The system prompt is read from `prompts/asset-system.txt`, which holds the art director's
+// template prompt byte for byte. The user prompt is a pure function of its blocks.
 
 import { resolve } from "node:path";
 
-/** The model card's system prompt, inside the workflow. */
+/** The asset template prompt, inside the workflow. */
 export const SYSTEM_PROMPT_PATH = resolve(
 	import.meta.dir,
 	"..",
 	"..",
 	"prompts",
-	"3d-coder-system.txt"
+	"asset-system.txt"
 );
 
 export type UserPromptInput = {
 	/** What the subject is, in one paragraph. */
 	subject: string;
-	/** How the scene must be rendered. */
+	/** How the asset must look. */
 	style: string;
+	/** The real dimensions, in the art director's notation, when they are known. */
+	size?: string | null;
 	/** What must survive, when the notes hold it. */
 	details?: string | null;
+	/** The resolved asset name, for the candidate file. */
+	name: string;
 	/** The request of this run. It defaults to the subject. */
 	request?: string | null;
 };
@@ -33,21 +37,37 @@ function required(value: string | null | undefined, field: string): string {
 }
 
 /**
- * Build the user prompt from its four blocks.
+ * Build the user turn from its blocks.
  *
- * Block 3 is optional. The other three are mandatory, and an empty input
- * throws.
+ * The `dimensions` and `details` bullets are optional. The subject, the style,
+ * the name, and the request are mandatory, and an empty input throws. The order
+ * of the bullets is the art director's order (A3).
  */
 export function buildUserPrompt(input: UserPromptInput): string {
 	const subject = required(input.subject, "The subject");
 	const style = required(input.style, "The style");
+	const name = required(input.name, "The asset name");
 	const request = required(input.request ?? subject, "The request");
+	const size = (input.size ?? "").trim();
 	const details = (input.details ?? "").trim();
 
-	const blocks = [`Subject: ${subject}`, `Style: ${style}`];
-	if (details) blocks.push(`Details that must survive: ${details}`);
+	const blocks = [
+		"Here is the 3D model to recreate with Three.js primitives:",
+		`* subject: ${subject}`
+	];
+	if (size) blocks.push(`* dimensions: ${size}`);
+	blocks.push(`* style: ${style}`);
+	if (details) blocks.push(`* details that must survive: ${details}`);
 	blocks.push(
-		`Create one self-contained HTML file with Three.js from cdnjs that shows ${request}.`
+		`* asset name: ${name}`,
+		"* units: metres. +Y up. +Z is the front. The origin is the centre of the base.",
+		`* Create one standalone TypeScript module that shows ${request}.`,
+		'* import * as THREE from "three" only.',
+		"* export default function build(): THREE.Object3D",
+		"* One object: one mesh, or a Group when the object has parts.",
+		"* Name every part, and two calls build the same object.",
+		"* No ground, grid, background, fog, overlay, camera, renderer, light, or animation.",
+		"* Do not add anything else."
 	);
 	return blocks.join("\n");
 }

@@ -1,34 +1,45 @@
 // The candidate counter and the write of one candidate file.
 //
-// The counter is per folder. `--01` is the first number of an empty folder, and `--04` follows
-// `--03`. A write never overwrites an existing file, and no function in this module removes or
-// moves a file: a rejected candidate stays as evidence.
+// The counter is per folder. `<name>--01.ts` is the first number of an empty folder, and `--04`
+// follows `--03`. A write never overwrites an existing file, and no function in this module removes
+// or moves a file: a rejected candidate stays as evidence.
 
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-/** The fixed prefix of every candidate of this workflow. */
-export const CANDIDATE_PREFIX = "qwen3d-coder-scene";
+/** A resolved asset name: kebab case, one or more lowercase words. */
+export const NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
  * The persistent counter of the folder. It stops a deleted number from coming
  * back.
  */
-export const COUNTER_FILE = ".qwen3d-coder-scene.counter";
+export const COUNTER_FILE = ".qwen3d-coder-asset.counter";
 
-const SUFFIX = ".html";
-const PATTERN = new RegExp(
-	`^${CANDIDATE_PREFIX}--(\\d+)${SUFFIX.replace(".", "\\.")}$`
-);
+const SUFFIX = ".ts";
+
+function assertName(name: string): void {
+	if (!NAME_PATTERN.test(name)) {
+		throw new Error(
+			`An asset name is kebab case and matches ${NAME_PATTERN.source}, got "${name}".`
+		);
+	}
+}
+
+/** The escaped pattern of one candidate name, for the folder scan. */
+function candidatePattern(name: string): RegExp {
+	return new RegExp(`^${name}--(\\d+)${SUFFIX.replace(".", "\\.")}$`);
+}
 
 /** The documented name of one candidate, zero padded to two digits. */
-export function candidateFileName(n: number): string {
+export function candidateFileName(name: string, n: number): string {
+	assertName(name);
 	if (!Number.isInteger(n) || n < 1) {
 		throw new Error(
 			`A candidate number is a positive integer, got "${n}".`
 		);
 	}
-	return `${CANDIDATE_PREFIX}--${String(n).padStart(2, "0")}${SUFFIX}`;
+	return `${name}--${String(n).padStart(2, "0")}${SUFFIX}`;
 }
 
 /**
@@ -49,14 +60,16 @@ export function readCounter(dir: string): number | null {
 }
 
 /**
- * The next number of a folder.
+ * The next number of one name in a folder.
  *
  * It is `max(counter, maximum present) + 1`, or 1 when the folder holds
  * neither. The counter keeps a deleted number out of use, and a missing folder
  * counts as empty.
  */
-export function nextNumber(dir: string): number {
+export function nextNumber(dir: string, name: string): number {
+	assertName(name);
 	const counter = readCounter(dir);
+	const pattern = candidatePattern(name);
 	let names: string[];
 	try {
 		names = readdirSync(dir);
@@ -64,8 +77,8 @@ export function nextNumber(dir: string): number {
 		return (counter ?? 0) + 1;
 	}
 	let max = 0;
-	for (const name of names) {
-		const match = PATTERN.exec(name);
+	for (const candidate of names) {
+		const match = pattern.exec(candidate);
 		if (!match) continue;
 		const value = Number.parseInt(match[1]!, 10);
 		if (Number.isFinite(value) && value > max) max = value;
@@ -86,13 +99,18 @@ function writeCounter(dir: string, n: number): void {
  * overwritten: the counter moves to the next free number and the write is
  * retried. The counter is recorded after a successful write.
  */
-export function writeCandidate(dir: string, html: string): string {
+export function writeCandidate(
+	dir: string,
+	name: string,
+	source: string
+): string {
+	assertName(name);
 	mkdirSync(dir, { recursive: true });
 	for (let attempt = 0; attempt < 1000; attempt += 1) {
-		const number = nextNumber(dir);
-		const path = join(dir, candidateFileName(number));
+		const number = nextNumber(dir, name);
+		const path = join(dir, candidateFileName(name, number));
 		try {
-			writeFileSync(path, html, { flag: "wx" });
+			writeFileSync(path, source, { flag: "wx" });
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "EEXIST") continue;
 			throw error;

@@ -543,11 +543,14 @@ the previous evidence.
 - **A wrong projection.** Flat views use the orthographic camera. A perspective camera against an
   orthographic reference turns a correct roof into a wrong one, and sends you fixing the model.
 
-## Workflow E: draft a scene with the Qwen 3D Coder
+## Workflow E: draft an asset with the Qwen 3D Coder
 
-Use this workflow when the art director wants a first look at a scene, not a measured asset. A 4B
-model served by an OpenAI-compatible endpoint drafts one standalone HTML file per variant. This
-workflow has **no gate**, it does not run G1, G2, or G3, and it does not replace workflow D.
+Use this workflow when the art director wants a first look at a stylized asset, not a measured model.
+A 4B model served by an OpenAI-compatible endpoint drafts **one standalone TypeScript module per
+variant**, and the shared scene viewer draws it. This workflow has **no gate**, it does not run G1,
+G2, or G3, and it does not replace workflow D.
+
+The model delivers the asset only. It builds no page, no camera, no light, and no ground.
 
 ### E1. Read the material, then ask in one pass
 
@@ -555,36 +558,39 @@ workflow has **no gate**, it does not run G1, G2, or G3, and it does not replace
 2. Run the free check. It sends no completion and checks the endpoint:
 
 ```bash
-bun run workflows/qwen3d-coder/tools/scene-draft.ts \
+bun run workflows/qwen3d-coder/tools/asset-draft.ts \
   --subject blueprints/<category>/<subject> --ask
 ```
 
-3. Ask everything in one `question` call: the style, the number of variants, and the request. Read
-   `## Subject` from `notes.md` first, and do not ask again what it already says.
+3. Ask everything in one `question` call: the asset name (default: the subject folder name), the
+   object in the art director's words, the real size in metres, the style, and the number of
+   variants. Read `## Subject` from `notes.md` first, and do not ask again what it already says.
 
 ### E2. Report, then run
 
-Report the answers, the command, and the cost in time. A scene of about 4,000 output tokens costs
-about seven minutes on this machine; this figure is an estimate until ticket `T1.13` records the
-measured value. Then run:
+Report the answers, the command, and the cost in time. State no decode rate and no cost before ticket
+`T1.13` measures them: report the measured cost of the run after it ends. Then run the command with
+`--name` and `--size`:
 
 ```bash
-bun run workflows/qwen3d-coder/tools/scene-draft.ts \
+bun run workflows/qwen3d-coder/tools/asset-draft.ts \
   --subject blueprints/<category>/<subject> \
-  --style "<style>" --variants <n> [--image] [--prompt "<request>"]
+  --name <slug> --style "<style>" --size "<L=… m, h=… m>" \
+  --variants <n> [--image] [--prompt "<request>"]
 ```
 
-The script checks the endpoint named by `--base-url` and `--model`, then sends the completion. This
-workflow starts no server: if the endpoint is down, the run exits `2` and the fix belongs to the
-endpoint's operator.
+The script checks the endpoint named by `--base-url` and `--model`, sends the completion, writes
+each candidate as `<name>--<NN>.ts`, and validates it. This workflow starts no server: if the
+endpoint is down, the run exits `2` and the fix belongs to the endpoint's operator.
 
 ### E3. Hand the review back
 
-1. List every candidate with its full path.
-2. Describe each candidate in one line, and say that it is a description, not a verdict.
+1. List every candidate with its full path and its `valid` or `invalid: <reason>` state.
+2. Give the exact viewer command for every valid candidate, and describe each candidate in one line.
+   Say that it is a description, not a verdict.
 3. Wait for the choice. Never choose a candidate, and never promote one.
 4. A candidate is never deleted, never renamed, and never overwritten. The script never edits the
-   model's JavaScript, so a broken candidate stays as evidence.
+   model's TypeScript, so a broken candidate stays as evidence.
 
 ## Expertise and tool selection
 
@@ -610,9 +616,9 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
     - **Use it for:** a stylized asset with a locked blueprint, judged by silhouette. This is the default path for a game figurine.
     - **Action:** load the `volume-modelling` skill first: it holds the three stages and their gates. Then follow workflow D above. Load `threejs-geometry` for the sections and the extrusion, `threejs-materials` for the PBR materials, and `agent-browser` for the capture. Do not load a geometry skill to author a scene skeleton: the workflow already holds the contract.
 
-6. **A scene draft from a reference image (`qwen3d-coder`)**
-    - **Use it for:** a first look at a stylized scene, or a quick comparison of styles. The output is unmeasured and judged by eye.
-    - **Action:** follow workflow E above. Read the reference, run `--ask`, ask in one call, run the script, and hand the candidate paths back. Never choose a candidate, and never promote one.
+6. **A TypeScript asset draft (`qwen3d-coder`)**
+    - **Use it for:** a first look at a stylized asset, or a quick comparison of styles. The output is unmeasured and judged by eye.
+    - **Action:** follow workflow E above. Read the reference, run `--ask`, ask in one call with the asset name and the real size, run the script with `--name` and `--size`, then hand the candidate paths and the viewer commands back. Never choose a candidate, and never promote one.
 
 ## Method
 

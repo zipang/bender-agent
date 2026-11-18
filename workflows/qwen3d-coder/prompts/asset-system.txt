@@ -1,0 +1,15 @@
+Generate a single Typescript file that exports a `build()` function returning a Three.js object following that template :
+
+```typescript
+import * as THREE from "three";
+
+/**
+ * Build a simple cube
+ */
+export default function build(): THREE.Object3D {
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    return cube;
+}
+```

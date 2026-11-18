@@ -11,7 +11,7 @@ each has its own folder, its own documents, and its own tools.
 | **Three.js**      | [`workflows/threejs/`](./workflows/threejs/README.md)           | **active**   | A stylized asset with a locked blueprint, judged by its silhouette             |
 | **Blender**       | [`workflows/blender/`](./workflows/blender/README.md)           | inactive     | Organic forms, a finished look, rigging, asset libraries                       |
 | **vcad**          | [`workflows/vcad/`](./workflows/vcad/README.md)                 | archived     | A part that must fit, a mechanical assembly, a fabrication export              |
-| **Qwen 3D Coder** | [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md) | experimental | A first draft of a stylized scene, from a reference image, with no measurement |
+| **Qwen 3D Coder** | [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md) | experimental | A first draft of a stylized asset, from a reference image, with no measurement |
 
 Start with the active one. The other three describe the paths beside it.
 
@@ -47,7 +47,7 @@ named on the command line.
 ├── demos/                 unmeasured candidates the art director kept as markers: one HTML per step
 ├── workflows/
 │   ├── threejs/           the active workflow: viewer, scenes, tools, README, AGENTS
-│   ├── qwen3d-coder/      the experimental workflow: scene drafter, prompts, README, AGENTS
+│   ├── qwen3d-coder/      the experimental workflow: asset drafter, prompts, README, AGENTS
 │   ├── blender/           README and AGENTS
 │   └── vcad/              README, AGENTS, and the session export tool
 ├── tools/                 tools more than one workflow reads: the generator, the blueprint tools,
@@ -216,7 +216,7 @@ produced, even when the method it describes has since been replaced.
 - **Orthographic view**: A view without perspective convergence. Parallel edges remain parallel.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
 - **Pivot**: The origin of a node. It is the centre of rotation for animation.
-- **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A 4B model served by an external OpenAI-compatible endpoint drafts one stylized scene as a standalone HTML file from a reference image. It has no gate, and the art director judges every candidate by eye.
+- **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A 4B model served by an external OpenAI-compatible endpoint drafts one standalone TypeScript asset from a reference image, and the shared scene viewer draws it. It has no gate, and the art director judges every candidate by eye.
 - **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
 - **Root tool**: A tool in the root `tools/`, read by several workflows. It is the opposite of `workflows/<name>/tools/`, which one workflow reads. A tool is never placed by convenience.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.

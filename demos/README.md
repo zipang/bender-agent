@@ -3,6 +3,12 @@
 Unmeasured scene candidates that the art director kept on purpose. A demo is **evidence**, not an
 asset: it has no gate, no measurement, and no place in `blueprints/`. It is a marker of one step.
 
+> **The HTML demos here are the pre-T0016 record.** Before ticket `T0016`, the Qwen 3D Coder asked
+> the model for a whole HTML page: it wrote its own camera, lights, ground, and overlay. T0016
+> changed the deliverable to one standalone TypeScript asset, which the shared scene viewer draws.
+> These files stay unedited as evidence of the earlier mode. A new candidate is a `.ts` file, not an
+> HTML page.
+
 | File                           | Workflow      | One line                                                            |
 | :----------------------------- | :------------ | :------------------------------------------------------------------ |
 | `voxel-christmas-tree.html`    | Qwen 3D Coder | A Christmas tree in its pot, built only from cubes. Renders nothing |
@@ -57,7 +63,9 @@ A demo is never edited. A new run adds a new file.
 
 ## The two 2026-11-17 runs
 
-Both files come from a prompt file, with no blueprint and no reference image:
+Both files come from a prompt file, with no blueprint and no reference image. **These two runs predate
+ticket `T0016`:** the entry point is now `tools/asset-draft.ts`, and a candidate is a `.ts` asset, not
+an HTML page. The command below records what really ran, so it is not rewritten.
 
 ```bash
 bun run workflows/qwen3d-coder/tools/scene-draft.ts \

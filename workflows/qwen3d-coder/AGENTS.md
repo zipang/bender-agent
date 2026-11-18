@@ -3,8 +3,9 @@
 Rules for an agent that works in `workflows/qwen3d-coder/`. They are short on purpose. The tutorial
 is in [`README.md`](./README.md). This file holds what must not be broken.
 
-This workflow produces **unmeasured, stylized candidates**. It has no gate, it does not run G1, G2,
-or G3, and it does not replace workflow D. The art director judges every candidate by eye.
+This workflow produces **one standalone TypeScript asset per variant**. It has no gate, it does not
+run G1, G2, or G3, and it does not replace workflow D. The shared scene viewer draws the asset, and
+the art director judges it by eye.
 
 ## The pass, in order
 
@@ -12,23 +13,36 @@ or G3, and it does not replace workflow D. The art director judges every candida
    prompt file instead.
 2. Run the free check, `--ask`. It sends no completion, checks the endpoint, and lists the gaps.
 3. Ask the art director everything in one call. Never invent a choice that belongs to the art
-   director: the style, the number of variants, the request.
+   director: the asset name, the style, the real size, the number of variants, the request.
 4. Report the answers, the command, and the cost in time. Then run it.
-5. Hand the candidate paths back with one line of description per file. Wait for the choice.
+5. Hand the candidate paths back with their `valid` or `invalid` state, and the viewer command of
+   every valid candidate. Wait for the choice.
 6. Never choose a candidate, and never promote one.
 
 ## The prompt files
 
-- `prompts/3d-coder-system.txt` is the constant system turn, and it is the model card's text, byte
-  for byte: the cdnjs ES module, no addons, and the camera controls inside the HTML. Do not extend it.
-  The art director's decision of 2026-11-17 (T0013 D7) is that a long system contract does not hold.
-- `prompts/subjects/<slug>.txt` is the user turn of one subject: short lines, numbers instead of
-  adjectives, one line per constraint, and a last line that names what must not appear. Keep it under
-  twenty lines.
+- `prompts/asset-system.txt` is the constant system turn: the art director's template prompt, byte
+  for byte. It holds no subject, no style, and no dimension. A test compares it byte for byte, and a
+  second test validates its fenced template as an asset. Do not extend it.
+- `prompts/subjects/<slug>.txt` is the user turn of one subject, in the asset register: the constant
+  first line, then one bullet per fact (subject, dimensions, style, details, asset name, units), then
+  the asset contract, and a last line that names what must not appear. Keep it under twenty lines.
 - Text mode sends the file and nothing else: `--prompt-file <f> --out <dir>`. It reads no blueprint
   and no image.
 - Do not lengthen a prompt to fix a candidate. Change one constraint, then run again.
 - A prompt that grows into prose is a defect. The model answers lists.
+
+## The asset contract
+
+- The asset is one standalone TypeScript module: `import * as THREE from "three";` and
+  `export default function build(): THREE.Object3D`. It imports `three` only.
+- The root origin is at the centre of the base, `+Y` is up, the object faces `+Z`, and one unit is
+  one metre.
+- It builds no camera, renderer, light, ground, grid, background, fog, overlay, or animation.
+- The drafter validates every candidate it writes: `valid`, or `invalid: <reason>`. It never edits
+  the file. A broken candidate stays as evidence.
+- The viewer is the review page. `tools/scene-viewer/**` is not part of this workflow; the drafter
+  prints its command.
 
 ## The model is not an agent
 
@@ -42,12 +56,14 @@ or G3, and it does not replace workflow D. The art director judges every candida
 
 ## Candidate rules
 
+- A candidate is one TypeScript file named `<name>--<NN>.ts`. The name is the resolved asset name,
+  and the number is zero padded to two digits.
 - A candidate is never deleted, never renamed, and never overwritten.
 - The script writes with `O_EXCL`. A new run adds the next free number, so `--04` follows `--03`.
-- The last number is kept in `.qwen3d-coder-scene.counter` in the candidate folder. The next number
+- The last number is kept in `.qwen3d-coder-asset.counter` in the candidate folder. The next number
   is `max(counter, maximum present) + 1`, so a deleted number is never reused. An unreadable or
   invalid counter falls back to the folder maximum.
-- The script never edits the model's JavaScript. A broken candidate stays as evidence.
+- The script never edits the model's TypeScript. A broken candidate stays as evidence.
 - As an image, generation reads `reference.<ext>` only. It never reads `source.<ext>`.
 - A candidate lives beside its subject, in `blueprints/<category>/<subject>/generated/`. In text
   mode it lives in the folder that `--out` names.

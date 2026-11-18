@@ -1,1 +1,14 @@
-A modernist office chair: walnut frame and legs, yellow leather seat and back
+Here is the 3D model to recreate with Three.js primitives:
+* subject: a modernist office chair: walnut frame and legs, yellow leather seat and back.
+* dimensions: L=0.6 m, w=0.6 m, h=0.8 m.
+* style: low-poly stylized video game figurine, soft studio light.
+* details that must survive: a walnut frame and legs, a yellow leather seat and back, four steel legs, two armrests.
+* asset name: modernist-office-chair
+* units: metres. +Y up. +Z is the front. The origin is the centre of the base.
+* Create one standalone TypeScript module that shows a modernist office chair.
+* import * as THREE from "three" only.
+* export default function build(): THREE.Object3D
+* One object: one mesh, or a Group when the object has parts.
+* Name every part, and two calls build the same object.
+* No ground, grid, background, fog, overlay, camera, renderer, light, or animation.
+* Do not add anything else.

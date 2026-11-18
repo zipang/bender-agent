@@ -49,6 +49,19 @@ prompt, the image tokens, and an asset share one window. The client cannot raise
 setting of the endpoint. At 4 096 tokens the asset is truncated mid-file and the run ends with exit
 code `4`.
 
+Image input is **optional**, and the endpoint reads an image only when its operator loads the
+companion vision projector `mmproj-Qwen3.5-4B-BF16.gguf` (about 644 MiB) beside the weights. The
+model card's tested invocation is:
+
+```bash
+llama-server -m <model>.gguf --mmproj mmproj-Qwen3.5-4B-BF16.gguf \
+  --n-gpu-layers all --flash-attn on --ctx-size 65536 --parallel 1
+```
+
+`--no-mmproj` disables the projector. Without it the run answers from the text alone. The `--ask`
+report holds a `multimodal` line that says what the endpoint publishes; this repository installs no
+projector and starts no server.
+
 The endpoint's operator sets the rest of its requirements where the endpoint is declared. This
 workflow states them, reads none of them, and cannot verify any of them:
 
@@ -73,23 +86,25 @@ bun run workflows/qwen3d-coder/tools/asset-draft.ts \
 A subject without a `## Subject` paragraph in `notes.md` needs `--prompt`, because the script never
 sends an empty prompt.
 
-| Flag                | Meaning                                             | Default                              |
-| :------------------ | :-------------------------------------------------- | :----------------------------------- |
-| `--subject <dir>`   | The subject folder. It must hold `reference.<ext>`  | required, unless `--prompt-file`     |
-| `--prompt-file <f>` | A file that holds the whole user turn               | absent                               |
-| `--out <dir>`       | The candidate folder of `--prompt-file`             | required with `--prompt-file`        |
-| `--style "<text>"`  | The rendering style, in the art director's words    | required, unless `--prompt-file`     |
-| `--size "<text>"`   | The real dimensions, in the art director's notation | absent, so the model invents a scale |
-| `--name <slug>`     | The asset name. It prefixes every candidate file    | the subject folder, or the file name |
-| `--variants <n>`    | The number of candidates                            | `1`                                  |
-| `--image`           | Send `reference.<ext>` as an image part             | off                                  |
-| `--prompt "<text>"` | The asset request, instead of the subject paragraph | `notes.md`                           |
-| `--base-url <url>`  | The root of the OpenAI-compatible API               | `http://127.0.0.1:9931/v1`           |
-| `--model <id>`      | The `id` the endpoint publishes                     | `qwen3.5-4b-3d-coder`                |
-| `--max-tokens <n>`  | The output guard. `-1` removes it                   | `16384`                              |
-| `--timeout <s>`     | The wall-clock budget of one request                | `1800`                               |
-| `--seed <n>`        | A fixed seed, so one run is repeatable              | absent, so random                    |
-| `--ask`             | List the gaps and check the endpoint. Send nothing  | off                                  |
+| Flag                 | Meaning                                                    | Default                              |
+| :------------------- | :--------------------------------------------------------- | :----------------------------------- |
+| `--subject <dir>`    | The subject folder. It must hold `reference.<ext>`         | required, unless `--prompt-file`     |
+| `--prompt-file <f>`  | A file that holds the whole user turn                      | absent                               |
+| `--out <dir>`        | The candidate folder of `--prompt-file`                    | required with `--prompt-file`        |
+| `--style "<text>"`   | The rendering style, in the art director's words           | required, unless `--prompt-file`     |
+| `--size "<text>"`    | The real dimensions, in the art director's notation        | absent: `dimensions.json` fills it   |
+| `--name <slug>`      | The asset name. It prefixes every candidate file           | the subject folder, or the file name |
+| `--variants <n>`     | The number of candidates                                   | `1`                                  |
+| `--image`            | Send `<subject>/reference.<ext>`, the identity sheet       | off                                  |
+| `--views <list>`     | Send each named view of `<subject>/<view>/` in list order  | off                                  |
+| `--image-preset <n>` | The size and the encoding of every image sent              | `tiny`                               |
+| `--prompt "<text>"`  | The subject, when `notes.md` has no `## Subject` paragraph | `notes.md`                           |
+| `--base-url <url>`   | The root of the OpenAI-compatible API                      | `http://127.0.0.1:9931/v1`           |
+| `--model <id>`       | The `id` the endpoint publishes                            | `qwen3.5-4b-3d-coder`                |
+| `--max-tokens <n>`   | The output guard. `-1` removes it                          | `16384`                              |
+| `--timeout <s>`      | The wall-clock budget of one request                       | `1800`                               |
+| `--seed <n>`         | A fixed seed, so one run is repeatable                     | absent, so random                    |
+| `--ask`              | List the gaps and check the endpoint. Send nothing         | off                                  |
 
 `--name` is optional. In subject mode the default is the subject folder name. In text mode the
 default is the prompt file base name, without `.txt`. The resolved name must match
@@ -111,14 +126,58 @@ bun run workflows/qwen3d-coder/tools/asset-draft.ts \
 ```
 
 In text mode `--style` and `--size` are not read, because the prompt file holds the whole user turn.
-The two modes are exclusive: `--prompt-file` with `--subject` exits `1`, and `--image` needs a
-subject.
+The two modes are exclusive: `--prompt-file` with `--subject` exits `1`, and `--image` or `--views`
+needs a subject. A prompt file has no blueprint beside it, so text mode sends no image.
+
+### The reference images
+
+`--image` sends the identity sheet, `<subject>/reference.<ext>`. `--views top,right,back` sends those
+three views, in that order. The six names are `front`, `left`, `right`, `back`, `top`, and `bottom`.
+The two flags are exclusive, and both need `--subject`.
+
+Every image is sent as PNG. A source may be `.png`, `.jpg`, `.jpeg`, or `.webp`: one blueprint is
+written entirely in WebP, and the endpoint's decoder reads PNG. The source is decoded, resized, and
+re-encoded, with one exception: a PNG that is already at most the preset's longest side, sent under
+`full`, keeps its source bytes. `blueprints/**` is never changed.
+
+| Preset  | Longest side | Encoding                          | Role                |
+| :------ | :----------- | :-------------------------------- | :------------------ |
+| `tiny`  | 384 px       | indexed PNG, 64 colours, dithered | default, first rung |
+| `small` | 512 px       | truecolor PNG                     | first climb         |
+| `full`  | 800 px       | truecolor PNG                     | last climb          |
+
+Measured on 2026-11-18, three images cost about 60 KB of base64 under `tiny`, about 500 KB under
+`small`, and about 1 MB under `full`. A 4B vision encoder turns `full` into several thousand image
+tokens, and image tokens share the context window with the prompt and the generated code.
+
+The ladder is manual: `tiny`, then `small`, then `full`, and only when the art director judges a
+candidate too poor. A rung that answers `invalid`, exit `4`, or exit `3` **ends** the climb, because
+more detail cannot repair a broken answer. The run prints the preset and the count in
+`images <preset> ×<n>`, so two rungs differ in one visible field.
+
+The dimensions come from the blueprint. Without `--size`, the drafter reads
+`<subject>/dimensions.json` and sends `* dimensions: L=… m, h=… m, l=… m`. A missing or malformed
+file leaves the bullet absent, and the run does not fail. `--size` wins over the file.
+
+The four rendering tests of the ticket run at the default preset:
+
+```bash
+bun run workflows/qwen3d-coder/tools/asset-draft.ts --subject blueprints/vehicules/r5-tl-1972 --image --prompt "a 1972 Renault 5 TL, orange, three doors" --style "very low poly, voxel style" --name r5 --variants 1
+bun run workflows/qwen3d-coder/tools/asset-draft.ts --subject blueprints/vehicules/r5-tl-1972 --views top,right,back --prompt "a 1972 Renault 5 TL, orange, three doors" --style "very low poly, voxel style" --name r5 --variants 1
+bun run workflows/qwen3d-coder/tools/asset-draft.ts --subject blueprints/vehicules/blue-and-white-minivan-01 --image --prompt "a blue and white minivan with a roof rack and a surfboard" --style "very low poly, voxel style" --name minivan --variants 1
+bun run workflows/qwen3d-coder/tools/asset-draft.ts --subject blueprints/vehicules/blue-and-white-minivan-01 --views top,right,back --prompt "a blue and white minivan with a roof rack and a surfboard" --style "very low poly, voxel style" --name minivan --variants 1
+```
+
+Neither subject has a `## Subject` heading in its `notes.md`, so all four runs pass `--prompt` with
+the subject in one line. r5 is `a 1972 Renault 5 TL, orange, three doors`; the minivan is
+`a blue and white minivan with a roof rack and a surfboard`.
 
 The system prompt is constant, whatever the mode. It is
 [`prompts/asset-system.txt`](./prompts/asset-system.txt), and it holds the art director's template
-prompt byte for byte. The template imports `three`, default-exports `build()`, and returns one cube.
-A test fails if a byte changes, and a second test validates the template as an asset. The file is the
-**constant turn**: it holds no subject, no style, and no dimension.
+prompt byte for byte, then the `Units:` line and the `Return the asset only:` line. The template imports `three`,
+default-exports `build()`, and returns one cube. A test fails if a byte changes, a second test
+validates the template as an asset, and a third proves the `Units:` line appears exactly once. The
+file is the **constant turn**: it holds no subject, no style, and no dimension.
 
 `--base-url` must parse as a URL, its scheme must be `http` or `https`, and it must not end with `/`.
 A violation exits `1`.
@@ -135,7 +194,9 @@ The script reads `notes.md` and `reference.<ext>`, and never `source.<ext>`. In 
 the first paragraph under `## Subject`, which is mandatory, and the first paragraph under either
 `## Specific subject details` or `## Identity features that must not change`, which is optional.
 The first of those two headings wins when both are present. `--ask` also reports an invalid asset
-name as a gap.
+name as a gap. It also prints the preset in force, the images it would send with their label, path,
+pixel size, and PNG size, the resolved `* dimensions:` line or its absence, and the endpoint's
+`multimodal` capability.
 
 The first line of output names the endpoint and the model it resolved, so a run is attributable to one
 service:
@@ -166,9 +227,14 @@ contract: one `Object3D`, at least one mesh, and a finite positive size on all t
 decode rate:
 
 ```text
-variant 1  blueprints/vehicules/r5-tl-1972/generated/r5-tl-1972--01.ts  12.4 s  982 tokens  79.2 tok/s  valid
-variant 2  blueprints/vehicules/r5-tl-1972/generated/r5-tl-1972--02.ts  13.1 s  918 tokens  70.1 tok/s  invalid: build() returned no Object3D
+variant 1  blueprints/vehicules/r5-tl-1972/generated/r5-tl-1972--01.ts  12.4 s  982 tokens  79.2 tok/s  prompt 3847 tok  cache 0 tok  images tiny ×3  valid
+variant 2  blueprints/vehicules/r5-tl-1972/generated/r5-tl-1972--02.ts  13.1 s  918 tokens  70.1 tok/s  prompt 12 tok  cache 3835 tok  images tiny ×3  invalid: build() returned no Object3D
 ```
+
+`prompt` is the number of prompt tokens the endpoint processed, and `cache` the number it reused
+from the prompt cache. A second variant of one run reuses the cache, so its `prompt` count drops and
+its `cache` count rises: both numbers are printed, and their sum is the image cost. A run without an
+image prints `images —`, and an endpoint that reports no timings prints `prompt —` and `cache —`.
 
 A candidate that omits `import * as THREE from "three"` is `invalid: THREE is not defined` for the
 drafter, and the viewer still opens it, because the viewer adds the line (T0015 §11). The validator
@@ -235,12 +301,18 @@ The system prompt is `prompts/asset-system.txt`. It holds a fenced `typescript` 
 can echo it before it writes the module. The extractor returns the **last** TypeScript fence of the
 response, so the echo never becomes the candidate.
 
-In subject mode the user turn is built by `tools/lib/prompt.ts`, with one bullet per fact: subject,
-dimensions, style, details, asset name, units, and the asset contract. In text mode the user turn is
-the file that `--prompt-file` names, byte for byte.
+In subject mode the user turn is built by `tools/lib/prompt.ts` and carries **data only**: the
+constant header line, then `* subject:`, `* dimensions:`, `* style:`, and `* details that must
+survive:`, each bullet only when its data exists. With `--image` or `--views` the turn is a list of
+typed parts: that text part, then one label part and one `image_url` part per image. The output
+contract lives in the system prompt, so the turn repeats no import, no export, no naming rule, and no
+prohibition. In text mode the user turn is the file that `--prompt-file` names, byte for byte; a file
+of `prompts/subjects/` holds at most five lines.
 
-The endpoint reports the token count in `timings`. Without `timings` in the response, the reported
-count is the number of non-empty delta frames, not tokens. The request itself does not change.
+The endpoint reports the token counts in `timings`: `prompt_n` is the prompt tokens processed,
+`cache_n` the prompt tokens reused from cache, and `predicted_n` the predicted tokens. Without
+`timings` in the response, the reported output count is the number of non-empty delta frames, not
+tokens, and the two prompt counts are absent. The request itself does not change.
 
 ## Files
 
@@ -255,7 +327,9 @@ workflows/qwen3d-coder/
     ├── asset-draft.ts         the entry point and the CLI
     ├── fixtures/              one valid, one non-function, and one throwing asset
     └── lib/
-        ├── endpoint.ts        the /v1/models preflight
+        ├── endpoint.ts        the /v1/models preflight and the multimodal capability
+        ├── images.ts          --image and --views, normalised to PNG at a preset
+        ├── dimensions.ts      dimensions.json to the * dimensions: line
         ├── prompt.ts          the user turn, a pure function
         ├── client.ts          the streamed request
         ├── extract.ts         the TypeScript module out of the response

@@ -1,4 +1,4 @@
-Generate a single Typescript file that exports a `build()` function returning a Three.js object following that template :
+Write one TypeScript module that follows this template exactly:
 
 ```typescript
 import * as THREE from "three";
@@ -13,3 +13,6 @@ export default function build(): THREE.Object3D {
     return cube;
 }
 ```
+Units: metres. +Y up. +Z is the front. The origin is the centre of the base.
+Return the asset only: one mesh, or a Group of meshes. No scene, camera, renderer, light, ground, or animation.
+Declare each name once, and use a name only after its declaration.

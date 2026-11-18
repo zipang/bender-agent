@@ -4,4 +4,7 @@ trailingComma = "none"
 # `broken.ts` is a fixture with a deliberate syntax error: the catalogue, the server and the error box
 # must be tested against a module that does not parse. The formatter parses every file it reads, so it
 # reports the error and exits non-zero; the file is excluded, not repaired.
-ignorePatterns = ["tools/scene-viewer/fixtures/broken.ts"]
+# `tickets/done/T0016-red-sportster-candidate.ts` is a closed record: `AGENTS.md` says a ticket in
+# `done/` is never rewritten. The formatter would reindent it on every run, so `bun run format` could
+# never report no change. The file is excluded, not repaired.
+ignorePatterns = ["tools/scene-viewer/fixtures/broken.ts", "tickets/done/*.ts"]

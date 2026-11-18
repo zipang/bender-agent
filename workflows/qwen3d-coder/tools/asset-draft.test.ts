@@ -1,4 +1,4 @@
-// T16.5 and T16.11 — the entry point and its wiring.
+// T0017 — the entry point, its image flags, its dimensions, and its report.
 //
 // The CLI is tested with an injected preflight, an injected request, and an injected validator, so
 // no service runs and no model loads. The free `--ask` check runs the preflight and sends no
@@ -13,8 +13,7 @@ import {
 	rmSync,
 	writeFileSync
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
 	DEFAULT_BASE_URL,
 	DEFAULT_MODEL,
@@ -25,19 +24,42 @@ import type { PreflightOptions, PreflightResult } from "./lib/endpoint";
 
 const roots: string[] = [];
 
+// Scratch files live under the repository, as AGENTS.md requires: never in /tmp.
+const SCRATCH_ROOT = resolve(import.meta.dir, "..", "..", "..", ".tmp");
+mkdirSync(SCRATCH_ROOT, { recursive: true });
+
+// A real 1 × 1 PNG: the drafter now decodes every image, so a fake byte string would be refused.
+const ONE_PIXEL_PNG = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lv0l1QAAAABJRU5ErkJggg==",
+	"base64"
+);
+
 /** A subject folder with a kebab-case name, so the default asset name is valid. */
 function subjectDir(
-	options: { reference?: boolean; notes?: string | null } = {}
+	options: {
+		reference?: boolean;
+		notes?: string | null;
+		dimensions?: string | null;
+		views?: string[];
+	} = {}
 ): string {
-	const root = mkdtempSync(join(tmpdir(), "qwen3d-subject-"));
+	const root = mkdtempSync(join(SCRATCH_ROOT, "qwen3d-subject-"));
 	roots.push(root);
 	const dir = join(root, "test-subject");
 	mkdirSync(dir);
 	if (options.reference !== false)
-		writeFileSync(join(dir, "reference.png"), "PNG-BYTES");
+		writeFileSync(join(dir, "reference.png"), ONE_PIXEL_PNG);
 	if (options.notes !== undefined) {
 		if (options.notes !== null)
 			writeFileSync(join(dir, "notes.md"), options.notes);
+	}
+	if (options.dimensions !== undefined) {
+		if (options.dimensions !== null)
+			writeFileSync(join(dir, "dimensions.json"), options.dimensions);
+	}
+	for (const view of options.views ?? []) {
+		mkdirSync(join(dir, view));
+		writeFileSync(join(dir, view, "reference.png"), ONE_PIXEL_PNG);
 	}
 	return dir;
 }
@@ -76,7 +98,14 @@ function candidates(generatedDir: string): string[] {
 }
 
 function deps(
-	streamResults: Array<{ content: string } | Error> = [{ content: RESPONSE }]
+	streamResults: Array<
+		| {
+				content: string;
+				promptTokens?: number | null;
+				cachedTokens?: number | null;
+		  }
+		| Error
+	> = [{ content: RESPONSE }]
 ) {
 	const lines: string[] = [];
 	const errors: string[] = [];
@@ -91,7 +120,7 @@ function deps(
 		systemPrompt: "the system prompt",
 		preflight: async (options): Promise<PreflightResult> => {
 			calls.preflight.push(options);
-			return { ok: true, id: options.model };
+			return { ok: true, id: options.model, multimodal: null };
 		},
 		stream: async (options) => {
 			calls.stream.push(options as unknown as Record<string, unknown>);
@@ -103,7 +132,9 @@ function deps(
 				content: result.content,
 				tokens: 2,
 				seconds: 0.1,
-				tokensPerSecond: 20
+				tokensPerSecond: 20,
+				promptTokens: result.promptTokens ?? null,
+				cachedTokens: result.cachedTokens ?? null
 			};
 		},
 		validate: async () => ({ ok: true })
@@ -417,7 +448,7 @@ describe("a run", () => {
 		expect(lines.join("\n")).toContain("test-subject--01.ts");
 	});
 
-	test("the request carries the model, the system prompt, the user turn, and the guard", async () => {
+	test("the request carries the model, the system prompt, the data turn, and the guard", async () => {
 		const dir = subjectDir({ notes: NOTES });
 		const { d, calls } = deps();
 		await runCli(
@@ -438,15 +469,19 @@ describe("a run", () => {
 		const sent = calls.stream[0]!;
 		expect(sent.model).toBe(DEFAULT_MODEL);
 		expect(sent.system).toBe("the system prompt");
-		expect(String(sent.user)).toContain(
+		const parts = sent.user as Array<{
+			type: string;
+			text?: string;
+		}>;
+		expect(parts).toHaveLength(1);
+		expect(parts[0]!.type).toBe("text");
+		// `--prompt` supplies the subject only when notes.md has no `## Subject` paragraph.
+		expect(parts[0]!.text).toContain(
 			"* subject: a 1972 Renault 5 TL, orange, three doors"
 		);
-		expect(String(sent.user)).toContain(
-			"* Create one standalone TypeScript module that shows the car on a turntable."
-		);
+		expect(parts[0]!.text).not.toContain("Create one");
 		expect(sent.maxTokens).toBe(512);
 		expect(sent.seed).toBe(42);
-		expect(sent.image).toBeNull();
 	});
 
 	test("--size reaches the user turn as the dimensions bullet", async () => {
@@ -463,21 +498,38 @@ describe("a run", () => {
 			],
 			d
 		);
-		expect(String(calls.stream[0]!.user)).toContain(
-			"* dimensions: L=3 m, h=1 m, l=1.5 m"
-		);
+		const parts = calls.stream[0]!.user as Array<{ text?: string }>;
+		expect(parts[0]!.text).toContain("* dimensions: L=3 m, h=1 m, l=1.5 m");
 	});
 
-	test("--image sends the reference bytes with their media type", async () => {
+	test("--image sends the reference as one labelled image part at the default preset", async () => {
 		const dir = subjectDir({ notes: NOTES });
-		const { d, calls } = deps();
-		await runCli(
+		const { d, calls, lines } = deps();
+		const code = await runCli(
 			["--subject", dir, "--style", "clay render", "--image"],
 			d
 		);
-		const image = calls.stream[0]!.image as { mime: string; data: string };
-		expect(image.mime).toBe("image/png");
-		expect(image.data).toBe(Buffer.from("PNG-BYTES").toString("base64"));
+		expect(code).toBe(0);
+		const parts = calls.stream[0]!.user as Array<Record<string, unknown>>;
+		expect(parts.map((part) => part.type)).toEqual([
+			"text",
+			"text",
+			"image"
+		]);
+		expect(parts[1]).toEqual({
+			type: "text",
+			text: "* image: reference sheet"
+		});
+		const image = parts[2] as {
+			type: string;
+			image: { mime: string; data: string };
+		};
+		expect(image.type).toBe("image");
+		expect(image.image.mime).toBe("image/png");
+		expect(Buffer.from(image.image.data, "base64").subarray(0, 4)).toEqual(
+			Buffer.from([0x89, 0x50, 0x4e, 0x47])
+		);
+		expect(lines.join("\n")).toContain("images tiny ×1");
 	});
 
 	test("an invalid candidate exits 6, prints the reason, and prints no viewer line", async () => {
@@ -638,12 +690,12 @@ describe("text mode, a prompt file instead of a subject", () => {
 	const PROMPT = [
 		"Here is the 3D model to recreate with Three.js primitives:",
 		"* subject: a Christmas tree in its pot.",
-		"* asset name: subject",
+		"* style: voxel art.",
 		""
 	].join("\n");
 
 	function promptFile(text: string | null = PROMPT): string {
-		const dir = mkdtempSync(join(tmpdir(), "qwen3d-prompt-"));
+		const dir = mkdtempSync(join(SCRATCH_ROOT, "qwen3d-prompt-"));
 		roots.push(dir);
 		const path = join(dir, "subject.txt");
 		if (text !== null) writeFileSync(path, text);
@@ -651,7 +703,7 @@ describe("text mode, a prompt file instead of a subject", () => {
 	}
 
 	function outDir(): string {
-		const dir = mkdtempSync(join(tmpdir(), "qwen3d-out-"));
+		const dir = mkdtempSync(join(SCRATCH_ROOT, "qwen3d-out-"));
 		roots.push(dir);
 		return dir;
 	}
@@ -667,8 +719,8 @@ describe("text mode, a prompt file instead of a subject", () => {
 		expect(readFileSync(join(out, "subject--01.ts"), "utf8")).toBe(ASSET);
 		const sent = calls.stream[0]!;
 		expect(sent.user).toBe(PROMPT);
-		expect(sent.image).toBeNull();
-		expect(lines.join("\n")).toContain(`prompt: ${path}`);
+		expect(lines.join("\n")).toContain("prompt: .tmp/");
+		expect(lines.join("\n")).toContain("subject.txt");
 	});
 
 	test("a second run writes --02 and leaves --01 byte-identical", async () => {
@@ -752,5 +804,346 @@ describe("text mode, a prompt file instead of a subject", () => {
 		expect(lines.join("\n")).toContain("No gap found");
 		expect(calls.stream).toHaveLength(0);
 		expect(calls.preflight).toHaveLength(1);
+	});
+});
+
+describe("the image flags", () => {
+	test("--image and --views are exclusive", async () => {
+		const dir = subjectDir({ notes: NOTES, views: ["top"] });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--image", "--views", "top"],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("--image");
+		expect(errors.join("\n")).toContain("--views");
+		expect(calls.preflight).toHaveLength(0);
+	});
+
+	test("a prompt file with --views says text mode sends no image", async () => {
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			[
+				"--prompt-file",
+				join(subjectDir({ notes: NOTES }), "notes.md"),
+				"--out",
+				join(subjectDir({ notes: NOTES }), "generated"),
+				"--views",
+				"top"
+			],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain(
+			"a prompt file has no blueprint beside it"
+		);
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a prompt file with --image says text mode sends no image", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			[
+				"--prompt-file",
+				join(dir, "notes.md"),
+				"--out",
+				join(dir, "generated"),
+				"--image"
+			],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain(
+			"a prompt file has no blueprint beside it"
+		);
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a name outside the six exits 1 and lists the six", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--views", "top,sides"],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain(
+			"front, left, right, back, top, bottom"
+		);
+		expect(calls.preflight).toHaveLength(0);
+	});
+
+	test("an empty list and an empty name exit 1", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors } = deps();
+		expect(
+			await runCli(
+				["--subject", dir, "--style", "clay", "--views", "  "],
+				d
+			)
+		).toBe(1);
+		expect(errors.join("\n")).toContain("empty");
+		const second = deps();
+		expect(
+			await runCli(
+				["--subject", dir, "--style", "clay", "--views", "top,,back"],
+				second.d
+			)
+		).toBe(1);
+		expect(second.errors.join("\n")).toContain("empty");
+	});
+
+	test("a repeated name exits 1", async () => {
+		const dir = subjectDir({ notes: NOTES, views: ["top"] });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--views", "top,top"],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("repeated");
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a missing view file exits 1 and quotes the path", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--views", "top"],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain(join(dir, "top", "reference.png"));
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a missing reference with --image exits 1 and sends nothing", async () => {
+		const dir = subjectDir({ reference: false, notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--image"],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("reference.<ext> is missing");
+		expect(calls.preflight).toHaveLength(0);
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a reference that does not decode exits 1 with the code", async () => {
+		const dir = subjectDir({ reference: false, notes: NOTES });
+		writeFileSync(join(dir, "reference.png"), "not an image");
+		const { d, errors } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--image"],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toMatch(/ERR_/);
+	});
+
+	test("an unknown preset exits 1 and lists the three", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, errors, calls } = deps();
+		const code = await runCli(
+			[
+				"--subject",
+				dir,
+				"--style",
+				"clay",
+				"--image",
+				"--image-preset",
+				"huge"
+			],
+			d
+		);
+		expect(code).toBe(1);
+		expect(errors.join("\n")).toContain("tiny, small, full");
+		expect(calls.preflight).toHaveLength(0);
+	});
+
+	test("--views top sends one image as three parts", async () => {
+		const dir = subjectDir({ notes: NOTES, views: ["top"] });
+		const { d, calls, lines } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--views", "top"],
+			d
+		);
+		expect(code).toBe(0);
+		const parts = calls.stream[0]!.user as Array<{
+			type: string;
+			text?: string;
+		}>;
+		expect(parts.map((part) => part.type)).toEqual([
+			"text",
+			"text",
+			"image"
+		]);
+		expect(parts[1]!.text).toBe("* image: top view");
+		expect(lines.join("\n")).toContain("images tiny ×1");
+	});
+
+	test("three views send three labels in order", async () => {
+		const dir = subjectDir({
+			notes: NOTES,
+			views: ["top", "right", "back"]
+		});
+		const { d, calls } = deps();
+		await runCli(
+			["--subject", dir, "--style", "clay", "--views", "top,right,back"],
+			d
+		);
+		const parts = calls.stream[0]!.user as Array<{
+			type: string;
+			text?: string;
+		}>;
+		expect(parts).toHaveLength(7);
+		expect(
+			parts
+				.filter((part) => part.text?.startsWith("* image:"))
+				.map((part) => part.text)
+		).toEqual([
+			"* image: top view",
+			"* image: right view",
+			"* image: back view"
+		]);
+	});
+
+	test("--image-preset small is the ladder's first climb", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, lines } = deps();
+		const code = await runCli(
+			[
+				"--subject",
+				dir,
+				"--style",
+				"clay",
+				"--image",
+				"--image-preset",
+				"small"
+			],
+			d
+		);
+		expect(code).toBe(0);
+		expect(lines.join("\n")).toContain("images small ×1");
+	});
+
+	test("--image-preset does nothing on a run without an image", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, lines, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--image-preset", "full"],
+			d
+		);
+		expect(code).toBe(0);
+		expect((calls.stream[0]!.user as unknown[]).length).toBe(1);
+		expect(lines.join("\n")).toContain("images —");
+	});
+});
+
+describe("the dimensions of the blueprint", () => {
+	const DIMENSIONS = JSON.stringify({
+		unit: "m",
+		real: {
+			length: { value: 3.521 },
+			height: { value: 1.4 },
+			width: { value: 1.525 }
+		}
+	});
+
+	test("dimensions.json fills the * dimensions: bullet", async () => {
+		const dir = subjectDir({ notes: NOTES, dimensions: DIMENSIONS });
+		const { d, calls } = deps();
+		await runCli(["--subject", dir, "--style", "clay"], d);
+		const [part] = calls.stream[0]!.user as Array<{ text: string }>;
+		expect(part.text).toContain(
+			"* dimensions: L=3.521 m, h=1.4 m, l=1.525 m"
+		);
+	});
+
+	test("--size wins over dimensions.json", async () => {
+		const dir = subjectDir({ notes: NOTES, dimensions: DIMENSIONS });
+		const { d, calls } = deps();
+		await runCli(
+			[
+				"--subject",
+				dir,
+				"--style",
+				"clay",
+				"--size",
+				"L=9 m, h=9 m, l=9 m"
+			],
+			d
+		);
+		const [part] = calls.stream[0]!.user as Array<{ text: string }>;
+		expect(part.text).toContain("* dimensions: L=9 m, h=9 m, l=9 m");
+		expect(part.text).not.toContain("3.521");
+	});
+
+	test("a malformed file leaves the bullet absent and the run does not fail", async () => {
+		const dir = subjectDir({ notes: NOTES, dimensions: "{not json" });
+		const { d, calls } = deps();
+		const code = await runCli(["--subject", dir, "--style", "clay"], d);
+		expect(code).toBe(0);
+		const [part] = calls.stream[0]!.user as Array<{ text: string }>;
+		expect(part.text).not.toContain("* dimensions:");
+	});
+});
+
+describe("the report line", () => {
+	test("prints the two token counts, the preset, the count, and the state", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, lines } = deps([
+			{ content: RESPONSE, promptTokens: 3847, cachedTokens: 31 }
+		]);
+		await runCli(["--subject", dir, "--style", "clay", "--image"], d);
+		expect(lines.join("\n")).toContain(
+			"prompt 3847 tok  cache 31 tok  images tiny ×1  valid"
+		);
+	});
+
+	test("prints — for absent timings", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, lines } = deps();
+		await runCli(["--subject", dir, "--style", "clay"], d);
+		expect(lines.join("\n")).toContain("prompt —  cache —  images —");
+	});
+});
+
+describe("--ask, the images, the dimensions, and the capability", () => {
+	const DIMENSIONS = JSON.stringify({
+		unit: "m",
+		real: {
+			length: { value: 3.521 },
+			height: { value: 1.4 },
+			width: { value: 1.525 }
+		}
+	});
+
+	test("prints the preset, the image list, the dimensions, and the capability", async () => {
+		const dir = subjectDir({ notes: NOTES, dimensions: DIMENSIONS });
+		const { d, lines, calls } = deps();
+		const code = await runCli(
+			["--subject", dir, "--style", "clay", "--image", "--ask"],
+			d
+		);
+		expect(code).toBe(0);
+		const output = lines.join("\n");
+		expect(output).toContain("images:     tiny ×1");
+		expect(output).toContain("image 1:    reference sheet");
+		expect(output).toContain("1×1");
+		expect(output).toContain("dimensions: L=3.521 m, h=1.4 m, l=1.525 m");
+		expect(output).toContain("multimodal: null");
+		expect(calls.stream).toHaveLength(0);
+	});
+
+	test("a run without an image prints images: none and dimensions: none", async () => {
+		const dir = subjectDir({ notes: NOTES });
+		const { d, lines } = deps();
+		await runCli(["--subject", dir, "--style", "clay", "--ask"], d);
+		expect(lines.join("\n")).toContain("images:     none");
+		expect(lines.join("\n")).toContain("dimensions: none");
 	});
 });

@@ -4,6 +4,10 @@
 // template prompt byte for byte. The user prompt is a pure function of its blocks.
 
 import { resolve } from "node:path";
+import type { TurnPart } from "./client";
+import type { ResolvedImage } from "./images";
+
+export type { TurnPart } from "./client";
 
 /** The asset template prompt, inside the workflow. */
 export const SYSTEM_PROMPT_PATH = resolve(
@@ -21,12 +25,10 @@ export type UserPromptInput = {
 	style: string;
 	/** The real dimensions, in the art director's notation, when they are known. */
 	size?: string | null;
-	/** What must survive, when the notes hold it. */
+	/** What must survive, when the notes hold it and the subject line does not. */
 	details?: string | null;
-	/** The resolved asset name, for the candidate file. */
-	name: string;
-	/** The request of this run. It defaults to the subject. */
-	request?: string | null;
+	/** The images that go with the turn, already resolved. */
+	images?: ResolvedImage[];
 };
 
 function required(value: string | null | undefined, field: string): string {
@@ -37,39 +39,65 @@ function required(value: string | null | undefined, field: string): string {
 }
 
 /**
- * Build the user turn from its blocks.
+ * The header of the turn: the constant first line, then one bullet per fact
+ * that exists.
  *
- * The `dimensions` and `details` bullets are optional. The subject, the style,
- * the name, and the request are mandatory, and an empty input throws. The order
- * of the bullets is the art director's order (A3).
+ * The turn is data only. The output contract lives in the system prompt, so no
+ * import, export, naming, or prohibition line appears here.
  */
-export function buildUserPrompt(input: UserPromptInput): string {
+function headerLines(input: UserPromptInput): string[] {
 	const subject = required(input.subject, "The subject");
 	const style = required(input.style, "The style");
-	const name = required(input.name, "The asset name");
-	const request = required(input.request ?? subject, "The request");
 	const size = (input.size ?? "").trim();
 	const details = (input.details ?? "").trim();
 
-	const blocks = [
+	const lines = [
 		"Here is the 3D model to recreate with Three.js primitives:",
 		`* subject: ${subject}`
 	];
-	if (size) blocks.push(`* dimensions: ${size}`);
-	blocks.push(`* style: ${style}`);
-	if (details) blocks.push(`* details that must survive: ${details}`);
-	blocks.push(
-		`* asset name: ${name}`,
-		"* units: metres. +Y up. +Z is the front. The origin is the centre of the base.",
-		`* Create one standalone TypeScript module that shows ${request}.`,
-		'* import * as THREE from "three" only.',
-		"* export default function build(): THREE.Object3D",
-		"* One object: one mesh, or a Group when the object has parts.",
-		"* Name every part, and two calls build the same object.",
-		"* No ground, grid, background, fog, overlay, camera, renderer, light, or animation.",
-		"* Do not add anything else."
-	);
-	return blocks.join("\n");
+	if (size) lines.push(`* dimensions: ${size}`);
+	lines.push(`* style: ${style}`);
+	if (details) lines.push(`* details that must survive: ${details}`);
+	return lines;
+}
+
+/** The label a reader sees for one image: `reference sheet`, or `<view> view`. */
+export function imageLabel(image: ResolvedImage): string {
+	return image.label === "reference"
+		? "reference sheet"
+		: `${image.label} view`;
+}
+
+/**
+ * Build the user turn text from its data.
+ *
+ * The `dimensions` and `details` bullets are optional. The subject and the
+ * style are mandatory, and an empty input throws. The order of the bullets is
+ * the art director's order.
+ */
+export function buildUserPrompt(input: UserPromptInput): string {
+	return headerLines(input).join("\n");
+}
+
+/**
+ * Build the typed user turn, for a request that may carry images.
+ *
+ * With no image the result is one text part, byte-identical to
+ * `buildUserPrompt`. With images the result is that text part, then one text
+ * label and one image part per image, in order.
+ */
+export function buildUserTurn(input: UserPromptInput): TurnPart[] {
+	const parts: TurnPart[] = [
+		{ type: "text", text: headerLines(input).join("\n") }
+	];
+	for (const image of input.images ?? []) {
+		parts.push({ type: "text", text: `* image: ${imageLabel(image)}` });
+		parts.push({
+			type: "image",
+			image: { mime: image.mime, data: image.data }
+		});
+	}
+	return parts;
 }
 
 export type SubjectNotes = {

@@ -563,21 +563,27 @@ bun run workflows/qwen3d-coder/tools/asset-draft.ts \
 ```
 
 3. Ask everything in one `question` call: the asset name (default: the subject folder name), the
-   object in the art director's words, the real size in metres, the style, and the number of
-   variants. Read `## Subject` from `notes.md` first, and do not ask again what it already says.
+   object in the art director's words, the real size in metres, the style, the number of variants,
+   and the images: one image (`--image`), up to three views (`--views top,right,back`), or none. Read
+   `## Subject` from `notes.md` first, and do not ask again what it already says. The dimensions come
+   from `dimensions.json` when `--size` is absent; report which one the run uses.
 
 ### E2. Report, then run
 
 Report the answers, the command, and the cost in time. State no decode rate and no cost before ticket
 `T1.13` measures them: report the measured cost of the run after it ends. Then run the command with
-`--name` and `--size`:
+`--name`, and `--size` when the art director gives a size:
 
 ```bash
 bun run workflows/qwen3d-coder/tools/asset-draft.ts \
   --subject blueprints/<category>/<subject> \
-  --name <slug> --style "<style>" --size "<L=… m, h=… m>" \
-  --variants <n> [--image] [--prompt "<request>"]
+  --name <slug> --style "<style>" [--size "<L=… m, h=… m>"] \
+  --variants <n> [--image | --views top,right,back] \
+  [--image-preset tiny|small|full] [--prompt "<request>"]
 ```
+
+The default preset is `tiny`. With `--image` or `--views` the turn labels every image, and the run
+prints `images <preset> ×<n>`, `prompt <n> tok`, and `cache <n> tok` beside the state.
 
 The script checks the endpoint named by `--base-url` and `--model`, sends the completion, writes
 each candidate as `<name>--<NN>.ts`, and validates it. This workflow starts no server: if the
@@ -588,8 +594,11 @@ endpoint is down, the run exits `2` and the fix belongs to the endpoint's operat
 1. List every candidate with its full path and its `valid` or `invalid: <reason>` state.
 2. Give the exact viewer command for every valid candidate, and describe each candidate in one line.
    Say that it is a description, not a verdict.
-3. Wait for the choice. Never choose a candidate, and never promote one.
-4. A candidate is never deleted, never renamed, and never overwritten. The script never edits the
+3. Climb the ladder only when the art director judges a candidate too poor: the same command with
+   `--image-preset small`, then `full`. A rung that answers `invalid`, exit `4`, or exit `3` **ends**
+   the climb; record that limit and never repeat the rung. You never judge geometry yourself.
+4. Wait for the choice. Never choose a candidate, and never promote one.
+5. A candidate is never deleted, never renamed, and never overwritten. The script never edits the
    model's TypeScript, so a broken candidate stays as evidence.
 
 ## Expertise and tool selection

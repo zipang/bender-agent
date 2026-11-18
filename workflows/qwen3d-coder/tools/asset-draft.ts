@@ -6,16 +6,16 @@
 // model's TypeScript, and never starts a server: the endpoint is an input, named by `--base-url`
 // and `--model`.
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { NAME_PATTERN, writeCandidate } from "./lib/candidates";
 import {
 	DEFAULT_MAX_TOKENS,
 	streamChat,
-	type ChatImage,
 	type ChatResult,
 	type StreamChatOptions
 } from "./lib/client";
+import { dimensionsLine } from "./lib/dimensions";
 import {
 	checkEndpoint,
 	type PreflightOptions,
@@ -23,7 +23,16 @@ import {
 } from "./lib/endpoint";
 import { extractTs, NoModuleError } from "./lib/extract";
 import {
-	buildUserPrompt,
+	DEFAULT_IMAGE_PRESET,
+	findReference,
+	IMAGE_PRESETS,
+	type ImagePreset,
+	type ResolvedImage,
+	resolveImages
+} from "./lib/images";
+import {
+	buildUserTurn,
+	imageLabel,
 	parseNotes,
 	SYSTEM_PROMPT_PATH,
 	type SubjectNotes
@@ -42,15 +51,6 @@ export const DEFAULT_BASE_URL = "http://127.0.0.1:9931/v1";
 export const DEFAULT_MODEL = "qwen3.5-4b-3d-coder";
 
 const DEFAULT_TIMEOUT_S = 1800;
-
-const MEDIA_TYPES: Record<string, string> = {
-	".png": "image/png",
-	".jpg": "image/jpeg",
-	".jpeg": "image/jpeg",
-	".webp": "image/webp"
-};
-
-const REFERENCE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
 
 export type AssetDraftDeps = {
 	out?: (line: string) => void;
@@ -88,6 +88,10 @@ type Options = {
 	name: string | null;
 	variants: number;
 	image: boolean;
+	/** The comma-separated view names, or null. */
+	views: string | null;
+	/** The size and the encoding of every image sent. */
+	imagePreset: ImagePreset;
 	prompt: string | null;
 	baseUrl: string;
 	model: string;
@@ -134,6 +138,8 @@ function parseOptions(argv: string[]): Parsed {
 		name: null,
 		variants: 1,
 		image: false,
+		views: null,
+		imagePreset: DEFAULT_IMAGE_PRESET,
 		prompt: null,
 		baseUrl: DEFAULT_BASE_URL,
 		model: DEFAULT_MODEL,
@@ -151,6 +157,8 @@ function parseOptions(argv: string[]): Parsed {
 		"--size",
 		"--name",
 		"--variants",
+		"--views",
+		"--image-preset",
 		"--prompt",
 		"--base-url",
 		"--model",
@@ -199,6 +207,20 @@ function parseOptions(argv: string[]): Parsed {
 			case "--prompt":
 				options.prompt = value;
 				break;
+			case "--views":
+				if (!value.trim()) return { error: `--views is empty.` };
+				options.views = value;
+				break;
+			case "--image-preset": {
+				const names = Object.keys(IMAGE_PRESETS);
+				if (!names.includes(value)) {
+					return {
+						error: `Unknown image preset "${value}". The three presets are ${names.join(", ")}.`
+					};
+				}
+				options.imagePreset = value as ImagePreset;
+				break;
+			}
 			case "--model":
 				if (!value.trim()) return { error: `--model is empty.` };
 				options.model = value;
@@ -250,27 +272,25 @@ function parseOptions(argv: string[]): Parsed {
 	return { options };
 }
 
-/**
- * The chosen identity image of the subject folder. Generation reads no other
- * image.
- */
-function findReference(dir: string): string | null {
-	let names: string[];
-	try {
-		names = readdirSync(dir);
-	} catch {
-		return null;
-	}
-	for (const ext of REFERENCE_EXTENSIONS) {
-		const name = `reference${ext}`;
-		if (names.includes(name)) return join(dir, name);
-	}
-	return null;
-}
-
 function readNotes(dir: string): string {
 	const path = join(dir, "notes.md");
 	return existsSync(path) ? readFileSync(path, "utf8") : "";
+}
+
+/**
+ * The `* dimensions:` line of a subject, or null.
+ *
+ * A missing file, invalid JSON, or one bad value is a null line, never an
+ * error: a blueprint without dimensions is a normal blueprint.
+ */
+function readDimensionsLine(dir: string): string | null {
+	const path = join(dir, "dimensions.json");
+	if (!existsSync(path)) return null;
+	try {
+		return dimensionsLine(JSON.parse(readFileSync(path, "utf8")));
+	} catch {
+		return null;
+	}
 }
 
 function displayPath(path: string): string {
@@ -309,10 +329,10 @@ function resolveName(
  *
  * Exit codes: 0 at least one candidate was written and is valid, or `--ask`
  * completed; 1 invalid input (a flag, the subject, the style, the size, the
- * name, or the reference); 2 the endpoint is unreachable or does not name the
- * model; 3 a request failed; 4 the response held no complete module; 5 the
- * candidate could not be written; 6 candidates were written and none is a valid
- * asset.
+ * name, the reference, the images, the views, or the preset); 2 the endpoint is
+ * unreachable or does not name the model; 3 a request failed; 4 the response
+ * held no complete module; 5 the candidate could not be written; 6 candidates
+ * were written and none is a valid asset.
  */
 export async function runCli(
 	argv: string[],
@@ -340,7 +360,6 @@ export async function runCli(
 	let notes: SubjectNotes = { subject: null, details: null };
 	let reference: string | null = null;
 	let subjectText: string | null = null;
-	let request: string | null = null;
 	let promptText: string | null = null;
 
 	if (textMode) {
@@ -351,7 +370,9 @@ export async function runCli(
 			return 1;
 		}
 		if (options.image) {
-			err("--image needs --subject and its reference.<ext>.");
+			err(
+				"--image needs --subject: a prompt file has no blueprint beside it."
+			);
 			return 1;
 		}
 		promptPath = resolve(options.promptFile as string);
@@ -366,7 +387,6 @@ export async function runCli(
 			return 1;
 		}
 		promptText = raw;
-		request = raw;
 	} else {
 		if (!options.subject) {
 			err(
@@ -382,9 +402,13 @@ export async function runCli(
 
 		notes = parseNotes(readNotes(subjectDir));
 		reference = findReference(subjectDir);
+		// `--prompt` supplies the subject when notes.md has no `## Subject` paragraph.
 		subjectText = notes.subject ?? options.prompt;
-		request = options.prompt ?? subjectText;
 	}
+
+	// The dimensions are an input: `--size` wins, then the blueprint, then absent.
+	const dimensions = subjectDir ? readDimensionsLine(subjectDir) : null;
+	const size = textMode ? null : (options.size ?? dimensions);
 
 	const nameResolution = resolveName(
 		options,
@@ -395,6 +419,22 @@ export async function runCli(
 	if (!nameResolution.ok && !options.ask) {
 		err(nameResolution.error);
 		return 1;
+	}
+
+	// The images are read before the request, so a missing or broken file sends nothing.
+	let images: ResolvedImage[] = [];
+	if (options.image || options.views !== null) {
+		try {
+			images = await resolveImages({
+				subjectDir,
+				image: options.image,
+				views: options.views,
+				preset: options.imagePreset
+			});
+		} catch (error) {
+			err((error as Error).message);
+			return 1;
+		}
 	}
 
 	/**
@@ -418,12 +458,23 @@ export async function runCli(
 			return { ok: false, code: 2 };
 		}
 		out(`endpoint: ${options.baseUrl}  model: ${result.id}`);
+		out(`multimodal: ${result.multimodal}`);
 		return { ok: true, id: result.id };
 	};
 
 	if (options.ask) {
 		const endpoint = await resolveModel();
 		if (!endpoint.ok) return endpoint.code;
+
+		out(
+			`images:     ${images.length > 0 ? `${options.imagePreset} ×${images.length}` : "none"}`
+		);
+		images.forEach((image, index) =>
+			out(
+				`image ${index + 1}:    ${imageLabel(image)}  ${displayPath(image.path)}  ${image.width}×${image.height}  ${Math.round(image.bytes / 1024)} KB`
+			)
+		);
+		out(`dimensions: ${size ?? "none"}`);
 
 		const gaps: string[] = [];
 		if (!nameResolution.ok) gaps.push(nameResolution.error);
@@ -477,7 +528,7 @@ export async function runCli(
 		}
 		if (!subjectText) {
 			err(
-				'An empty subject or an empty request is never sent. Add a "## Subject" paragraph to notes.md, or pass --prompt.'
+				'An empty subject is never sent. Add a "## Subject" paragraph to notes.md, or pass --prompt.'
 			);
 			return 1;
 		}
@@ -492,24 +543,14 @@ export async function runCli(
 	const systemPrompt =
 		deps.systemPrompt ?? readFileSync(SYSTEM_PROMPT_PATH, "utf8");
 
-	const image: ChatImage | null = (() => {
-		if (textMode || !options.image) return null;
-		const path = reference as string;
-		const mediaType =
-			MEDIA_TYPES[extname(path).toLowerCase()] ??
-			"application/octet-stream";
-		return { mime: mediaType, data: readFileSync(path).toString("base64") };
-	})();
-
-	const userPrompt = textMode
+	const user = textMode
 		? (promptText as string)
-		: buildUserPrompt({
+		: buildUserTurn({
 				subject: subjectText as string,
 				style: options.style as string,
 				details: notes.details,
-				name,
-				size: options.size,
-				request: request as string
+				size,
+				images
 			});
 
 	if (textMode) out(`prompt: ${displayPath(promptPath as string)}`);
@@ -530,8 +571,7 @@ export async function runCli(
 				baseUrl: options.baseUrl,
 				model: endpoint.id,
 				system: systemPrompt,
-				user: userPrompt,
-				image,
+				user,
 				maxTokens: options.maxTokens,
 				seed: options.seed,
 				timeoutMs: options.timeout * 1000
@@ -570,8 +610,16 @@ export async function runCli(
 		}
 		const state = validation.ok ? "valid" : `invalid: ${validation.reason}`;
 		if (validation.ok) valid.push(path);
+		const prompt =
+			result.promptTokens === null ? "—" : `${result.promptTokens} tok`;
+		const cache =
+			result.cachedTokens === null ? "—" : `${result.cachedTokens} tok`;
+		const imageField =
+			images.length > 0
+				? `${options.imagePreset} ×${images.length}`
+				: "—";
 		out(
-			`variant ${variant}  ${displayPath(path)}  ${seconds.toFixed(1)} s  ${result.tokens} tokens  ${result.tokensPerSecond.toFixed(1)} tok/s  ${state}`
+			`variant ${variant}  ${displayPath(path)}  ${seconds.toFixed(1)} s  ${result.tokens} tokens  ${result.tokensPerSecond.toFixed(1)} tok/s  prompt ${prompt}  cache ${cache}  images ${imageField}  ${state}`
 		);
 	}
 

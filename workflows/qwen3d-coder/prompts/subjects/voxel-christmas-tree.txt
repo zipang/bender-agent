@@ -1,14 +1,5 @@
 Here is the 3D model to recreate with Three.js primitives:
 * subject: a Christmas tree in its pot, voxel art. Alternate pine green and dark pine green.
-* dimensions: L=0.5 m, w=0.5 m, h=1.5 m.
+* dimensions: L=0.5 m, h=1.5 m, l=0.5 m.
 * style: voxel art: every visible form is made of cubes aligned to one grid, flat colors.
 * details that must survive: ornaments are gold and white cubes on the outer branches of the tiers; one gold cube on the top.
-* asset name: voxel-christmas-tree
-* units: metres. +Y up. +Z is the front. The origin is the centre of the base.
-* Create one standalone TypeScript module that shows a voxel-art Christmas tree in its pot.
-* import * as THREE from "three" only.
-* export default function build(): THREE.Object3D
-* One object: one mesh, or a Group when the object has parts.
-* Name every part, and two calls build the same object.
-* No ground, grid, background, fog, overlay, camera, renderer, light, or animation.
-* Do not add anything else.

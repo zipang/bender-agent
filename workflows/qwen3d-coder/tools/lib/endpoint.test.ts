@@ -128,7 +128,7 @@ describe("checkEndpoint", () => {
 					]
 				})
 		});
-		expect(result).toEqual({ ok: true, id: MODEL });
+		expect(result).toEqual({ ok: true, id: MODEL, multimodal: null });
 	});
 
 	test("a single-entry list is enough, and unknown fields are tolerated", async () => {
@@ -141,7 +141,7 @@ describe("checkEndpoint", () => {
 					object: "list"
 				})
 		});
-		expect(result).toEqual({ ok: true, id: MODEL });
+		expect(result).toEqual({ ok: true, id: MODEL, multimodal: null });
 	});
 
 	test("the check addresses GET <base-url>/models and no other route", async () => {
@@ -158,5 +158,51 @@ describe("checkEndpoint", () => {
 		expect(calls).toHaveLength(1);
 		expect(calls[0]!.url).toBe(MODELS_URL);
 		expect(calls[0]!.init?.method).toBe("GET");
+	});
+});
+
+describe("the multimodal capability", () => {
+	function models(entries: unknown[]): Response {
+		return jsonResponse({ data: entries });
+	}
+
+	test("true when the matched entry publishes true", async () => {
+		const result = await checkEndpoint({
+			baseUrl: BASE_URL,
+			model: MODEL,
+			fetchImpl: async () => models([{ id: MODEL, multimodal: true }])
+		});
+		expect(result).toEqual({ ok: true, id: MODEL, multimodal: true });
+	});
+
+	test("false when the matched entry publishes false", async () => {
+		const result = await checkEndpoint({
+			baseUrl: BASE_URL,
+			model: MODEL,
+			fetchImpl: async () => models([{ id: MODEL, multimodal: false }])
+		});
+		expect(result).toEqual({ ok: true, id: MODEL, multimodal: false });
+	});
+
+	test("null when the matched entry publishes no field", async () => {
+		const result = await checkEndpoint({
+			baseUrl: BASE_URL,
+			model: MODEL,
+			fetchImpl: async () => models([{ id: MODEL }])
+		});
+		expect(result).toEqual({ ok: true, id: MODEL, multimodal: null });
+	});
+
+	test("a second entry's field never decides", async () => {
+		const result = await checkEndpoint({
+			baseUrl: BASE_URL,
+			model: MODEL,
+			fetchImpl: async () =>
+				models([
+					{ id: "another-model", multimodal: true },
+					{ id: MODEL, multimodal: false }
+				])
+		});
+		expect(result).toEqual({ ok: true, id: MODEL, multimodal: false });
 	});
 });

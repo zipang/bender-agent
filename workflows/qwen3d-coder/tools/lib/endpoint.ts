@@ -25,7 +25,16 @@ export type PreflightOptions = {
 
 /** The discriminated result of the preflight. A failure carries exit code `2`. */
 export type PreflightResult =
-	{ ok: true; id: string } | { ok: false; exitCode: 2; message: string };
+	| {
+			ok: true;
+			id: string;
+			/**
+			 * `data[i].multimodal` of the matched entry, or null when it is
+			 * absent.
+			 */
+			multimodal: boolean | null;
+	  }
+	| { ok: false; exitCode: 2; message: string };
 
 function failure(message: string): PreflightResult {
 	return { ok: false, exitCode: 2, message };
@@ -39,7 +48,7 @@ function preview(text: string): string {
 const PREREQUISITE =
 	"Check that an OpenAI-compatible service runs at --base-url, and that --model is an id it publishes.";
 
-type ModelEntry = { id?: unknown };
+type ModelEntry = { id?: unknown; multimodal?: unknown };
 
 /**
  * Run `GET <base-url>/models` and resolve the exact `id` of `--model`.
@@ -53,7 +62,9 @@ type ModelEntry = { id?: unknown };
  * 3. `data[]` holds no entry whose `id` equals `--model`: a failure with the
  *    requested id and the available ids, comma-separated. An empty list says
  *    that the endpoint names no model.
- * 4. Otherwise success, carrying the exact `id` string that matched.
+ * 4. Otherwise success, carrying the exact `id` string that matched and the
+ *    `multimodal` capability of that entry. The capability is reported, never
+ *    enforced.
  *
  * Extra fields, unknown values, and more than one entry are tolerated: the
  * reference service lists two models.
@@ -121,8 +132,12 @@ export async function checkEndpoint(
 	}
 
 	const entries = (body as { data: unknown[] }).data;
-	const ids = entries
-		.map((entry) => (entry as ModelEntry | null)?.id)
+	const models = entries.filter(
+		(entry): entry is ModelEntry =>
+			entry !== null && typeof entry === "object"
+	);
+	const ids = models
+		.map((entry) => entry.id)
 		.filter((id): id is string => typeof id === "string");
 
 	if (ids.length === 0) {
@@ -131,12 +146,18 @@ export async function checkEndpoint(
 		);
 	}
 
-	const match = ids.find((id) => id === options.model);
-	if (match === undefined) {
+	const matched = models.find((entry) => entry.id === options.model);
+	if (matched === undefined) {
 		return failure(
 			`The endpoint at ${url} does not publish the requested model "${options.model}". Available ids: ${ids.join(", ")}. ${PREREQUISITE}`
 		);
 	}
 
-	return { ok: true, id: match };
+	const multimodal =
+		matched.multimodal === true
+			? true
+			: matched.multimodal === false
+				? false
+				: null;
+	return { ok: true, id: matched.id as string, multimodal };
 }

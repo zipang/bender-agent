@@ -22,15 +22,35 @@ the art director judges it by eye.
 ## The prompt files
 
 - `prompts/asset-system.txt` is the constant system turn: the art director's template prompt, byte
-  for byte. It holds no subject, no style, and no dimension. A test compares it byte for byte, and a
-  second test validates its fenced template as an asset. Do not extend it.
-- `prompts/subjects/<slug>.txt` is the user turn of one subject, in the asset register: the constant
-  first line, then one bullet per fact (subject, dimensions, style, details, asset name, units), then
-  the asset contract, and a last line that names what must not appear. Keep it under twenty lines.
+  for byte, plus one `Units:` line after the fence. It holds no subject, no style, and no dimension.
+  A test compares it byte for byte, a second test validates its fenced template as an asset, and a
+  third counts the `Units:` line. Do not extend it.
+- `prompts/subjects/<slug>.txt` is the user turn of one subject, and it carries **data only**: the
+  constant first line, then the bullets that have data (`subject`, `dimensions`, `style`, `details`).
+  **At most five lines.** No import line, no export line, no naming rule, no prohibition: the system
+  prompt holds the contract, and a test keeps a contract line out of every file.
 - Text mode sends the file and nothing else: `--prompt-file <f> --out <dir>`. It reads no blueprint
   and no image.
 - Do not lengthen a prompt to fix a candidate. Change one constraint, then run again.
 - A prompt that grows into prose is a defect. The model answers lists.
+
+## The reference images
+
+- An image is opt-in. `--image` sends the identity sheet; `--views <list>` sends the named views, in
+  list order. A run with neither sends no image, so the workflow keeps one mode that needs no
+  projector.
+- The art director chooses the views. D1 asks for one image first, then `top,right,back`, and compares
+  the two candidate sets in the viewer. Never add a view that was not asked for.
+- Every image is sent as PNG, at a preset of the ladder. `tiny` (384 px, 64 colours) is the default,
+  `small` (512 px) is the first climb, and `full` (800 px) is the last. One subject is written in
+  WebP; the drafter converts it, and `blueprints/**` stays read only.
+- Climb only when the art director judges a candidate too poor, and report the preset of every run. A
+  rung that answers `invalid`, exit `4`, or exit `3` ends the climb: more detail cannot repair a
+  broken answer.
+- The real dimensions come from `<subject>/dimensions.json` when `--size` is absent. Never read them
+  from the views that the asset is checked against.
+- An endpoint reads an image only when its operator loads the vision projector. The drafter reports
+  the `multimodal` capability and the prompt token counts; it enforces neither.
 
 ## The asset contract
 

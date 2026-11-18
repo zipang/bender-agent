@@ -8,13 +8,33 @@ import { describe, expect, test } from "bun:test";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { extractTs } from "./extract";
-import { buildUserPrompt, parseNotes, SYSTEM_PROMPT_PATH } from "./prompt";
+import type { ResolvedImage } from "./images";
+import {
+	buildUserPrompt,
+	buildUserTurn,
+	parseNotes,
+	SYSTEM_PROMPT_PATH
+} from "./prompt";
 import { validateAsset } from "./validate";
 
-// The art director's template prompt of 2026-11-18, with the three agreed corrections of A2. Every
-// other byte is his, including the `Typescript` spelling and the spacing of the first line.
+/** A resolved image, standing in for one that a run really encoded. */
+function fakeImage(label: string): ResolvedImage {
+	return {
+		label,
+		path: `/blueprints/${label}.png`,
+		mime: "image/png",
+		preset: "full",
+		width: 800,
+		height: 800,
+		bytes: 3,
+		data: "QUJD"
+	};
+}
+
+// The constant prompt of 2026-11-18, after the corrections of A2 and the three contract lines of R1,
+// R3, and R4. Every other byte is the art director's.
 const ASSET_SYSTEM = `${[
-	"Generate a single Typescript file that exports a `build()` function returning a Three.js object following that template :",
+	"Write one TypeScript module that follows this template exactly:",
 	"",
 	"```typescript",
 	'import * as THREE from "three";',
@@ -28,13 +48,37 @@ const ASSET_SYSTEM = `${[
 	"    const cube = new THREE.Mesh(geometry, material);",
 	"    return cube;",
 	"}",
-	"```"
+	"```",
+	"Units: metres. +Y up. +Z is the front. The origin is the centre of the base.",
+	"Return the asset only: one mesh, or a Group of meshes. No scene, camera, renderer, light, ground, or animation.",
+	"Declare each name once, and use a name only after its declaration."
 ].join("\n")}\n`;
 
 describe("the system prompt", () => {
 	test("is the asset template, byte for byte", () => {
 		const text = readFileSync(SYSTEM_PROMPT_PATH, "utf8");
 		expect(text).toBe(ASSET_SYSTEM);
+	});
+
+	test("the Units line appears exactly once", () => {
+		const text = readFileSync(SYSTEM_PROMPT_PATH, "utf8");
+		const marker =
+			"Units: metres. +Y up. +Z is the front. The origin is the centre of the base.";
+		expect(text.split(marker)).toHaveLength(2);
+	});
+
+	test("the Return the asset only line appears exactly once", () => {
+		const text = readFileSync(SYSTEM_PROMPT_PATH, "utf8");
+		const marker =
+			"Return the asset only: one mesh, or a Group of meshes. No scene, camera, renderer, light, ground, or animation.";
+		expect(text.split(marker)).toHaveLength(2);
+	});
+
+	test("the Declare each name once line appears exactly once", () => {
+		const text = readFileSync(SYSTEM_PROMPT_PATH, "utf8");
+		const marker =
+			"Declare each name once, and use a name only after its declaration.";
+		expect(text.split(marker)).toHaveLength(2);
 	});
 
 	test("the exported path points inside the workflow", () => {
@@ -62,31 +106,20 @@ describe("the system prompt", () => {
 });
 
 describe("buildUserPrompt", () => {
-	test("the full turn with a size, against the A3 lines", () => {
+	test("the data bullets, in the art director's order", () => {
 		const output = buildUserPrompt({
 			subject: "a 1972 Renault 5 TL, orange, three doors",
-			size: "L=3.6 m, w=1.5 m, h=1.4 m",
+			size: "L=3.6 m, h=1.4 m, l=1.5 m",
 			style: "low-poly stylized video game figurine, soft studio light",
-			details: "blank plates, no badge, no rear door on either side",
-			name: "r5-tl-1972",
-			request: "a 1972 Renault 5 TL"
+			details: "blank plates, no badge, no rear door on either side"
 		});
 		expect(output).toBe(
 			[
 				"Here is the 3D model to recreate with Three.js primitives:",
 				"* subject: a 1972 Renault 5 TL, orange, three doors",
-				"* dimensions: L=3.6 m, w=1.5 m, h=1.4 m",
+				"* dimensions: L=3.6 m, h=1.4 m, l=1.5 m",
 				"* style: low-poly stylized video game figurine, soft studio light",
-				"* details that must survive: blank plates, no badge, no rear door on either side",
-				"* asset name: r5-tl-1972",
-				"* units: metres. +Y up. +Z is the front. The origin is the centre of the base.",
-				"* Create one standalone TypeScript module that shows a 1972 Renault 5 TL.",
-				'* import * as THREE from "three" only.',
-				"* export default function build(): THREE.Object3D",
-				"* One object: one mesh, or a Group when the object has parts.",
-				"* Name every part, and two calls build the same object.",
-				"* No ground, grid, background, fog, overlay, camera, renderer, light, or animation.",
-				"* Do not add anything else."
+				"* details that must survive: blank plates, no badge, no rear door on either side"
 			].join("\n")
 		);
 	});
@@ -94,9 +127,7 @@ describe("buildUserPrompt", () => {
 	test("without a size and without details, both bullets are absent", () => {
 		const output = buildUserPrompt({
 			subject: "a robot head",
-			style: "flat shaded",
-			name: "robot-head",
-			request: "a robot head"
+			style: "flat shaded"
 		});
 		expect(output).not.toContain("* dimensions:");
 		expect(output).not.toContain("* details that must survive:");
@@ -104,16 +135,7 @@ describe("buildUserPrompt", () => {
 			[
 				"Here is the 3D model to recreate with Three.js primitives:",
 				"* subject: a robot head",
-				"* style: flat shaded",
-				"* asset name: robot-head",
-				"* units: metres. +Y up. +Z is the front. The origin is the centre of the base.",
-				"* Create one standalone TypeScript module that shows a robot head.",
-				'* import * as THREE from "three" only.',
-				"* export default function build(): THREE.Object3D",
-				"* One object: one mesh, or a Group when the object has parts.",
-				"* Name every part, and two calls build the same object.",
-				"* No ground, grid, background, fog, overlay, camera, renderer, light, or animation.",
-				"* Do not add anything else."
+				"* style: flat shaded"
 			].join("\n")
 		);
 	});
@@ -121,17 +143,15 @@ describe("buildUserPrompt", () => {
 	test("the bullets keep the art director's order", () => {
 		const output = buildUserPrompt({
 			subject: "a red bicycle",
-			size: "L=1.8 m, h=1.1 m",
+			size: "L=1.8 m, h=1.1 m, l=0.4 m",
 			style: "clay render",
-			details: "two wheels",
-			name: "red-bicycle"
+			details: "two wheels"
 		});
 		const order = [
 			"* subject:",
 			"* dimensions:",
 			"* style:",
-			"* details that must survive:",
-			"* asset name:"
+			"* details that must survive:"
 		];
 		let previous = -1;
 		for (const marker of order) {
@@ -144,49 +164,38 @@ describe("buildUserPrompt", () => {
 	test("the constant first line starts every turn", () => {
 		const output = buildUserPrompt({
 			subject: "a red bicycle",
-			style: "clay render",
-			name: "red-bicycle"
+			style: "clay render"
 		});
 		expect(output.split("\n")[0]).toBe(
 			"Here is the 3D model to recreate with Three.js primitives:"
 		);
 	});
 
-	test("a missing request falls back to the subject", () => {
+	test("the turn carries no contract line and no asset name", () => {
 		const output = buildUserPrompt({
 			subject: "a red bicycle",
-			style: "clay render",
-			name: "red-bicycle"
+			style: "clay render"
 		});
-		expect(output).toContain(
-			"* Create one standalone TypeScript module that shows a red bicycle."
-		);
+		for (const forbidden of [
+			"import ",
+			"export default",
+			"One object",
+			"Name every part",
+			"No ground",
+			"Do not add",
+			"asset name",
+			"Create one"
+		]) {
+			expect(output).not.toContain(forbidden);
+		}
 	});
 
-	test("an empty subject throws", () => {
+	test("an empty subject or style throws", () => {
 		expect(() =>
-			buildUserPrompt({ subject: "  ", style: "clay render", name: "x" })
-		).toThrow();
-	});
-
-	test("an empty style, name, or request also throws", () => {
-		expect(() =>
-			buildUserPrompt({ subject: "a red bicycle", style: "", name: "x" })
+			buildUserPrompt({ subject: "  ", style: "clay" })
 		).toThrow();
 		expect(() =>
-			buildUserPrompt({
-				subject: "a red bicycle",
-				style: "clay",
-				name: " "
-			})
-		).toThrow();
-		expect(() =>
-			buildUserPrompt({
-				subject: "a red bicycle",
-				style: "clay",
-				name: "x",
-				request: " "
-			})
+			buildUserPrompt({ subject: "a red bicycle", style: "" })
 		).toThrow();
 	});
 });
@@ -194,8 +203,9 @@ describe("buildUserPrompt", () => {
 describe("the prompt files", () => {
 	const dir = join(import.meta.dir, "..", "..", "prompts", "subjects");
 
-	// One entry per file: the inputs that the file encodes. The equality case below proves that a
-	// hand edit which drops a bullet or reorders it fails the build.
+	// One entry per file: the data that each file encodes, and the data the header bullet does not
+	// carry. The equality case proves that a hand edit which drops a bullet or adds a contract line
+	// fails the build.
 	const files: Array<{
 		slug: string;
 		input: Parameters<typeof buildUserPrompt>[0];
@@ -205,12 +215,9 @@ describe("the prompt files", () => {
 			input: {
 				subject:
 					"a modernist office chair: walnut frame and legs, yellow leather seat and back.",
-				size: "L=0.6 m, w=0.6 m, h=0.8 m.",
+				size: "L=0.6 m, h=0.8 m, l=0.6 m.",
 				style: "low-poly stylized video game figurine, soft studio light.",
-				details:
-					"a walnut frame and legs, a yellow leather seat and back, four steel legs, two armrests.",
-				name: "modernist-office-chair",
-				request: "a modernist office chair"
+				details: "four steel legs, two armrests."
 			}
 		},
 		{
@@ -218,12 +225,10 @@ describe("the prompt files", () => {
 			input: {
 				subject:
 					"a Christmas tree in its pot, voxel art. Alternate pine green and dark pine green.",
-				size: "L=0.5 m, w=0.5 m, h=1.5 m.",
+				size: "L=0.5 m, h=1.5 m, l=0.5 m.",
 				style: "voxel art: every visible form is made of cubes aligned to one grid, flat colors.",
 				details:
-					"ornaments are gold and white cubes on the outer branches of the tiers; one gold cube on the top.",
-				name: "voxel-christmas-tree",
-				request: "a voxel-art Christmas tree in its pot"
+					"ornaments are gold and white cubes on the outer branches of the tiers; one gold cube on the top."
 			}
 		},
 		{
@@ -231,26 +236,32 @@ describe("the prompt files", () => {
 			input: {
 				subject: "a red sportster car.",
 				size: "L=3 m, h=1 m, l=1.5 m.",
-				style: "very low poly. Almost voxel style (some 45° angles are allowed).",
-				name: "red-sportster",
-				request: "a red sportster car"
+				style: "very low poly. Almost voxel style (some 45° angles are allowed)."
 			}
 		}
 	];
 
 	for (const { slug, input } of files) {
-		test(`${slug}.txt is under twenty lines and is the A3 turn`, () => {
+		test(`${slug}.txt holds at most five lines`, () => {
 			const text = readFileSync(join(dir, `${slug}.txt`), "utf8");
 			const lines = text.trimEnd().split("\n");
-			expect(lines.length).toBeLessThan(20);
+			expect(lines.length).toBeLessThanOrEqual(5);
 			expect(lines[0]).toBe(
 				"Here is the 3D model to recreate with Three.js primitives:"
 			);
-			expect(text).toContain('* import * as THREE from "three" only.');
-			expect(text).toContain(
-				"* export default function build(): THREE.Object3D"
-			);
-			expect(text).toContain(`* asset name: ${slug}`);
+		});
+
+		test(`${slug}.txt holds no contract line`, () => {
+			const text = readFileSync(join(dir, `${slug}.txt`), "utf8");
+			for (const forbidden of [
+				"import ",
+				"export default",
+				"No ground",
+				"Do not add",
+				"asset name"
+			]) {
+				expect(text).not.toContain(forbidden);
+			}
 		});
 
 		test(`${slug}.txt is exactly the turn the builder produces`, () => {
@@ -327,5 +338,71 @@ describe("the details headings", () => {
 			"One eye."
 		].join("\n");
 		expect(parseNotes(markdown).details).toBe("Blank plates.");
+	});
+});
+
+describe("buildUserTurn", () => {
+	const base = {
+		subject: "a 1972 Renault 5 TL, orange, three doors",
+		size: "L=3.6 m, h=1.4 m, l=1.5 m",
+		style: "low-poly stylized video game figurine, soft studio light"
+	};
+
+	test("with no image it is one text part, byte-identical to the data turn", () => {
+		const parts = buildUserTurn(base);
+		expect(parts).toEqual([{ type: "text", text: buildUserPrompt(base) }]);
+	});
+
+	test("one image gives text, label, image and nothing after it", () => {
+		const parts = buildUserTurn({
+			...base,
+			images: [fakeImage("reference")]
+		});
+		expect(parts).toEqual([
+			{ type: "text", text: buildUserPrompt(base) },
+			{ type: "text", text: "* image: reference sheet" },
+			{
+				type: "image",
+				image: { mime: "image/png", data: "QUJD" }
+			}
+		]);
+	});
+
+	test("three views give three labels in order", () => {
+		const parts = buildUserTurn({
+			...base,
+			images: [fakeImage("top"), fakeImage("right"), fakeImage("back")]
+		});
+		expect(parts).toHaveLength(7);
+		expect(parts.map((part) => part.type)).toEqual([
+			"text",
+			"text",
+			"image",
+			"text",
+			"image",
+			"text",
+			"image"
+		]);
+		expect(
+			parts
+				.filter((part) => part.type === "text")
+				.map((part) => (part as { text: string }).text)
+				.slice(1)
+		).toEqual([
+			"* image: top view",
+			"* image: right view",
+			"* image: back view"
+		]);
+	});
+
+	test("the text part carries no images count and no contract line", () => {
+		const [part] = buildUserTurn({
+			...base,
+			images: [fakeImage("top"), fakeImage("right")]
+		}) as Array<{ text: string }>;
+		expect(part.text).not.toContain("* images:");
+		expect(part.text).not.toContain("asset name");
+		expect(part.text).not.toContain("Create one");
+		expect(part.text).not.toContain("import ");
 	});
 });

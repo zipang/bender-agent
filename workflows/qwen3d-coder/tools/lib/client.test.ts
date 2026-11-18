@@ -40,7 +40,10 @@ describe("buildRequestBody", () => {
 			model: "qwen3.5-4b-3d-coder",
 			messages: [
 				{ role: "system", content: SYSTEM },
-				{ role: "user", content: USER }
+				{
+					role: "user",
+					content: [{ type: "text", text: USER }]
+				}
 			],
 			temperature: 0.6,
 			top_p: 0.95,
@@ -96,23 +99,53 @@ describe("buildRequestBody", () => {
 		expect(Object.keys(seeded)).toEqual([...Object.keys(base), "seed"]);
 	});
 
-	test("an image is an image_url content part with a data URL", () => {
+	test("a string user gives one text part", () => {
 		const body = buildRequestBody({
 			model: "qwen3.5-4b-3d-coder",
 			system: SYSTEM,
-			user: USER,
-			image: { mime: "image/png", data: "QUJD" }
+			user: USER
+		});
+		const messages = body.messages as Array<{
+			role: string;
+			content: unknown;
+		}>;
+		expect(messages[1]!.content).toEqual([{ type: "text", text: USER }]);
+	});
+
+	test("a two-image part array keeps the part order on the wire", () => {
+		const body = buildRequestBody({
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: [
+				{ type: "text", text: "header" },
+				{
+					type: "image",
+					image: { mime: "image/png", data: "QUJD" }
+				},
+				{ type: "text", text: "* image: top view" },
+				{
+					type: "image",
+					image: { mime: "image/png", data: "REVG" }
+				},
+				{ type: "text", text: "constraints" }
+			]
 		});
 		const messages = body.messages as Array<{
 			role: string;
 			content: unknown;
 		}>;
 		expect(messages[1]!.content).toEqual([
-			{ type: "text", text: USER },
+			{ type: "text", text: "header" },
 			{
 				type: "image_url",
 				image_url: { url: "data:image/png;base64,QUJD" }
-			}
+			},
+			{ type: "text", text: "* image: top view" },
+			{
+				type: "image_url",
+				image_url: { url: "data:image/png;base64,REVG" }
+			},
+			{ type: "text", text: "constraints" }
 		]);
 	});
 
@@ -356,5 +389,60 @@ describe("streamChat", () => {
 		}
 		expect(error).toBeInstanceOf(RequestError);
 		expect((error as RequestError).exitCode).toBe(3);
+	});
+});
+
+describe("the prompt token counts", () => {
+	test("prompt_n and cache_n are read from timings", async () => {
+		const fixture = [
+			'data: {"choices":[{"delta":{"content":"a"}}],"timings":{"prompt_n":3847,"cache_n":12,"predicted_n":7,"predicted_per_second":14.5}}',
+			"",
+			"data: [DONE]",
+			"",
+			""
+		].join("\n");
+		const result = await streamChat({
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER,
+			timeoutMs: 1000,
+			fetchImpl: async () => new Response(fixture)
+		});
+		expect(result.promptTokens).toBe(3847);
+		expect(result.cachedTokens).toBe(12);
+	});
+
+	test("absent timings give null, not zero", async () => {
+		const result = await streamChat({
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER,
+			timeoutMs: 1000,
+			fetchImpl: async () => new Response(SSE_OK)
+		});
+		expect(result.promptTokens).toBeNull();
+		expect(result.cachedTokens).toBeNull();
+	});
+
+	test("a non-finite or non-numeric field is null", async () => {
+		const fixture = [
+			'data: {"choices":[{"delta":{"content":"a"}}],"timings":{"prompt_n":null,"cache_n":"12"}}',
+			"",
+			"data: [DONE]",
+			"",
+			""
+		].join("\n");
+		const result = await streamChat({
+			baseUrl: "http://127.0.0.1:9931/v1",
+			model: "qwen3.5-4b-3d-coder",
+			system: SYSTEM,
+			user: USER,
+			timeoutMs: 1000,
+			fetchImpl: async () => new Response(fixture)
+		});
+		expect(result.promptTokens).toBeNull();
+		expect(result.cachedTokens).toBeNull();
 	});
 });

@@ -25,14 +25,18 @@ export type ChatImage = {
 	data: string;
 };
 
+/** One part of a user turn: plain text, or one image with its label. */
+export type TurnPart =
+	{ type: "text"; text: string } | { type: "image"; image: ChatImage };
+
 export type BuildRequestOptions = {
 	/** The exact `id` that `GET <base-url>/models` published. */
 	model: string;
 	system: string;
-	user: string;
+	/** A plain turn, or the typed parts of a turn that carries images. */
+	user: string | TurnPart[];
 	maxTokens?: number;
 	seed?: number | null;
-	image?: ChatImage | null;
 };
 
 export type StreamChatOptions = BuildRequestOptions & {
@@ -49,6 +53,13 @@ export type ChatResult = {
 	tokens: number;
 	tokensPerSecond: number;
 	seconds: number;
+	/** `timings.prompt_n`: the prompt tokens processed. Null when unreported. */
+	promptTokens: number | null;
+	/**
+	 * `timings.cache_n`: the prompt tokens reused from cache. Null when
+	 * unreported.
+	 */
+	cachedTokens: number | null;
 };
 
 /** A request that the server refused, or that the network dropped. Exit code 3. */
@@ -92,17 +103,10 @@ export function endpoint(baseUrl: string, path = "/chat/completions"): string {
 export function buildRequestBody(
 	options: BuildRequestOptions
 ): Record<string, unknown> {
-	const content = options.image
-		? [
-				{ type: "text", text: options.user },
-				{
-					type: "image_url",
-					image_url: {
-						url: `data:${options.image.mime};base64,${options.image.data}`
-					}
-				}
-			]
-		: options.user;
+	const content =
+		typeof options.user === "string"
+			? [{ type: "text", text: options.user }]
+			: options.user.map(toContentPart);
 
 	const body: Record<string, unknown> = {
 		model: options.model,
@@ -124,10 +128,31 @@ export function buildRequestBody(
 	return body;
 }
 
+/**
+ * Map one part of the turn to the shape the server manual documents for
+ * `messages[i].content[j]`.
+ */
+function toContentPart(part: TurnPart): Record<string, unknown> {
+	if (part.type === "text") return { type: "text", text: part.text };
+	return {
+		type: "image_url",
+		image_url: {
+			url: `data:${part.image.mime};base64,${part.image.data}`
+		}
+	};
+}
+
 type Timings = {
 	predicted_n?: number;
 	predicted_per_second?: number;
+	prompt_n?: number;
+	cache_n?: number;
 };
+
+/** A reported finite number, or null. A missing field is not a zero measurement. */
+function reported(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
 
 type Frame = {
 	delta: string;
@@ -290,7 +315,14 @@ export async function streamChat(
 		const rate =
 			timings?.predicted_per_second ??
 			(seconds > 0 ? count / seconds : 0);
-		return { content, tokens: count, tokensPerSecond: rate, seconds };
+		return {
+			content,
+			tokens: count,
+			tokensPerSecond: rate,
+			seconds,
+			promptTokens: reported(timings?.prompt_n),
+			cachedTokens: reported(timings?.cache_n)
+		};
 	} catch (error) {
 		if (error instanceof RequestError) throw error;
 		if (error instanceof DeadlineReached || controller.signal.aborted)

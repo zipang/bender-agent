@@ -214,10 +214,11 @@ describe("the prompt files", () => {
 			slug: "modernist-office-chair",
 			input: {
 				subject:
-					"a modernist office chair: walnut frame and legs, yellow leather seat and back.",
-				size: "L=0.6 m, h=0.8 m, l=0.6 m.",
-				style: "low-poly stylized video game figurine, soft studio light.",
-				details: "four steel legs, two armrests."
+					"a wooden swivel desk chair, walnut frame, yellow leather, cast iron mechanism.",
+				size: "length 0.62 m (front to back), width 0.66 m (left to right), height 0.88 m.",
+				style: "low poly.",
+				details:
+					"open walnut C-frame arms with no pad, brass studs along the back and the seat, five flat wooden spokes, small black casters, black tilt column."
 			}
 		},
 		{

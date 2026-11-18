@@ -36,7 +36,6 @@ when the art director asks for a change.
 | [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)             | T0004, T0005 — **draft, specification settled, awaits validation**                    |
 | T0010                                                      | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                   | nothing — **the ticket file is missing from `planned/`; the row is kept as a marker** |
 | [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation) | T0011                                                                                 |
-| [T0017](./planned/T0017-qwen3d-coder-reference-images.md)  | The asset drafter reads a reference image                               | Qwen 3D Coder workflow                    | T0016 — **ready to start: T0016 is in `review/`**                                     |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
@@ -79,9 +78,11 @@ projector that the endpoint's operator loads. The ticket sends one image first a
 (`top`, `right`, `back`), labels every image in the turn, takes the real dimensions from
 `dimensions.json`, and prints the prompt token count that shows the images were read. Its rendering
 tests cover **both** blueprint subjects, `r5-tl-1972` and `blue-and-white-minivan-01`, and it
-normalises every image to PNG with `Bun.Image` through a three-rung ladder (`full` 800 px, `small`
-512 px, `tiny` 384 px with a 64-colour palette), because the minivan is written entirely in WebP, the
-raw views are 1600 × 1600, and the model is small. T0016 is in `review/`, so T0017 is ready to start.
+normalises every image to PNG with `Bun.Image` through a three-rung ladder that starts at the bottom
+(`tiny` 384 px with a 64-colour palette by default, then `small` 512 px, then `full` 800 px) because
+the minivan is written entirely in WebP, the raw views are 1600 × 1600, the model is small, and a
+generation on images it cannot use costs time for nothing. T0016 is `done`, so T0017 started, and it
+now waits in `review/`.
 
 The inference server is not part of this repository. T0011 first shipped one in
 `scripts/llama-server/` and removed it inside the same ticket: the workflow now reads an **external
@@ -94,16 +95,16 @@ with a locked reference.
 
 ### In progress
 
-Nothing is in progress. T0016 moved to `review/` on 2026-11-18, after the independent review and the
-polishing round it required.
+Nothing in progress.
 
 ### Review
 
-| ID                                                     | Title                                                                         | Track                                              | Note                                                                                                |
-| :----------------------------------------------------- | :---------------------------------------------------------------------------- | :------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
-| [T0004](./review/T0004-knot-marquee-selection.md)      | Knot editing by marquee selection: select, move, delete                       | Three.js viewer                                    | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in      |
-| [T0011](./review/T0011-qwen3d-coder-workflow.md)       | A fourth workflow: Qwen 3D Coder, an external endpoint, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | all gates green; reviewed after polish; T1.13 deferred to the first subject with a locked reference |
-| [T0013](./review/T0013-prompt-system-and-text-mode.md) | Our prompt system, and a text-only prompt mode                                | Qwen 3D Coder workflow (prompt, drafter)           | gates green (90 workflow tests); browser judgement still open                                       |
+| ID                                                       | Title                                                                         | Track                                              | Note                                                                                                                                                        |
+| :------------------------------------------------------- | :---------------------------------------------------------------------------- | :------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [T0004](./review/T0004-knot-marquee-selection.md)        | Knot editing by marquee selection: select, move, delete                       | Three.js viewer                                    | all gates green; independent review passed after polish; the handle layering fix (T4.10) is in                                                              |
+| [T0011](./review/T0011-qwen3d-coder-workflow.md)         | A fourth workflow: Qwen 3D Coder, an external endpoint, and the scene drafter | Repository layout, then the Qwen 3D Coder workflow | all gates green; reviewed after polish; T1.13 deferred to the first subject with a locked reference                                                         |
+| [T0013](./review/T0013-prompt-system-and-text-mode.md)   | Our prompt system, and a text-only prompt mode                                | Qwen 3D Coder workflow (prompt, drafter)           | gates green (90 workflow tests); browser judgement still open                                                                                               |
+| [T0017](./review/T0017-qwen3d-coder-reference-images.md) | The asset drafter reads a reference image                                     | Qwen 3D Coder workflow                             | gates green (361 root tests); reviewed twice and polished; `minivan--03` and the chair pass the five render points; `r5--05` keeps its code bug as evidence |
 
 ### Done
 

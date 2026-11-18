@@ -1,0 +1,23 @@
+{
+	"subject": "modernist-office-chair",
+	"unit": "m",
+	"axes": {
+		"x": "width",
+		"y": "height",
+		"z": "length"
+	},
+	"real": {
+		"length": {
+			"value": 0.62,
+			"source": "art director decision, 2026-11-18: L=0.62 m, h=0.88 m, l=0.66 m"
+		},
+		"width": {
+			"value": 0.66,
+			"source": "art director decision, 2026-11-18: L=0.62 m, h=0.88 m, l=0.66 m"
+		},
+		"height": {
+			"value": 0.88,
+			"source": "art director decision, 2026-11-18: L=0.62 m, h=0.88 m, l=0.66 m"
+		}
+	}
+}

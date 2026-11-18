@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0017`.**
+- **The next free ID is `T0018`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -36,7 +36,7 @@ when the art director asks for a change.
 | [T0009](./planned/T0009-measure-a-distance-rubber-band.md) | Measuring a distance: an anchor, a rubber band, and the length          | Three.js viewer (measurement)             | T0004, T0005 — **draft, specification settled, awaits validation**                    |
 | T0010                                                      | `bun run check` runs on committed render fixtures, not the live scene   | Three.js viewer (tools)                   | nothing — **the ticket file is missing from `planned/`; the row is kept as a marker** |
 | [T0012](./planned/T0012-qwen3d-coder-glb-asset.md)         | The Qwen 3D Coder workflow, part two: a `.glb` out of a reference image | Qwen 3D Coder workflow (asset generation) | T0011                                                                                 |
-| [T0016](./planned/T0016-qwen3d-coder-ts-asset.md)          | The Qwen 3D Coder delivers a TypeScript asset                           | Qwen 3D Coder workflow                    | T0013, T0015                                                                          |
+| [T0017](./planned/T0017-qwen3d-coder-reference-images.md)  | The asset drafter reads a reference image                               | Qwen 3D Coder workflow                    | T0016 — **ready to start: T0016 is in `review/`**                                     |
 
 T0003, T0005, and T0004 all touch `picker.js`, so they ran in that order. T0003 gave the left button
 to the camera on both families — a left drag pans, a `Shift` + left drag orbits a free view — which is
@@ -72,6 +72,17 @@ adds the asset contract to the prompts, and rewrites Workflow E of `bender.md`. 
 the rename, then the viewer, then the drafter. T0016 also waits for T0013, because both edit the
 prompt system. The Three.js viewer stays where it is; a later ticket moves it onto the shared base.
 
+T0017 answers the first verdict on the model of T0016: left to a paragraph of text, the 4B model
+invents its geometry, and the art director asked on 2026-11-18 for the blueprint images to be sent
+with the prompt. The model card documents image input as optional, through a companion vision
+projector that the endpoint's operator loads. The ticket sends one image first and three views second
+(`top`, `right`, `back`), labels every image in the turn, takes the real dimensions from
+`dimensions.json`, and prints the prompt token count that shows the images were read. Its rendering
+tests cover **both** blueprint subjects, `r5-tl-1972` and `blue-and-white-minivan-01`, and it
+normalises every image to PNG with `Bun.Image` through a three-rung ladder (`full` 800 px, `small`
+512 px, `tiny` 384 px with a 64-colour palette), because the minivan is written entirely in WebP, the
+raw views are 1600 × 1600, and the model is small. T0016 is in `review/`, so T0017 is ready to start.
+
 The inference server is not part of this repository. T0011 first shipped one in
 `scripts/llama-server/` and removed it inside the same ticket: the workflow now reads an **external
 OpenAI-compatible endpoint**, named by `--base-url` and `--model`. The endpoint is a prerequisite of
@@ -83,7 +94,8 @@ with a locked reference.
 
 ### In progress
 
-Nothing is in progress. Everything is in `review/`, `planned/`, or `done/`.
+Nothing is in progress. T0016 moved to `review/` on 2026-11-18, after the independent review and the
+polishing round it required.
 
 ### Review
 
@@ -106,6 +118,7 @@ Nothing is in progress. Everything is in `review/`, `planned/`, or `done/`.
 | [T0005](./done/T0005-measurement-pick-invocation.md)          | How a measurement point is invoked: Ctrl + left click, on release         | Three.js viewer                   | 2026-11-09 |
 | [T0014](./done/T0014-root-tools-directory.md)                 | The root tool directory: `scripts/` becomes `tools/`                      | repository layout, every workflow | 2026-11-17 |
 | [T0015](./done/T0015-scene-viewer.md)                         | The scene viewer: one page for a delivered asset                          | Shared scene viewer               | 2026-11-18 |
+| [T0016](./done/T0016-qwen3d-coder-ts-asset.md)                | The Qwen 3D Coder delivers a TypeScript asset                             | Qwen 3D Coder workflow            | 2026-11-18 |
 
 T0002 closes with two items open on purpose. They are not tickets yet:
 

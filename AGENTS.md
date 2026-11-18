@@ -138,5 +138,7 @@ opencode mcp list
 - Keep the authoring source next to the export: the Loon source, the `bpy` script, the `.blend` file,
   or `model.js`.
 - Do not commit large binary files without the approval of the user.
-- Do not commit generated blueprint candidates. `.gitignore` excludes them.
+- Commit the candidates of a subject: `blueprints/<category>/<subject>/generated/*.ts` is the
+  record of the workflow's progress, and the art director reviews it on a machine with a display.
+  A draft stays local, because `blueprints/drafts/` is ignored.
 - Keep the authoring source of a scene committed. Keep its renders and its `.glb` local.

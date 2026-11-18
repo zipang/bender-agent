@@ -29,11 +29,16 @@ blueprints/*/*/*/*
 !blueprints/*/*/*/reference.jpg
 !blueprints/*/*/*/reference.jpeg
 
-# One generated asset is committed on purpose. It is the candidate the scene viewer's manual check
-# opens, and it proves that the catalogue reads `generated/` on a fresh clone. Every other generated
-# candidate stays local. The line 12 of that file was repaired by hand: it held `new THREE.Mesh[]`,
-# which does not parse. See tickets/review/T0015-scene-viewer.md.
-!blueprints/vehicules/red-sportster/generated/qwen3D-01.ts
+# Every candidate of a subject is committed: the art director reviews the results on a machine with a
+# display, and the folder is the record of the workflow's progress. A draft stays local, because
+# `blueprints/drafts/` is ignored; the T0016 draft candidate is kept as
+# `tickets/done/T0016-red-sportster-candidate.ts`.
+#
+# `!blueprints/vehicules/red-sportster/generated/qwen3D-01.ts` was the first exception, because the
+# scene viewer's manual check opens it. The line 12 of that file was repaired by hand: it held
+# `new THREE.Mesh[]`, which does not parse. See tickets/review/T0015-scene-viewer.md.
+!blueprints/*/*/generated/*.ts
+!blueprints/*/*/generated/.qwen3d-coder-asset.counter
 
 # Secrets and dependencies
 *.env.local

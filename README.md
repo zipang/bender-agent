@@ -6,12 +6,12 @@ images, and it keeps the evidence: the views, the numbers, and the renders.
 The project holds **four modelling workflows**, and one of them is active. A reader works in one, so
 each has its own folder, its own documents, and its own tools.
 
-| Workflow          | Folder                                                          | State        | Used for                                                                       |
-| :---------------- | :-------------------------------------------------------------- | :----------- | :----------------------------------------------------------------------------- |
-| **Three.js**      | [`workflows/threejs/`](./workflows/threejs/README.md)           | **active**   | A stylized asset with a locked blueprint, judged by its silhouette             |
-| **Blender**       | [`workflows/blender/`](./workflows/blender/README.md)           | inactive     | Organic forms, a finished look, rigging, asset libraries                       |
-| **vcad**          | [`workflows/vcad/`](./workflows/vcad/README.md)                 | archived     | A part that must fit, a mechanical assembly, a fabrication export              |
-| **Qwen 3D Coder** | [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md) | experimental | A first draft of a stylized asset, from a reference image, with no measurement |
+| Workflow          | Folder                                                          | State                 | Used for                                                                                  |
+| :---------------- | :-------------------------------------------------------------- | :-------------------- | :---------------------------------------------------------------------------------------- |
+| **Three.js**      | [`workflows/threejs/`](./workflows/threejs/README.md)           | **active**            | A stylized asset with a locked blueprint, judged by its silhouette                        |
+| **Blender**       | [`workflows/blender/`](./workflows/blender/README.md)           | inactive + evaluation | Organic forms, a finished look, rigging, asset libraries; and the `blender-modeler` phase |
+| **vcad**          | [`workflows/vcad/`](./workflows/vcad/README.md)                 | archived              | A part that must fit, a mechanical assembly, a fabrication export                         |
+| **Qwen 3D Coder** | [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md) | experimental          | A first draft of a stylized asset, from a reference image, with no measurement            |
 
 Start with the active one. The other three describe the paths beside it.
 
@@ -141,6 +141,7 @@ The skills it loads are in [`.agents/skills/`](./.agents/skills):
 | `threejs-web`, `threejs-*` | The Three.js API, and the glTF optimization rules                           |
 | `agent-browser`            | The capture loop: one page, driven from the shell                           |
 | `blender-mcp`, `vcad`      | The two inactive workflows                                                  |
+| `blender-modeler`          | Vendored: spec, measured geometry checks, multi-view critique loop (MIT)    |
 | `technical-writing`        | Simplified Technical English                                                |
 
 ## MCP servers

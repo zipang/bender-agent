@@ -21,7 +21,7 @@ when the art director asks for a change.
 - A ticket file is named `TNNNN-short-kebab-title.md`, for example `T0003-accessory-exclusion.md`.
 - The ID counts up and is never reused. Find the next free ID by scanning every folder under
   `tickets/`.
-- **The next free ID is `T0018`.**
+- **The next free ID is `T0020`.**
 - A commit subject quotes the ID: `✨ feat: <summary> (T0003)`.
 - A ticket keeps its evidence beside it: a JSON record, a render, a contact sheet. Evidence is never
   deleted and never archived.
@@ -106,6 +106,7 @@ Nothing in progress.
 | [T0013](./review/T0013-prompt-system-and-text-mode.md)       | Our prompt system, and a text-only prompt mode                                | Qwen 3D Coder workflow (prompt, drafter)           | gates green (90 workflow tests); browser judgement still open                                                                                               |
 | [T0017](./review/T0017-qwen3d-coder-reference-images.md)     | The asset drafter reads a reference image                                     | Qwen 3D Coder workflow                             | gates green (361 root tests); reviewed twice and polished; `minivan--03` and the chair pass the five render points; `r5--05` keeps its code bug as evidence |
 | [T0018](./review/T0018-modernist-office-chair-end-to-end.md) | The modernist office chair, end to end                                        | Qwen 3D Coder workflow, blueprints                 | one reference, one cleaning call, three valid generations; `--03` passes the five render points; the scale and the origin stay the model's                  |
+| [T0019](./review/T0019-blender-modeler-evaluation.md)        | The `blender-modeler` skill, and its evaluation phase                         | Blender workflow (evaluation), skills, agents      | vendored skill (MIT); upstream suite 19 of 19 on Blender 5.3.0; workflow F in Bender; the first dispatch awaits the art director                            |
 
 ### Done
 

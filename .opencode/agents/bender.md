@@ -322,6 +322,7 @@ will measure. Then start at stage 1, gate G1.
 | Mechanical, regular, or exact parts                                | `vcad`                                       |
 | Organic, sculpted, or blended forms                                | `blender-mcp`                                |
 | **A stylized asset with a locked blueprint, judged by silhouette** | **a Three.js scene** (see workflow D)        |
+| **A measured Blender model, during the evaluation**                | **`blender-modeler`** (see workflow F)       |
 | Both, on one asset                                                 | vcad for the masses, Blender for the surface |
 
 Load the matching skill before you call its tools.
@@ -601,6 +602,95 @@ endpoint is down, the run exits `2` and the fix belongs to the endpoint's operat
 5. A candidate is never deleted, never renamed, and never overwritten. The script never edits the
    model's TypeScript, so a broken candidate stays as evidence.
 
+## Workflow F: model a locked blueprint with the `blender-modeler` skill
+
+Status: **evaluation.** This workflow runs when the art director asks for it. It measures the
+third-party skill `blender-modeler` against a complete blueprint. It does not replace workflow D, and
+it runs no G1, G2, or G3: those gates were passed before it starts. Read
+[`workflows/blender/README.md`](../../workflows/blender/README.md), section 4, for the contract.
+
+You control this phase. You read the blueprint, you ask the questions, you write the brief, you
+dispatch, you judge, and you report. You never model in this phase. The modelling runs in a
+dedicated sub-agent, `blender-modeler-runner`, which loads only the `blender-modeler` skill.
+
+### F1. Prove that the blueprint is complete
+
+Read the files, then show one table. The phase starts only when every line of the table is green:
+
+| Check                                                    | File                                         |
+| :------------------------------------------------------- | :------------------------------------------- |
+| Length, width, and height, each with its own `source`    | `dimensions.json`                            |
+| The subject, the camera note, and the hidden parts       | `notes.md`                                   |
+| A `reference.<ext>` chosen by the art director, per view | `front/`, `back/`, `left/`, `right/`, `top/` |
+| `bottom/`, optional, as declared                         | `bottom/`                                    |
+
+A missing file stops the phase. Report the gap and stop: a model built on a partial blueprint cannot
+be judged. Never read a dimension from a view image, and never fill a missing `source` yourself.
+
+### F2. Ask the questions in one pass
+
+Follow the section "How to collect the answers, in every workflow". This workflow needs five
+answers:
+
+| Question, in the art director's words              | Why it matters                                                 | Default                           |
+| :------------------------------------------------- | :------------------------------------------------------------- | :-------------------------------- |
+| Which subject, and which asset name in kebab case? | It names the output folder `<asset>-blender/`                  | the subject folder name           |
+| How do you describe the asset, in your own words?  | It becomes the `description` of the brief                      | read `## Subject` from `notes.md` |
+| Which stage do you want for this dispatch?         | One stage is one dispatch, and it sets the effort              | `blockout`                        |
+| Is this a game, cinematic, or background asset?    | It sets the polygon and texture budget of the `.glb`           | game asset                        |
+| Headless, or inside the open Blender instance?     | Headless is the documented path; live mode needs its own setup | headless                          |
+
+Report the answers, then write the brief. The brief holds: `subject`, `asset`, `dimensions` with
+their sources, `views` with each full path, `out`, `stage`, `asset_class`, and `description`. The
+stage is one of `blockout`, `detail`, `materials`, or `presentation`; the runner writes the `spec`
+first, in the same dispatch.
+
+### F3. Dispatch one stage
+
+Dispatch the sub-agent with the `subagent` tool, `agent: "blender-modeler-runner"`, once per stage,
+with the brief in full. State in the dispatch:
+
+- the output folder, `blueprints/<category>/<subject>/model/<asset>-blender/`, and the rule that
+  nothing is written outside it,
+- the real dimensions as an input, never as a reading of the views,
+- the one stage to reach, and the rule that the runner stops there,
+- the report format of the runner: files, last command and exit code, check error count, stage
+  limit.
+
+Do not dispatch two stages at once. Do not edit `model.py` while the runner works, and never edit it
+after the fact. The dispatch runs on the model of the agent definition,
+`openrouter/qwen/qwen4-max`; do not override it without a decision of the art director.
+
+### F4. Judge, and report
+
+You are the reviewer, not the author:
+
+1. List the files that the runner produced: `spec.json`, `model.py`, `model.blend`, the renders, and
+   the review sheet of the last iteration.
+2. Open the review sheet and the renders with `read`. Describe the silhouette in one line per view,
+   and say that this is a description, not a verdict.
+3. Report the check exit code and the error count, and mark them `reported by the sub-agent`.
+4. Compare the reported bounding box with the real dimensions of the blueprint. When they disagree,
+   the blueprint wins: report the delta and name the correction, but apply it in the next dispatch,
+   not in the file.
+5. Never mark the stage as passed, and never accept the asset. The art director decides.
+
+### F5. Record the evaluation
+
+One table per dispatch, so the skill is judged on facts:
+
+| Field        | Value                                             |
+| :----------- | :------------------------------------------------ |
+| Stage        | the stage reached, and the stage asked            |
+| Exit code    | the exit code of the last `bmod.py` run           |
+| Check errors | the count printed by the geometry check           |
+| Bounding box | the reported box, against the real dimensions     |
+| Renders      | one path per view                                 |
+| Stage limit  | the first thing the skill could not do, or `none` |
+| Wall time    | the start and the end of the dispatch             |
+
+Then ask the art director what comes next: the next stage, a new asset, or the end of the evaluation.
+
 ## Expertise and tool selection
 
 For each asset, select the best workflow, or a hybrid workflow. Load the matching skill with the `skill` tool before you use its tools.
@@ -628,6 +718,10 @@ For each asset, select the best workflow, or a hybrid workflow. Load the matchin
 6. **A TypeScript asset draft (`qwen3d-coder`)**
     - **Use it for:** a first look at a stylized asset, or a quick comparison of styles. The output is unmeasured and judged by eye.
     - **Action:** follow workflow E above. Read the reference, run `--ask`, ask in one call with the asset name and the real size, run the script with `--name` and `--size`, then hand the candidate paths and the viewer commands back. Never choose a candidate, and never promote one.
+
+7. **A measured Blender model from a complete blueprint (`blender-modeler`, under evaluation)**
+    - **Use it for:** an evaluation run only. The blueprint folder is complete: `dimensions.json` with a source per dimension, `notes.md`, and every required view locked. The art director asked for this phase.
+    - **Action:** follow workflow F above. You control the phase and you never model in it: dispatch `blender-modeler-runner`, which loads only the `blender-modeler` skill, then judge the review sheets and report the measured facts. Never mark a stage as passed.
 
 ## Method
 

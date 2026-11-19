@@ -83,6 +83,10 @@ blueprints/drafts/  ->  draft reference  ->  six views  ->  dimensions.json  -> 
   becomes circular, every error is normalized away, and every gate passes.
 - Every modelling run follows the `volume-modelling` skill: three stages, three gates. No stage starts
   before the previous gate passes, and no gate is softened to make it pass.
+- One exception exists, and it is an **evaluation**: workflow F runs the third-party `blender-modeler`
+  skill on a blueprint that already passed G1. It runs no G1, G2, or G3, its output is never a
+  delivered asset, and only the art director can accept it. See
+  [`workflows/blender/README.md`](./workflows/blender/README.md), section 4.
 - Not every locked view has the same authority. `left`, `right`, `front`, `back` and `top` are
   required. `bottom` is optional: the subject usually stands on it, and an image model invents one.
   An optional view informs, it does not decide, and it does not enter a gate.

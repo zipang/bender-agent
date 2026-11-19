@@ -4,6 +4,10 @@ Rules for an agent that drives Blender through `mcp-for-blender`. The project do
 for its assets today, so these rules apply to a side task: a material study, a rig, a cleanup, or a
 form that Three.js cannot build from numbers.
 
+One phase runs Blender without the MCP server, and the rules below do not all apply to it: the
+`blender-modeler` evaluation of [`README.md`](./README.md), section 4. That phase loads only the
+`blender-modeler` skill, and its own `SKILL.md` holds the loop, the stages, and the report format.
+
 ## Before you change a scene
 
 1. Call `get_addon_status`. It returns the Blender version, the add-on version, and the libraries.

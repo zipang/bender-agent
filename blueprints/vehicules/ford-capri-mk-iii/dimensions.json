@@ -1,0 +1,241 @@
+{
+  "subject": "ford-capri-mk-iii",
+  "unit": "m",
+  "axes": {
+    "x": "width",
+    "y": "height",
+    "z": "length"
+  },
+  "real": {
+    "length": {
+      "value": 4.376,
+      "source": "manufacturer, 1981 Ford Capri 2.8i Mk III (encyCARpedia): 4376 x 1698 x 1298 mm"
+    },
+    "width": {
+      "value": 1.698,
+      "source": "manufacturer, 1981 Ford Capri 2.8i Mk III (encyCARpedia): 4376 x 1698 x 1298 mm"
+    },
+    "height": {
+      "value": 1.298,
+      "source": "manufacturer, 1981 Ford Capri 2.8i Mk III (encyCARpedia): 4376 x 1698 x 1298 mm"
+    }
+  },
+  "views": {
+    "left": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/left.webp",
+      "view": "left",
+      "image_px": [
+        1337,
+        459
+      ],
+      "body_px": [
+        1333,
+        455
+      ],
+      "silhouette_box_px": [
+        2,
+        2,
+        1334,
+        456
+      ],
+      "protrusion_px": [
+        0,
+        0
+      ],
+      "spans": "length horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 3.2828,
+        "vertical": 2.8527
+      },
+      "anisotropy": 0.869,
+      "drift_pct": 13.1,
+      "naive_scale_error_mm": -195.7,
+      "gate": "corrected",
+      "span_mode": "box",
+      "required": true
+    },
+    "right": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/right.webp",
+      "view": "right",
+      "image_px": [
+        1337,
+        459
+      ],
+      "body_px": [
+        1333,
+        455
+      ],
+      "silhouette_box_px": [
+        2,
+        2,
+        1334,
+        456
+      ],
+      "protrusion_px": [
+        0,
+        0
+      ],
+      "spans": "length horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 3.2828,
+        "vertical": 2.8527
+      },
+      "anisotropy": 0.869,
+      "drift_pct": 13.1,
+      "naive_scale_error_mm": -195.7,
+      "gate": "corrected",
+      "span_mode": "box",
+      "required": true
+    },
+    "front": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/front.webp",
+      "view": "front",
+      "image_px": [
+        833,
+        665
+      ],
+      "body_px": [
+        829,
+        661
+      ],
+      "silhouette_box_px": [
+        2,
+        2,
+        830,
+        662
+      ],
+      "protrusion_px": [
+        0,
+        0
+      ],
+      "spans": "width horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 2.0483,
+        "vertical": 1.9637
+      },
+      "anisotropy": 0.9587,
+      "drift_pct": 4.13,
+      "naive_scale_error_mm": -55.9,
+      "gate": "pass",
+      "span_mode": "box",
+      "required": true
+    },
+    "back": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/back.webp",
+      "view": "back",
+      "image_px": [
+        883,
+        694
+      ],
+      "body_px": [
+        879,
+        690
+      ],
+      "silhouette_box_px": [
+        2,
+        2,
+        880,
+        691
+      ],
+      "protrusion_px": [
+        0,
+        0
+      ],
+      "spans": "width horizontally, height vertically",
+      "scale_mm_per_px": {
+        "horizontal": 1.9317,
+        "vertical": 1.8812
+      },
+      "anisotropy": 0.9738,
+      "drift_pct": 2.62,
+      "naive_scale_error_mm": -34.9,
+      "gate": "pass",
+      "span_mode": "box",
+      "required": true
+    },
+    "top": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/top.webp",
+      "view": "top",
+      "image_px": [
+        550,
+        1121
+      ],
+      "body_px": [
+        510,
+        1104
+      ],
+      "silhouette_box_px": [
+        2,
+        2,
+        547,
+        1118
+      ],
+      "protrusion_px": [
+        36,
+        13
+      ],
+      "spans": "width horizontally, length vertically",
+      "scale_mm_per_px": {
+        "horizontal": 3.3294,
+        "vertical": 3.9638
+      },
+      "anisotropy": 1.1905,
+      "drift_pct": 19.05,
+      "naive_scale_error_mm": 700.3,
+      "gate": "corrected",
+      "span_mode": "robust",
+      "required": true
+    },
+    "bottom": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/bottom.webp",
+      "view": "bottom",
+      "image_px": [
+        596,
+        1162
+      ],
+      "body_px": [
+        592,
+        1158
+      ],
+      "silhouette_box_px": [
+        2,
+        2,
+        593,
+        1159
+      ],
+      "protrusion_px": [
+        0,
+        0
+      ],
+      "spans": "width horizontally, length vertically",
+      "scale_mm_per_px": {
+        "horizontal": 2.8682,
+        "vertical": 3.7789
+      },
+      "anisotropy": 1.3175,
+      "drift_pct": 31.75,
+      "naive_scale_error_mm": 1054.6,
+      "gate": "reject",
+      "span_mode": "box",
+      "required": false
+    }
+  },
+  "scales": "pass",
+  "g1": "pass",
+  "notes": [
+    "Stage 1 has not run: no view has a calibrated scale yet, so every view's gate is 'unknown'.",
+    "Identity inferred from the quad round headlamps (the Mk II has two rectangular lamps), the black Aeroflow grille with the Ford oval, and the 'injection' script with the red pinstripe: Ford Capri Mk III 2.8 Injection (1981-1986).",
+    "Wheelbase 2563 mm, front track 1363 mm, rear track 1394 mm, tyres 195/60 R14, from the same manufacturer source.",
+    "The real dimensions are an input and are not derived from any view."
+  ],
+  "landmarks": {
+    "wheelbase": {
+      "values_mm": {
+        "right": 2563.9,
+        "top": 2521.0
+      },
+      "spread_pct": 1.69,
+      "gate": "pass"
+    }
+  }
+}

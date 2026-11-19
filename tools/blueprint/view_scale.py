@@ -110,7 +110,9 @@ def smoothed_max(profile: np.ndarray, window_pct: float) -> float:
 
 def measure(path: str, view: str, real: dict, span: str = "box") -> dict:
     if view not in VIEW_TABLE:
-        raise SystemExit(f"unknown view '{view}', expected one of {', '.join(VIEW_TABLE)}")
+        raise SystemExit(
+            f"unknown view '{view}', expected one of {', '.join(VIEW_TABLE)}"
+        )
     for key in ("length", "width", "height"):
         if key not in real:
             raise SystemExit(f"missing real dimension: --{key}")
@@ -136,16 +138,22 @@ def measure(path: str, view: str, real: dict, span: str = "box") -> dict:
     # the same smoothing eats a real extreme. A side view's roof crown is one point of the
     # silhouette, so a window wider than the crown shortens the car by 4%, turns a real 6%
     # anisotropy into a false pass, and sends the next stage to fix a body that was right.
-    body = mask[box[1]:box[3] + 1, box[0]:box[2] + 1]
+    body = mask[box[1] : box[3] + 1, box[0] : box[2] + 1]
     if span == "robust":
-        row_width = np.array([
-            (np.where(row)[0][-1] - np.where(row)[0][0] + 1) if row.any() else 0
-            for row in body
-        ], dtype=float)
-        col_height = np.array([
-            (np.where(col)[0][-1] - np.where(col)[0][0] + 1) if col.any() else 0
-            for col in body.T
-        ], dtype=float)
+        row_width = np.array(
+            [
+                (np.where(row)[0][-1] - np.where(row)[0][0] + 1) if row.any() else 0
+                for row in body
+            ],
+            dtype=float,
+        )
+        col_height = np.array(
+            [
+                (np.where(col)[0][-1] - np.where(col)[0][0] + 1) if col.any() else 0
+                for col in body.T
+            ],
+            dtype=float,
+        )
         span_x = int(round(smoothed_max(row_width, 5)))
         span_y = int(round(smoothed_max(col_height, 5)))
     else:
@@ -185,25 +193,32 @@ def measure(path: str, view: str, real: dict, span: str = "box") -> dict:
     }
 
 
-def write_entry(path: str, entry: dict, real: dict, unit: str, source: str,
-                required: bool) -> None:
+def write_entry(
+    path: str, entry: dict, real: dict, unit: str, source: str, required: bool
+) -> None:
     document = {}
     if os.path.exists(path):
         with open(path, encoding="utf-8") as handle:
             document = json.load(handle)
     # The subject folder is the parent of the view folder, which holds the image.
     document.setdefault(
-        "subject", os.path.basename(os.path.dirname(os.path.dirname(os.path.abspath(entry["file"]))))
+        "subject",
+        os.path.basename(
+            os.path.dirname(os.path.dirname(os.path.abspath(entry["file"])))
+        ),
     )
     document.setdefault("unit", unit)
-    document["real"] = {key: {"value": value, "source": source} for key, value in real.items()}
+    document["real"] = {
+        key: {"value": value, "source": source} for key, value in real.items()
+    }
     entry["required"] = required
     document.setdefault("views", {})[entry["view"]] = entry
     # An optional view informs and does not decide: it is recorded, and it never blocks the gate.
     required_views = [v for v in document["views"].values() if v.get("required", True)]
     document["scales"] = (
         "pass"
-        if required_views and all(v["gate"] in ("pass", "corrected") for v in required_views)
+        if required_views
+        and all(v["gate"] in ("pass", "corrected") for v in required_views)
         else "open"
     )
     # The scales are only two of the four conditions of G1. The third is the landmark cross-check,
@@ -213,7 +228,11 @@ def write_entry(path: str, entry: dict, real: dict, unit: str, source: str,
         "pass"
         if document["scales"] == "pass"
         and landmarks
-        and all(v.get("delta_pct", 100) <= 10 for v in landmarks.values())
+        # `report.py` writes `spread_pct`; older documents may carry `delta_pct`.
+        and all(
+            v.get("spread_pct", v.get("delta_pct", 100)) <= 10
+            for v in landmarks.values()
+        )
         else "open"
     )
     with open(path, "w", encoding="utf-8") as handle:
@@ -222,22 +241,39 @@ def write_entry(path: str, entry: dict, real: dict, unit: str, source: str,
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Measure a reference view and prove its scale.")
+    parser = argparse.ArgumentParser(
+        description="Measure a reference view and prove its scale."
+    )
     parser.add_argument("image")
     parser.add_argument("--view", required=True, choices=sorted(VIEW_TABLE))
     parser.add_argument("--length", type=float, help="real length in metres")
     parser.add_argument("--width", type=float, help="real width in metres")
     parser.add_argument("--height", type=float, help="real height in metres")
-    parser.add_argument("--write", metavar="dimensions.json",
-                        help="merge the entry into this dimensions.json")
-    parser.add_argument("--optional", action="store_true",
-                        help="record the view but keep it out of the gate (the underside, usually)")
-    parser.add_argument("--source", default="art director",
-                        help="where the real dimensions come from, for the record")
-    parser.add_argument("--span", choices=("box", "robust"), default="box",
-                        help="how to read the span: box is the bounding box, and it is the right "
-                             "answer on a cropped view; robust smooths narrow spurs away (default box)")
-    parser.add_argument("--json", action="store_true", help="print the entry as JSON only")
+    parser.add_argument(
+        "--write",
+        metavar="dimensions.json",
+        help="merge the entry into this dimensions.json",
+    )
+    parser.add_argument(
+        "--optional",
+        action="store_true",
+        help="record the view but keep it out of the gate (the underside, usually)",
+    )
+    parser.add_argument(
+        "--source",
+        default="art director",
+        help="where the real dimensions come from, for the record",
+    )
+    parser.add_argument(
+        "--span",
+        choices=("box", "robust"),
+        default="box",
+        help="how to read the span: box is the bounding box, and it is the right "
+        "answer on a cropped view; robust smooths narrow spurs away (default box)",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="print the entry as JSON only"
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.image):

@@ -62,13 +62,23 @@ blueprints/drafts/  ->  draft reference  ->  six views  ->  dimensions.json  -> 
 - A draft is one folder: `blueprints/drafts/<draft>/`. It is not a subject.
 - A draft holds `subject/` and `style/` reference images. The draft stage combines them into one
   reference image, on a uniform white field.
-- A subject folder holds `reference.<ext>`, the chosen identity image. The art director writes it.
+- A subject folder holds `reference.webp`, the chosen identity image. The art director writes it.
 - The promotion of a draft candidate to `reference.<ext>` is the art director's decision.
+- **A finalized reference is `reference.webp`, and it is the only format kept.** Convert the chosen
+  candidate, verify the delta, then remove the original file:
+    - a lossy source (`.jpg`, `.jpeg`) becomes `-quality 92`, and the check is an RMSE under 2/255;
+    - a lossless source (`.png`) becomes **lossless** WebP, decoded back and compared byte for byte;
+    - a reference whose conversion fails the check keeps its original, and the folder reports why.
 - A subject folder holds `source.<ext>` only after a cleaning pass runs. The cleaning pass copies the
   reference to `source.<ext>` before it replaces it. Never modify `source.<ext>`.
 - Generation reads `reference.<ext>` only. It never reads `source.<ext>`.
 - The generator writes draft candidates to the draft root, cleaning candidates to the subject root,
   and view candidates to `blueprints/<category>/<subject>/<view>/`.
+- `cropped/<view>.webp` is a **modeling input**, not a scratch file. The viewer's calque and the hull
+  tracer both read it, and both convert its pixels to millimetres. It is lossless, it is **committed**
+  with `cropped/manifest.json`, and `crop_reference.py` proves the lossless claim by decoding the file
+  back and comparing it. A regenerated crop that moves one pixel reopens every scale built on it.
+- `measured/` and `test-reports/` stay derived and local: they are pictures of a check, not inputs.
 - Only the art director chooses. The choice is a copied file named `reference.<ext>`.
 - No agent and no model validates an image automatically.
 - Never delete a generated candidate. Keep the rejected files in their folder.

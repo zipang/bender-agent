@@ -23,9 +23,13 @@ Usage:
     python3 tools/blueprint/crop_reference.py --subject blueprints/vehicules/r5-tl-1972 --margin 8
     python3 tools/blueprint/crop_reference.py --subject blueprints/vehicules/r5-tl-1972 --views left,front --json
 
-It writes `cropped/<view>.png` and `cropped/manifest.json` under the subject. The locked
-`reference.<ext>` of each view is read only, and is never modified: the crop is a derived file, and
-it can be rebuilt at any time.
+It writes `cropped/<view>.webp` and `cropped/manifest.json` under the subject. The locked
+`reference.<ext>` of each view is read only, and is never modified.
+
+The crop is a modeling input, not a scratch file: the calque of the viewer and the hull tracer both
+read it, and both convert pixels to millimetres. It is therefore written **lossless**, and every
+file is decoded back and compared before the run ends. A lossy crop would be a second generation of
+loss on top of the reference, and it would move silhouettes that the gates measure.
 """
 
 import argparse
@@ -54,10 +58,14 @@ def repo_rel(path: str) -> str:
 
 
 def find(path: str) -> str:
-    """The view's reference, whatever extension the generator gave it."""
+    """The view's reference, whatever extension the generator gave it.
+
+    `.webp` first: it is the format a finalized reference keeps, and a stale `.png` left beside it
+    must never win.
+    """
     if os.path.exists(path):
         return path
-    for ext in (".png", ".webp", ".jpg", ".jpeg"):
+    for ext in (".webp", ".png", ".jpg", ".jpeg"):
         candidate = os.path.splitext(path)[0] + ext
         if os.path.exists(candidate):
             return candidate
@@ -83,7 +91,14 @@ def crop_one(path: str, out_path: str, margin: int) -> dict:
     # Pillow's crop box is half-open: right and bottom are exclusive.
     cropped = image.crop((x0, y0, x1 + 1, y1 + 1))
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    cropped.save(out_path)
+    # Lossless: the crop is what the calque shows and what the tracer measures.
+    cropped.save(out_path, format="WEBP", lossless=True, quality=100, method=6)
+
+    # Prove the claim instead of trusting it. A silent lossy encode would move an edge by a pixel,
+    # and every span, trace and gate built on it would carry that pixel without naming it.
+    written = Image.open(out_path).convert("RGB")
+    if not np.array_equal(np.asarray(cropped), np.asarray(written)):
+        raise SystemExit(f"{out_path}: the encode is not lossless, the crop would move")
 
     # Two different rectangles, and confusing them costs a real, silent error.
     #
@@ -103,30 +118,53 @@ def crop_one(path: str, out_path: str, margin: int) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Crop a reference view to its subject.")
-    parser.add_argument("--subject", required=True, help="subject folder, for example blueprints/vehicules/r5-tl-1972")
-    parser.add_argument("--margin", type=int, default=2,
-                        help="pixels of background kept around the subject (default 2, so the corners stay background)")
+    parser = argparse.ArgumentParser(
+        description="Crop a reference view to its subject."
+    )
+    parser.add_argument(
+        "--subject",
+        required=True,
+        help="subject folder, for example blueprints/vehicules/r5-tl-1972",
+    )
+    parser.add_argument(
+        "--margin",
+        type=int,
+        default=2,
+        help="pixels of background kept around the subject (default 2, so the corners stay background)",
+    )
     parser.add_argument("--views", default="all", help="comma-separated views, or all")
-    parser.add_argument("--out", default=None, help="output directory (default <subject>/cropped)")
+    parser.add_argument(
+        "--out", default=None, help="output directory (default <subject>/cropped)"
+    )
     parser.add_argument("--json", action="store_true", help="print JSON only")
     args = parser.parse_args()
 
     subject = args.subject.rstrip("/")
     out_dir = args.out or os.path.join(subject, "cropped")
 
-    available = [v for v in ("left", "right", "front", "back", "top", "bottom")
-                 if os.path.exists(os.path.join(subject, v, "reference.png"))
-                 or os.path.exists(os.path.join(subject, v, "reference.webp"))]
-    wanted = available if args.views == "all" else [v.strip() for v in args.views.split(",") if v.strip()]
+    available = [
+        v
+        for v in ("left", "right", "front", "back", "top", "bottom")
+        if any(
+            os.path.exists(os.path.join(subject, v, "reference" + ext))
+            for ext in (".png", ".webp", ".jpg", ".jpeg")
+        )
+    ]
+    wanted = (
+        available
+        if args.views == "all"
+        else [v.strip() for v in args.views.split(",") if v.strip()]
+    )
     missing = [v for v in wanted if v not in available]
     if missing:
-        raise SystemExit(f"no reference for: {', '.join(missing)} (have: {', '.join(available)})")
+        raise SystemExit(
+            f"no reference for: {', '.join(missing)} (have: {', '.join(available)})"
+        )
 
     manifest = {"subject": repo_rel(subject), "margin": args.margin, "views": {}}
     for view in wanted:
         source = find(os.path.join(subject, view, "reference.png"))
-        out_path = os.path.join(out_dir, f"{view}.png")
+        out_path = os.path.join(out_dir, f"{view}.webp")
         entry = crop_one(source, out_path, args.margin)
         manifest["views"][view] = entry
         if not args.json:
@@ -150,7 +188,9 @@ def main() -> None:
     else:
         print()
         print(f"manifest  {manifest_path}")
-        print("The locked reference.<ext> files are untouched: the crop is derived and can be rebuilt.")
+        print(
+            "The locked reference.<ext> files are untouched. The crops are lossless and verified."
+        )
 
 
 if __name__ == "__main__":

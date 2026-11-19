@@ -7,14 +7,7 @@ blueprints/*/*/*.jpeg
 blueprints/*/*/*/*
 
 # The chosen identity image, the raw source, and the subject log are committed.
-!blueprints/*/*/reference.png
 !blueprints/*/*/reference.webp
-!blueprints/*/*/reference.jpg
-!blueprints/*/*/reference.jpeg
-!blueprints/*/*/source.png
-!blueprints/*/*/source.webp
-!blueprints/*/*/source.jpg
-!blueprints/*/*/source.jpeg
 !blueprints/*/*/notes.md
 !blueprints/*/*/manifest.json
 
@@ -23,11 +16,22 @@ blueprints/*/*/*/*
 !blueprints/*/*/dimensions.json
 !blueprints/*/*/measurements.json
 
+# The crop is NOT derived scratch: it is the modeling input. The viewer's calque and the hull tracer
+# both read `cropped/<view>.webp`, and both convert its pixels to millimetres, so losing it means
+# re-arbitrating every scale. It is written lossless and verified by crop_reference.py.
+!blueprints/*/*/*/cropped/
+!blueprints/*/*/*/cropped/*.webp
+!blueprints/*/*/*/cropped/manifest.json
+
 # Selected views are also committed.
 !blueprints/*/*/*/reference.png
 !blueprints/*/*/*/reference.webp
 !blueprints/*/*/*/reference.jpg
 !blueprints/*/*/*/reference.jpeg
+
+# A finalized reference is WebP. The original format is converted, verified, then removed: the
+# `.jpg`, `.jpeg` and `.png` whitelist lines above stay only for subjects that were locked before
+# the format rule, and for a candidate that is promoted before its conversion.
 
 # Every candidate of a subject is committed: the art director reviews the results on a machine with a
 # display, and the folder is the record of the workflow's progress. A draft stays local, because

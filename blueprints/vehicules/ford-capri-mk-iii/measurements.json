@@ -1,0 +1,64 @@
+{
+  "subject": "ford-capri-mk-iii",
+  "unit": "m",
+  "views": {
+    "right": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/right.webp",
+      "image_px": [
+        1337,
+        459
+      ],
+      "scale_mm_per_px": {
+        "horizontal": 3.2828,
+        "vertical": 2.8527
+      },
+      "points": {
+        "rear_axle": [
+          299,
+          349
+        ],
+        "front_axle": [
+          1080,
+          349
+        ]
+      },
+      "measurements": [
+        {
+          "name": "wheelbase",
+          "from": "rear_axle",
+          "to": "front_axle",
+          "key": "wheelbase"
+        }
+      ]
+    },
+    "top": {
+      "file": "blueprints/vehicules/ford-capri-mk-iii/cropped/top.webp",
+      "image_px": [
+        550,
+        1121
+      ],
+      "scale_mm_per_px": {
+        "horizontal": 3.3294,
+        "vertical": 3.9638
+      },
+      "points": {
+        "rear_axle": [
+          275,
+          878
+        ],
+        "front_axle": [
+          275,
+          242
+        ]
+      },
+      "measurements": [
+        {
+          "name": "wheelbase",
+          "from": "rear_axle",
+          "to": "front_axle",
+          "key": "wheelbase"
+        }
+      ]
+    }
+  }
+}

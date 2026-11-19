@@ -93,11 +93,11 @@ blueprints/
     subject/               what to model
     style/                 how to render it
   <category>/<subject>/
-    reference.<ext>        the chosen identity image. Written by the art director
+    reference.webp         the chosen identity image, the only format kept. Written by the art director
     source.<ext>           the identity bytes before a cleaning pass
     notes.md               camera and hidden-surface notes
     manifest.json          the generation log
-    cropped/               the views cropped to their subject
+    cropped/               <view>.webp, the lossless modelling input, and manifest.json
     dimensions.json        the real dimensions, and the two scales of each view
     front/ left/ back/ right/ top/ bottom/
 ```
@@ -201,7 +201,7 @@ produced, even when the method it describes has since been replaced.
 - **Blueprint package**: The reference image, the six accepted view images, and the generation manifest of one subject.
 - **Calque**: A reference view placed in the scene as a plane, sized in metres from the two scales of that view. It is traced over, never rendered into a capture.
 - **Contour**: The closed outline of one orthogonal view, in the local metres of that view's plate. It is a list of **knots**, joined by lines or by a smooth curve. It comes from the cropped file, and it is drawn over the reference picture. The contour volume reads it: change a knot, and the volume changes.
-- **Crop**: A derived file `cropped/<view>.png`: a cut of the locked reference, with a small margin, identical to the same rectangle at the pixel. A crop never resamples, so the contour inherits the native resolution of the reference. Rebuild it at any time.
+- **Crop**: The modelling input `cropped/<view>.webp`: a cut of the locked reference, with a small margin, identical to the same rectangle at the pixel. A crop never resamples, so the contour inherits the native resolution of the reference. It is written lossless and committed, because the calque and the hull tracer both measure it.
 - **Demo**: A scene candidate that the art director keeps on purpose, in [`demos/`](./demos/README.md), with its prompt and its measurements. It is evidence of one step, not an asset: it has no gate and it is never edited.
 - **Design unit**: The unit of the numbers of a document. Metres for a game asset, millimetres for a machined part.
 - **Draft**: Raw material in `blueprints/drafts/`. A draft is not a subject.
@@ -210,7 +210,7 @@ produced, even when the method it describes has since been replaced.
 - **Fidelity gate**: A number and a render that a stage passes before the next stage starts.
 - **Knot**: A point of a contour that the outline passes through. The knots are the source of the contour, in `scenes/<subject>/contours.js`; two join modes, `poly` and `bezier`, read the same knots. A knot is not an off-curve handle.
 - **Ladder**: The sequence of fidelity stages in [the method document](./research/progressive-volume-modeling.md).
-- **Locked view**: A view folder that contains `reference.<ext>`. The generator skips a locked view.
+- **Locked view**: A view folder that contains `reference.webp`. The generator skips a locked view.
 - **Loon**: The compact S-expression language of vcad.
 - **Marquee**: The selection rectangle the knot editor draws with `Shift` + left drag. Every knot of the view inside it joins the selection. It is transient, and it is never saved.
 - **Mass**: One named volume of an object.
@@ -218,7 +218,7 @@ produced, even when the method it describes has since been replaced.
 - **Pass**: One iteration of the loop: render, compare, diagnose, change one thing.
 - **Pivot**: The origin of a node. It is the centre of rotation for animation.
 - **Qwen 3D Coder**: The fourth workflow, in [`workflows/qwen3d-coder/`](./workflows/qwen3d-coder/README.md). A 4B model served by an external OpenAI-compatible endpoint drafts one standalone TypeScript asset from a reference image, and the shared scene viewer draws it. It has no gate, and the art director judges every candidate by eye.
-- **Reference**: The image `reference.<ext>` of a view, chosen by the art director. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
+- **Reference**: The image `reference.webp` of a view, chosen by the art director. WebP is the only format kept: a lossy source is converted at quality 92, a lossless source at lossless, and the original is removed after the check. It is the identity of that view, and the generator never overwrites it. Its native size sets the resolution of the crop, the contour and the measured scale.
 - **Root tool**: A tool in the root `tools/`, read by several workflows. It is the opposite of `workflows/<name>/tools/`, which one workflow reads. A tool is never placed by convenience.
 - **Scene**: One directory holding `scene.json` and `model.js`. The viewer renders it, and the browser loads the source with no build step.
 - **Scene viewer**: The page in `tools/scene-viewer/` that draws one delivered asset. It lists the candidates from the asset catalogue, frames the chosen one from its own bounding box, and offers six orthographic views, one free view, and a spin. The Three.js viewer stays separate until a later ticket moves it onto this base.

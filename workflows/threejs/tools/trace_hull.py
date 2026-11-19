@@ -111,16 +111,19 @@ VIEWS = {
     "bottom": ("x", -1, "z", +1),
 }
 
+
 # The silhouettes the hull needs, and what each one constrains. The side view is fixed: it is the
 # only one that gives the height profile over the length. The face view is a choice (see the
 # docstring), and the plan view supplies the shape of the width.
 def profiles(face):
     return {"side": "left", "face": face, "plan": "top"}
 
+
 WHITE_CUTOFF = 246  # a pixel darker than this on any channel is not background
 
 
 # ---------------------------------------------------------------- colour
+
 
 def erode(lo, hi, radius):
     """Shrink every interval by the narrowest neighbour within `radius` samples.
@@ -207,7 +210,9 @@ def sliding_extreme(values, window, is_min):
     length = block.shape[1]
     blocks = -(-length // window)
     if blocks * window > length:
-        block = np.pad(block, ((0, 0), (0, blocks * window - length)), constant_values=fill)
+        block = np.pad(
+            block, ((0, 0), (0, blocks * window - length)), constant_values=fill
+        )
     shaped = block.reshape(block.shape[0], blocks, window)
     if is_min:
         prefix = np.minimum.accumulate(shaped, axis=2).reshape(block.shape[0], -1)
@@ -243,8 +248,12 @@ def _disc_pass(mask, radius_x, radius_y, is_min):
         top = max(0, dy)
         bottom = min(height, height + dy)
         if bottom > top:
-            piece[top:bottom, :] = run[max(0, -dy):max(0, -dy) + (bottom - top), :]
-        result = piece if result is None else ((result & piece) if is_min else (result | piece))
+            piece[top:bottom, :] = run[max(0, -dy) : max(0, -dy) + (bottom - top), :]
+        result = (
+            piece
+            if result is None
+            else ((result & piece) if is_min else (result | piece))
+        )
     return result
 
 
@@ -264,10 +273,13 @@ def open_disc(mask, radius_x, radius_y):
     """
     if radius_x < 1 or radius_y < 1:
         return mask.copy()
-    return _disc_pass(_disc_pass(mask, radius_x, radius_y, True), radius_x, radius_y, False)
+    return _disc_pass(
+        _disc_pass(mask, radius_x, radius_y, True), radius_x, radius_y, False
+    )
 
 
 # ---------------------------------------------------------------- masks
+
 
 def load_rgb(path):
     """The cropped view as an 8-bit RGB array."""
@@ -286,6 +298,7 @@ def silhouette_mask(rgb):
 
 # ---------------------------------------------------------------- geometry
 
+
 class View:
     """One reference view, mapped into model metres, with its mask already cut to the body.
 
@@ -296,7 +309,15 @@ class View:
 
     def __init__(self, name, subject, manifest, dimensions, real, smooth_mm, mask_mode):
         self.name = name
-        path = os.path.join(subject, "cropped", f"{name}.png")
+        path = os.path.join(subject, "cropped", f"{name}.webp")
+        if not os.path.exists(path):
+            # Older subjects were cropped to PNG before the format rule changed.
+            legacy = os.path.join(subject, "cropped", f"{name}.png")
+            if not os.path.exists(legacy):
+                raise SystemExit(
+                    f"no crop for view {name}: run tools/blueprint/crop_reference.py"
+                )
+            path = legacy
         rgb = load_rgb(path)
         self.silhouette = silhouette_mask(rgb)
         # `raw` keeps every accessory: the outer envelope, useful to see how much is being cut.
@@ -314,7 +335,7 @@ class View:
         self.cy = offset_y + (span_v - 1) / 2.0
 
         scale = dimensions["views"][name]["scale_mm_per_px"]
-        self.kx = scale["horizontal"] / 1000.0   # metres per pixel, horizontal
+        self.kx = scale["horizontal"] / 1000.0  # metres per pixel, horizontal
         self.ky = scale["vertical"] / 1000.0
 
         self.axis_h, self.sign_h, self.axis_v, self.sign_v = VIEWS[name]
@@ -323,8 +344,8 @@ class View:
         # The intervals are read once per axis into arrays, eroded, then served from memory. A
         # per-call scan of the mask would re-erode a moving window, and the erosion is not local to
         # the call: it depends on neighbours the caller never asks for.
-        self.rows = self._read_rows()          # indexed by y: (lo, hi) on the horizontal axis
-        self.cols = self._read_cols()          # indexed by x: (lo, hi) on the vertical axis
+        self.rows = self._read_rows()  # indexed by y: (lo, hi) on the horizontal axis
+        self.cols = self._read_cols()  # indexed by x: (lo, hi) on the vertical axis
         # `body_mask` is the region the CONTOUR draws, and it is the picture. `cols` and `rows` are
         # the region the HULL builds from, and they are opened first.
         #
@@ -394,7 +415,9 @@ class View:
         here". Returns (lo, hi) in metres, or None.
         """
         if self.axis_v != "y":
-            raise ValueError(f"{self.name}: vertical_interval needs a view whose vertical axis is Y")
+            raise ValueError(
+                f"{self.name}: vertical_interval needs a view whose vertical axis is Y"
+            )
         px, _ = self.to_pixel(u, self.height / 2.0)
         if px < 0 or px >= self.cols[0].size:
             return None
@@ -433,8 +456,11 @@ class View:
 
 # ---------------------------------------------------------------- hull
 
+
 def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_from):
-    with open(os.path.join(subject, "cropped", "manifest.json"), encoding="utf-8") as handle:
+    with open(
+        os.path.join(subject, "cropped", "manifest.json"), encoding="utf-8"
+    ) as handle:
         manifest = json.load(handle)
     with open(os.path.join(subject, "dimensions.json"), encoding="utf-8") as handle:
         dimensions = json.load(handle)
@@ -442,7 +468,9 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_fr
     table = profiles(face_view)
     views = {}
     for role, name in table.items():
-        views[role] = View(name, subject, manifest, dimensions, real, smooth_mm, mask_mode)
+        views[role] = View(
+            name, subject, manifest, dimensions, real, smooth_mm, mask_mode
+        )
     side, face, plan = views["side"], views["face"], views["plan"]
 
     length = real["length"] / 1000.0
@@ -456,7 +484,9 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_fr
     if width_from == "face":
         plan_width = widest_run(*plan.rows) * plan.kx
         face_width = widest_run(*face.rows) * face.kx
-        plan_x_scale = face_width / plan_width if plan_width > 0 and face_width > 0 else 1.0
+        plan_x_scale = (
+            face_width / plan_width if plan_width > 0 and face_width > 0 else 1.0
+        )
     elif width_from == "real":
         # The real width is an INPUT. Every view's calibration box is sized on the whole silhouette,
         # and the widest pixel run of that silhouette is usually an accessory -- a mirror on the plan,
@@ -511,7 +541,9 @@ def build_hull(subject, real, step_mm, mask_mode, smooth_mm, face_view, width_fr
                 continue
             # The grid index travels with the column: two consecutive stations rarely share the same
             # set of columns, so the mesh must match them by index, never by list position.
-            columns.append([i, round(float(x), 4), round(float(y_lo), 4), round(float(y_hi), 4)])
+            columns.append(
+                [i, round(float(x), 4), round(float(y_lo), 4), round(float(y_hi), 4)]
+            )
 
         sections.append({"z": round(float(z), 4), "columns": columns})
 
@@ -596,8 +628,12 @@ def boundary_loops(mask):
     def rank(candidate, direction):
         dx, dy = candidate[0] - direction[0], candidate[1] - direction[1]
         # Clockwise on screen is (-dy, dx); then straight, then counter-clockwise, then back.
-        order = {(-direction[1], direction[0]): 0, (direction[0], direction[1]): 1,
-                 (direction[1], -direction[0]): 2, (-direction[0], -direction[1]): 3}
+        order = {
+            (-direction[1], direction[0]): 0,
+            (direction[0], direction[1]): 1,
+            (direction[1], -direction[0]): 2,
+            (-direction[0], -direction[1]): 3,
+        }
         return order.get((dx, dy), 4)
 
     loops = []
@@ -644,6 +680,7 @@ def simplify_collinear(loop):
 
 
 # ---------------------------------------------------------------- paths
+
 
 def _segment_distance(point, a, b):
     """Distance from a point to the segment `a`-`b`, in the units of the points."""
@@ -759,7 +796,10 @@ def _fit_cubic(points, tangent_start, tangent_end):
     # Chord-length parametrisation: a first guess that is already close for a short span.
     u = [0.0]
     for index in range(1, len(points)):
-        u.append(u[-1] + float(np.hypot(*(np.array(points[index]) - np.array(points[index - 1])))))
+        u.append(
+            u[-1]
+            + float(np.hypot(*(np.array(points[index]) - np.array(points[index - 1]))))
+        )
     total = u[-1] or 1.0
     u = [value / total for value in u]
 
@@ -768,7 +808,9 @@ def _fit_cubic(points, tangent_start, tangent_end):
     n1 = np.linalg.norm(t1)
     n2 = np.linalg.norm(t2)
     if n1 == 0.0 or n2 == 0.0:
-        return (first + (last - first) / 3.0).tolist(), (first + 2.0 * (last - first) / 3.0).tolist()
+        return (first + (last - first) / 3.0).tolist(), (
+            first + 2.0 * (last - first) / 3.0
+        ).tolist()
     t1 = t1 / n1 * span / 3.0
     t2 = t2 / n2 * span / 3.0
 
@@ -796,7 +838,9 @@ def _fit_cubic(points, tangent_start, tangent_end):
     # chord, which is the only scale the span itself provides.
     alpha = max(0.0, min(alpha, span))
     beta = max(0.0, min(beta, span))
-    return (first + t1 / (span / 3.0) * alpha).tolist(), (last - t2 / (span / 3.0) * beta).tolist()
+    return (first + t1 / (span / 3.0) * alpha).tolist(), (
+        last - t2 / (span / 3.0) * beta
+    ).tolist()
 
 
 def _cubic_points(control, samples=48):
@@ -809,7 +853,9 @@ def _cubic_points(control, samples=48):
     for index in range(samples + 1):
         t = index / float(samples)
         s = 1.0 - t
-        out.append(s * s * s * p0 + 3 * s * s * t * c1 + 3 * s * t * t * c2 + t * t * t * p3)
+        out.append(
+            s * s * s * p0 + 3 * s * s * t * c1 + 3 * s * t * t * c2 + t * t * t * p3
+        )
     return out
 
 
@@ -832,7 +878,10 @@ def fit_ring(points, tolerance, max_length=0.0):
     ring = np.asarray(points, dtype=float)
     count = ring.shape[0]
     if count < 4:
-        return {"start": ring[0].tolist(), "segments": [["L", *ring[i].tolist()] for i in range(1, count)]}, 0.0
+        return {
+            "start": ring[0].tolist(),
+            "segments": [["L", *ring[i].tolist()] for i in range(1, count)],
+        }, 0.0
 
     def tangent(index, forward=True):
         step = 1 if forward else -1
@@ -852,10 +901,12 @@ def fit_ring(points, tolerance, max_length=0.0):
             # a cubic that spans the whole flank is one segment the caller cannot subdivide.
             if max_length > 0.0 and chord(index, end) > max_length:
                 break
-            span = ring[index:end + 1]
-            control = [span[0].tolist(),
-                       *_fit_cubic(span, tangent(index), -tangent(end % count, forward=False)),
-                       span[-1].tolist()]
+            span = ring[index : end + 1]
+            control = [
+                span[0].tolist(),
+                *_fit_cubic(span, tangent(index), -tangent(end % count, forward=False)),
+                span[-1].tolist(),
+            ]
             deviation = _polyline_deviation(span, _cubic_points(control))
             if deviation > tolerance:
                 break
@@ -864,15 +915,24 @@ def fit_ring(points, tolerance, max_length=0.0):
         if best is None:
             # No cubic meets the tolerance here: keep the trace, one segment.
             nxt = (index + 1) % count
-            segments.append(["L", round(float(ring[nxt][0]), 4), round(float(ring[nxt][1]), 4)])
+            segments.append(
+                ["L", round(float(ring[nxt][0]), 4), round(float(ring[nxt][1]), 4)]
+            )
             index += 1
             continue
         end, control, deviation = best
         worst = max(worst, deviation)
-        segments.append(["C",
-                         round(control[1][0], 4), round(control[1][1], 4),
-                         round(control[2][0], 4), round(control[2][1], 4),
-                         round(control[3][0], 4), round(control[3][1], 4)])
+        segments.append(
+            [
+                "C",
+                round(control[1][0], 4),
+                round(control[1][1], 4),
+                round(control[2][0], 4),
+                round(control[2][1], 4),
+                round(control[3][0], 4),
+                round(control[3][1], 4),
+            ]
+        )
         index = end
     return {"start": [round(float(v), 4) for v in ring[0]], "segments": segments}, worst
 
@@ -901,8 +961,10 @@ def build_path(points, mode, pitch_mm, tolerance_mm):
     else:
         dense = subdivide_ring(simplified, pitch_mm) if pitch_mm > 0 else simplified
         start = dense[0]
-        path = {"start": [round(v, 4) for v in start],
-                "segments": [["L", round(p[0], 4), round(p[1], 4)] for p in dense[1:]]}
+        path = {
+            "start": [round(v, 4) for v in start],
+            "segments": [["L", round(p[0], 4), round(p[1], 4)] for p in dense[1:]],
+        }
         consumed = len(dense)
         deviation = _polyline_deviation(points, dense)
     return path, consumed, float(deviation)
@@ -937,8 +999,13 @@ def plate_contour(view, mode="poly", pitch_mm=2.0, tolerance_mm=0.25):
 
     # Plate-local metres. `tolerance_mm` and `pitch_mm` are millimetres, so the shape is decided in
     # the units the art director can reason about, not in pixels that change with the crop.
-    ring = [((cx - width / 2.0) * view.kx, -((cy - height / 2.0) * view.ky)) for cx, cy in outer]
-    path, consumed, deviation = build_path(ring, mode, pitch_mm / 1000.0, tolerance_mm / 1000.0)
+    ring = [
+        ((cx - width / 2.0) * view.kx, -((cy - height / 2.0) * view.ky))
+        for cx, cy in outer
+    ]
+    path, consumed, deviation = build_path(
+        ring, mode, pitch_mm / 1000.0, tolerance_mm / 1000.0
+    )
     return {
         "path": path,
         "points": consumed,
@@ -981,12 +1048,16 @@ def report_cuts(views, hull, smooth_mm):
             before_raw, after_raw = raw_intervals(view, label), getattr(view, label)
             before = widest_run(*before_raw) * scale * 1000
             after = widest_run(*after_raw) * scale * 1000
-            if before - after >= 1.0 or label == ("rows" if view.axis_v == "z" else "cols"):
+            if before - after >= 1.0 or label == (
+                "rows" if view.axis_v == "z" else "cols"
+            ):
                 tuned.append((view.name, label, before, after))
 
     print(f"  {'view':<6} {'axis':<5} {'before':>8} {'after':>8} {'cut':>6}   mm")
     for name, label, before, after in tuned:
-        print(f"  {name:<6} {label:<5} {before:8.0f} {after:8.0f} {before - after:6.0f}")
+        print(
+            f"  {name:<6} {label:<5} {before:8.0f} {after:8.0f} {before - after:6.0f}"
+        )
 
     # The views must agree about a dimension two of them measure. X is measured twice: the plan
     # view gives the width at every station, and the front view gives the width of the face. When
@@ -1048,45 +1119,65 @@ def raw_intervals(view, label):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Intersect three silhouettes into one solid.")
+    parser = argparse.ArgumentParser(
+        description="Intersect three silhouettes into one solid."
+    )
     parser.add_argument("--subject", required=True)
     parser.add_argument("--out", required=True, help="the JavaScript module to write")
-    parser.add_argument("--step", type=float, default=20.0, help="column and station pitch, mm")
     parser.add_argument(
-        "--mask", choices=("body", "raw"), default="body",
+        "--step", type=float, default=20.0, help="column and station pitch, mm"
+    )
+    parser.add_argument(
+        "--mask",
+        choices=("body", "raw"),
+        default="body",
         help="body erodes the accessories away; raw keeps the outer envelope",
     )
     parser.add_argument(
-        "--smooth-mm", type=float, default=150.0,
+        "--smooth-mm",
+        type=float,
+        default=150.0,
         help="the widest protrusion to erase from the HULL, in millimetres of outline. "
-             "0 disables the opening. The drawn contour reads the picture and is never opened",
+        "0 disables the opening. The drawn contour reads the picture and is never opened",
     )
     parser.add_argument(
-        "--pitch", type=float, default=2.0,
+        "--pitch",
+        type=float,
+        default=2.0,
         help="millimetres. The longest segment of the drawn contour. It sets the resolution, "
-             "not the shape",
+        "not the shape",
     )
     parser.add_argument(
-        "--mode", choices=("poly", "bezier"), default="poly",
+        "--mode",
+        choices=("poly", "bezier"),
+        default="poly",
         help="poly draws straight segments, bezier fits cubics to the same points",
     )
     parser.add_argument(
-        "--tolerance", type=float, default=0.25,
+        "--tolerance",
+        type=float,
+        default=0.25,
         help="millimetres. The largest distance the drawn contour may sit from the traced points. "
-             "This is the one number that changes the SHAPE",
+        "This is the one number that changes the SHAPE",
     )
     parser.add_argument(
-        "--face", choices=("front", "back"), default="back",
+        "--face",
+        choices=("front", "back"),
+        default="back",
         help="which view constrains the vertical profile over the width",
     )
     parser.add_argument(
-        "--width-from", choices=("real", "face", "plan"), default="real",
+        "--width-from",
+        choices=("real", "face", "plan"),
+        default="real",
         help="which source fixes the absolute width; `plan` is the pure intersection",
     )
     parser.add_argument("--json", help="also write the raw data here")
     args = parser.parse_args()
 
-    with open(os.path.join(args.subject, "dimensions.json"), encoding="utf-8") as handle:
+    with open(
+        os.path.join(args.subject, "dimensions.json"), encoding="utf-8"
+    ) as handle:
         dimensions = json.load(handle)
     unit = dimensions.get("unit", "m")
     real = {
@@ -1100,13 +1191,16 @@ def main() -> None:
     )
 
     print(
-        f"mask      {args.mask}" + ("" if smooth == 0 else f"   opening {smooth:.0f} mm")
+        f"mask      {args.mask}"
+        + ("" if smooth == 0 else f"   opening {smooth:.0f} mm")
         + f"   face {args.face}   width from {args.width_from}"
     )
     report_cuts(views, hull, smooth)
     columns = sum(len(s["columns"]) for s in hull["sections"])
     filled = sum(1 for s in hull["sections"] if s["columns"])
-    print(f"sections  {len(hull['sections'])}, {filled} with columns, {columns} columns")
+    print(
+        f"sections  {len(hull['sections'])}, {filled} with columns, {columns} columns"
+    )
     print(f"step      {args.step} mm")
 
     if args.json:
@@ -1149,7 +1243,9 @@ def main() -> None:
     #
     # `used` says which is which, so the viewer can draw a witness outline differently and nobody
     # has to remember the list.
-    with open(os.path.join(args.subject, "cropped", "manifest.json"), encoding="utf-8") as handle:
+    with open(
+        os.path.join(args.subject, "cropped", "manifest.json"), encoding="utf-8"
+    ) as handle:
         manifest = json.load(handle)
     used = {view.name for view in views.values()}
     contours = {}
@@ -1157,13 +1253,17 @@ def main() -> None:
         if name not in dimensions.get("views", {}):
             continue
         if name in used:
-            view = next(candidate for candidate in views.values() if candidate.name == name)
+            view = next(
+                candidate for candidate in views.values() if candidate.name == name
+            )
         else:
             try:
                 # Same mask and same opening as the views the hull reads. A witness drawn from the
                 # raw silhouette would differ from the solid everywhere an accessory sits, and the
                 # eye would read that difference as a modelling error instead of the cut.
-                view = View(name, args.subject, manifest, dimensions, real, smooth, args.mask)
+                view = View(
+                    name, args.subject, manifest, dimensions, real, smooth, args.mask
+                )
             except (KeyError, FileNotFoundError, ValueError):
                 continue
         traced = plate_contour(view, args.mode, args.pitch, args.tolerance)
@@ -1185,22 +1285,44 @@ def main() -> None:
         }
     with open(args.out, "w", encoding="utf-8") as handle:
         handle.write(header)
-        handle.write(f"export const TRACE = {json.dumps(summary, separators=(',', ':'))};\n\n")
-        handle.write("// The outline each view contributed, in plate-local metres (u right, v up,\n")
-        handle.write("// origin at the image centre), as a PATH: a start point and segments of\n")
-        handle.write("// type L or C, which THREE.Path accepts as they are. Drawn over the\n")
-        handle.write("// reference picture, so the trace can be judged where it came from.\n")
+        handle.write(
+            f"export const TRACE = {json.dumps(summary, separators=(',', ':'))};\n\n"
+        )
+        handle.write(
+            "// The outline each view contributed, in plate-local metres (u right, v up,\n"
+        )
+        handle.write(
+            "// origin at the image centre), as a PATH: a start point and segments of\n"
+        )
+        handle.write(
+            "// type L or C, which THREE.Path accepts as they are. Drawn over the\n"
+        )
+        handle.write(
+            "// reference picture, so the trace can be judged where it came from.\n"
+        )
         handle.write("//\n")
-        handle.write("// `mode`, `pitch_mm` and `tolerance_mm` say how it was sampled, and\n")
-        handle.write("// `deviation_mm` is the measured distance from the traced points to the\n")
-        handle.write("// drawn line. The hull does NOT read this path: it re-samples the\n")
-        handle.write("// photograph at its own lattice, and that is where the surface\n")
+        handle.write(
+            "// `mode`, `pitch_mm` and `tolerance_mm` say how it was sampled, and\n"
+        )
+        handle.write(
+            "// `deviation_mm` is the measured distance from the traced points to the\n"
+        )
+        handle.write(
+            "// drawn line. The hull does NOT read this path: it re-samples the\n"
+        )
+        handle.write(
+            "// photograph at its own lattice, and that is where the surface\n"
+        )
         handle.write("// staircase comes from.\n")
-        handle.write(f"export const CONTOURS = {json.dumps(contours, separators=(',', ':'))};\n\n")
+        handle.write(
+            f"export const CONTOURS = {json.dumps(contours, separators=(',', ':'))};\n\n"
+        )
         handle.write("export const SECTIONS = [\n")
         for section in hull["sections"]:
-            cols = ",".join(f"[{c[0]},{c[1]},{c[2]},{c[3]}]" for c in section["columns"])
-            handle.write(f'  {{ z: {section["z"]}, columns: [{cols}] }},\n')
+            cols = ",".join(
+                f"[{c[0]},{c[1]},{c[2]},{c[3]}]" for c in section["columns"]
+            )
+            handle.write(f"  {{ z: {section['z']}, columns: [{cols}] }},\n")
         handle.write("];\n")
     print(f"module    {args.out}  {os.path.getsize(args.out) // 1024} KiB")
 

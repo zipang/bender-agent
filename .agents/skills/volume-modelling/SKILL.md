@@ -144,9 +144,10 @@ tool then has to find it again, and every one of those steps is a place to be wr
 python3 tools/blueprint/crop_reference.py --subject blueprints/<category>/<subject>
 ```
 
-It writes `cropped/<view>.png`, where the subject touches the frame, plus `cropped/manifest.json`
-with the box and the margin. The locked `reference.<ext>` is read only: the crop is derived and can
-be rebuilt at any time.
+It writes `cropped/<view>.webp`, where the subject touches the frame, plus `cropped/manifest.json`
+with the box and the margin. The locked `reference.webp` is read only. The crop is **lossless** and
+it is a modelling input: the calque and the hull tracer both convert its pixels to millimetres, so
+the tool decodes every file back and stops if one pixel moved. It is committed with its manifest.
 
 Two things the crop does **not** do, and they matter:
 
@@ -169,7 +170,7 @@ One file per subject, next to `notes.md`. The script writes it; no hand-editing 
 
 ```bash
 python3 tools/blueprint/view_scale.py \
-  blueprints/<category>/<subject>/cropped/left.png \
+  blueprints/<category>/<subject>/cropped/left.webp \
   --view left --length 3.521 --width 1.525 --height 1.400 \
   --source "manufacturer: 3521 x 1525 x 1400 mm" \
   --write blueprints/<category>/<subject>/dimensions.json
